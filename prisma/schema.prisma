@@ -1,0 +1,325 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  password      String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  memberships   WorkspaceMembership[]
+  invites       WorkspaceInvite[]
+  personalSettings PersonalSetting?
+}
+
+model Workspace {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  members       WorkspaceMembership[]
+  invites       WorkspaceInvite[]
+  numbers       WhatsAppNumber[]
+  contacts      Contact[]
+  templates     WhatsAppTemplate[]
+  sessionTemplates SessionTemplate[]
+  instagramAccounts InstagramAccount[]
+  campaigns     BroadcastCampaign[]
+  chatbots      Chatbot[]
+  apiKeys       ApiKey[]
+  ledgerEntries BillingLedgerEntry[]
+  usageLogs     UsageLog[]
+  businessSettings BusinessSetting?
+  customAttributes CustomAttributeDefinition[]
+  featureRequests FeatureRequest[]
+  issueReports    IssueReport[]
+  widgetSetting   WidgetSetting?
+  conversations   Conversation[]
+}
+
+model WorkspaceMembership {
+  id            String    @id @default(cuid())
+  role          String    @default("USER") // OWNER, ADMIN, USER
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE
+  userId        String
+  workspaceId   String
+  user          User      @relation(fields: [userId], references: [id])
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([userId, workspaceId])
+}
+
+model WorkspaceInvite {
+  id            String    @id @default(cuid())
+  email         String
+  role          String    @default("USER")
+  status        String    @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  workspaceId   String
+  invitedById   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  invitedBy     User      @relation(fields: [invitedById], references: [id])
+  createdAt     DateTime  @default(now())
+}
+
+model WhatsAppNumber {
+  id            String    @id @default(cuid())
+  name          String
+  phoneNumber   String
+  status        String    @default("CONNECTED")
+  autoReply     Boolean   @default(false)
+  workspaceId   String
+  chatbotId     String?
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  chatbot       Chatbot?  @relation(fields: [chatbotId], references: [id])
+  conversations Conversation[]
+  campaigns     BroadcastCampaign[]
+}
+
+model InstagramAccount {
+  id            String    @id @default(cuid())
+  name          String
+  instagramId   String    @unique
+  username      String?
+  accessToken   String?
+  status        String    @default("CONNECTED")
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  conversations Conversation[]
+  chatbots      Chatbot[]
+  createdAt     DateTime  @default(now())
+}
+
+model Contact {
+  id            String    @id @default(cuid())
+  name          String?
+  phoneNumber   String?
+  instagramId   String?
+  instagramUsername String?
+  avatar        String?
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  conversations Conversation[]
+  customValues  ContactCustomAttributeValue[]
+  listMemberships ContactListMember[]
+  permission    String    @default("ALLOWED") // ALLOWED, BLOCKED
+  createdAt     DateTime  @default(now())
+}
+
+model Conversation {
+  id            String    @id @default(cuid())
+  status        String    @default("ACTIVE") // ACTIVE, ARCHIVED, SPAM
+  channelType   String    @default("WHATSAPP") // WHATSAPP, INSTAGRAM
+  lastMessageAt DateTime  @default(now())
+  contactId     String
+  workspaceId   String
+  numberId      String?
+  instagramAccountId String?
+  contact       Contact   @relation(fields: [contactId], references: [id])
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  number        WhatsAppNumber? @relation(fields: [numberId], references: [id])
+  instagramAccount InstagramAccount? @relation(fields: [instagramAccountId], references: [id])
+  messages      Message[]
+  notes         ConversationNote[]
+}
+
+model Message {
+  id            String    @id @default(cuid())
+  content       String
+  type          String    @default("TEXT") // TEXT, IMAGE, DOCUMENT, TEMPLATE
+  direction     String    // INCOMING, OUTGOING
+  senderType    String    @default("USER") // USER, AI_BOT, SYSTEM
+  senderName    String?
+  status        String    @default("SENT") // SENT, DELIVERED, READ, FAILED
+  isInternal    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  conversationId String
+  conversation  Conversation @relation(fields: [conversationId], references: [id])
+}
+
+model ConversationNote {
+  id            String    @id @default(cuid())
+  content       String
+  createdAt     DateTime  @default(now())
+  conversationId String
+  conversation  Conversation @relation(fields: [conversationId], references: [id])
+}
+
+model WhatsAppTemplate {
+  id            String    @id @default(cuid())
+  name          String
+  content       String
+  category      String
+  language      String
+  status        String    @default("APPROVED")
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model SessionTemplate {
+  id            String    @id @default(cuid())
+  name          String
+  content       String
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model BroadcastCampaign {
+  id            String    @id @default(cuid())
+  name          String
+  status        String    @default("DRAFT") // DRAFT, SCHEDULED, SENDING, COMPLETED
+  scheduledAt   DateTime?
+  templateId    String?
+  numberId      String
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  number        WhatsAppNumber @relation(fields: [numberId], references: [id])
+  recipients    BroadcastRecipient[]
+}
+
+model BroadcastRecipient {
+  id            String    @id @default(cuid())
+  phoneNumber   String
+  status        String    @default("PENDING")
+  campaignId    String
+  campaign      BroadcastCampaign @relation(fields: [campaignId], references: [id])
+}
+
+model Chatbot {
+  id            String    @id @default(cuid())
+  name          String
+  instructions  String
+  enabled       Boolean   @default(true)
+  language      String    @default("en")
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  numbers       WhatsAppNumber[]
+  instagramAccounts InstagramAccount[]
+  tools         ChatbotTool[]
+}
+
+model ChatbotTool {
+  id            String    @id @default(cuid())
+  name          String
+  description   String
+  enabled       Boolean   @default(true)
+  chatbotId     String
+  chatbot       Chatbot   @relation(fields: [chatbotId], references: [id])
+}
+
+model CustomAttributeDefinition {
+  id            String    @id @default(cuid())
+  name          String
+  key           String
+  type          String    @default("STRING")
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  values        ContactCustomAttributeValue[]
+}
+
+model ContactCustomAttributeValue {
+  id            String    @id @default(cuid())
+  value         String
+  contactId     String
+  definitionId  String
+  contact       Contact   @relation(fields: [contactId], references: [id])
+  definition    CustomAttributeDefinition @relation(fields: [definitionId], references: [id])
+}
+
+model ContactList {
+  id            String    @id @default(cuid())
+  name          String
+  workspaceId   String
+  members       ContactListMember[]
+}
+
+model ContactListMember {
+  id            String    @id @default(cuid())
+  contactId     String
+  listId        String
+  contact       Contact   @relation(fields: [contactId], references: [id])
+  list          ContactList @relation(fields: [listId], references: [id])
+}
+
+model ApiKey {
+  id            String    @id @default(cuid())
+  name          String
+  key           String    @unique
+  lastUsedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model BillingLedgerEntry {
+  id            String    @id @default(cuid())
+  amount        Float
+  type          String    // CREDIT, DEBIT
+  description   String
+  createdAt     DateTime  @default(now())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model UsageLog {
+  id            String    @id @default(cuid())
+  type          String    // MESSAGE, BROADCAST, AI_TOKEN
+  quantity      Int
+  cost          Float
+  createdAt     DateTime  @default(now())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model BusinessSetting {
+  id            String    @id @default(cuid())
+  timezone      String    @default("UTC")
+  workspaceId   String    @unique
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model PersonalSetting {
+  id            String    @id @default(cuid())
+  theme         String    @default("light")
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+}
+
+model WidgetSetting {
+  id            String    @id @default(cuid())
+  enabled       Boolean   @default(false)
+  domain        String?
+  themeColor    String    @default("#25D366")
+  welcomeText   String?
+  workspaceId   String    @unique
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model FeatureRequest {
+  id            String    @id @default(cuid())
+  title         String
+  description   String
+  status        String    @default("PENDING")
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt     DateTime  @default(now())
+}
+
+model IssueReport {
+  id            String    @id @default(cuid())
+  title         String
+  description   String
+  status        String    @default("OPEN")
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt     DateTime  @default(now())
+}

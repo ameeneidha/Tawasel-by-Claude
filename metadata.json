@@ -1,0 +1,9 @@
+{
+  "name": "OmniChannel WhatsApp SaaS",
+  "description": "A production-ready WhatsApp operations platform for businesses to manage conversations, broadcasts, AI chatbots, and team collaboration.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
