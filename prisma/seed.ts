@@ -1,4 +1,5 @@
 import prisma from '../src/lib/prisma';
+import bcrypt from 'bcryptjs';
 
 async function main() {
   console.log('Seeding database...');
@@ -40,7 +41,7 @@ async function main() {
     create: {
       email: 'ameeneidha@gmail.com',
       name: 'Ameen Eidha',
-      password: 'password123', // In real app, hash this
+      password: await bcrypt.hash('password123', 10),
     },
   });
 
@@ -50,7 +51,7 @@ async function main() {
     create: {
       email: 'team@example.com',
       name: 'Team Member',
-      password: 'password123',
+      password: await bcrypt.hash('password123', 10),
     },
   });
 

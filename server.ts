@@ -12,6 +12,8 @@ import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import Stripe from "stripe";
 import axios from "axios";
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -165,6 +167,21 @@ async function startServer() {
 
   app.use(express.json());
 
+  const requireAuth = (req: any, res: any, next: any) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+      req.user = decoded;
+      next();
+    } catch {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+  };
+
   // Socket.io connection handling
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
@@ -185,7 +202,7 @@ async function startServer() {
   });
 
   // Stripe Checkout
-  app.post("/api/billing/create-checkout-session", async (req, res) => {
+  app.post("/api/billing/create-checkout-session", requireAuth, async (req, res) => {
     if (!stripe) return res.status(500).json({ error: "Stripe not configured" });
     const { planId, workspaceId, successUrl, cancelUrl } = req.body;
 
@@ -210,7 +227,7 @@ async function startServer() {
   });
 
   // AI Chatbot Query
-  app.post("/api/chatbots/query", async (req, res) => {
+  app.post("/api/chatbots/query", requireAuth, async (req, res) => {
     const { chatbotId, message, conversationId } = req.body;
 
     try {
@@ -477,15 +494,18 @@ async function startServer() {
       where: { email },
       include: { memberships: { include: { workspace: true } } }
     });
-    
-    if (user && user.password === password) {
-      res.json({ user });
-    } else {
-      res.status(401).json({ error: "Invalid credentials" });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: "Invalid credentials" });
     }
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '7d' }
+    );
+    res.json({ token, user });
   });
 
-  app.get("/api/users/:id", async (req, res) => {
+  app.get("/api/users/:id", requireAuth, async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: req.params.id }
     });
@@ -494,7 +514,7 @@ async function startServer() {
   });
 
   // Workspace Routes
-  app.get("/api/workspaces", async (req, res) => {
+  app.get("/api/workspaces", requireAuth, async (req, res) => {
     const { userId } = req.query;
     const memberships = await prisma.workspaceMembership.findMany({
       where: { userId: userId as string },
@@ -503,7 +523,7 @@ async function startServer() {
     res.json(memberships.map(m => m.workspace));
   });
 
-  app.post("/api/workspaces", async (req, res) => {
+  app.post("/api/workspaces", requireAuth, async (req, res) => {
     const { name, userId } = req.body;
     console.log('Creating workspace for user:', userId, 'name:', name);
     if (!name || !userId) return res.status(400).json({ error: "Missing name or userId" });
@@ -564,7 +584,7 @@ async function startServer() {
   });
 
   // Inbox Routes
-  app.get("/api/conversations", async (req, res) => {
+  app.get("/api/conversations", requireAuth, async (req, res) => {
     const { workspaceId } = req.query;
     const conversations = await prisma.conversation.findMany({
       where: { workspaceId: workspaceId as string },
@@ -592,7 +612,7 @@ async function startServer() {
     res.json(conversations);
   });
 
-  app.get("/api/conversations/:id", async (req, res) => {
+  app.get("/api/conversations/:id", requireAuth, async (req, res) => {
     const conversation = await prisma.conversation.findUnique({
       where: { id: req.params.id },
       include: { 
@@ -615,7 +635,7 @@ async function startServer() {
     res.json(conversation);
   });
 
-  app.patch("/api/conversations/:id", async (req, res) => {
+  app.patch("/api/conversations/:id", requireAuth, async (req, res) => {
     const { assignedToId, priority, status, internalStatus, tags, resolvedAt, slaStatus } = req.body;
     
     const oldConv = await prisma.conversation.findUnique({ where: { id: req.params.id } });
@@ -649,7 +669,7 @@ async function startServer() {
     res.json(conversation);
   });
 
-  app.post("/api/messages", async (req, res) => {
+  app.post("/api/messages", requireAuth, async (req, res) => {
     const { conversationId, content, direction, senderType, isInternal, senderName } = req.body;
     
     const conversation = await prisma.conversation.findUnique({ where: { id: conversationId } });
@@ -756,7 +776,7 @@ async function startServer() {
   });
 
   // Socket.io Broadcast for manual messages
-  app.post("/api/messages/send", async (req, res) => {
+  app.post("/api/messages/send", requireAuth, async (req, res) => {
     const { conversationId, content, senderId, senderName } = req.body;
     
     try {
@@ -792,7 +812,7 @@ async function startServer() {
   });
 
   // Templates
-  app.get("/api/templates/whatsapp", async (req, res) => {
+  app.get("/api/templates/whatsapp", requireAuth, async (req, res) => {
     const { workspaceId } = req.query;
     const templates = await prisma.whatsAppTemplate.findMany({
       where: { workspaceId: workspaceId as string }
@@ -801,7 +821,7 @@ async function startServer() {
   });
 
   // Numbers
-  app.get("/api/numbers", async (req, res) => {
+  app.get("/api/numbers", requireAuth, async (req, res) => {
     const { workspaceId } = req.query;
     const numbers = await prisma.whatsAppNumber.findMany({
       where: { workspaceId: workspaceId as string },
@@ -811,7 +831,7 @@ async function startServer() {
   });
 
   // Instagram Accounts
-  app.get("/api/instagram/accounts", async (req, res) => {
+  app.get("/api/instagram/accounts", requireAuth, async (req, res) => {
     const { workspaceId } = req.query;
     const accounts = await prisma.instagramAccount.findMany({
       where: { workspaceId: workspaceId as string },
@@ -820,7 +840,7 @@ async function startServer() {
     res.json(accounts);
   });
 
-  app.post("/api/instagram/accounts", async (req, res) => {
+  app.post("/api/instagram/accounts", requireAuth, async (req, res) => {
     const { workspaceId, name, instagramId, username } = req.body;
     const account = await prisma.instagramAccount.create({
       data: {
@@ -835,7 +855,7 @@ async function startServer() {
   });
 
   // Chatbots
-  app.get("/api/chatbots", async (req, res) => {
+  app.get("/api/chatbots", requireAuth, async (req, res) => {
     const { workspaceId } = req.query;
     const chatbots = await prisma.chatbot.findMany({
       where: { workspaceId: workspaceId as string },
@@ -844,7 +864,7 @@ async function startServer() {
     res.json(chatbots);
   });
 
-  app.post("/api/chatbots", async (req, res) => {
+  app.post("/api/chatbots", requireAuth, async (req, res) => {
     const { workspaceId, name, instructions, model } = req.body;
     const chatbot = await prisma.chatbot.create({
       data: {
@@ -859,7 +879,7 @@ async function startServer() {
     res.json(chatbot);
   });
 
-  app.patch("/api/chatbots/:id", async (req, res) => {
+  app.patch("/api/chatbots/:id", requireAuth, async (req, res) => {
     const { name, instructions, model, enabled, language } = req.body;
     const chatbot = await prisma.chatbot.update({
       where: { id: req.params.id },
@@ -876,7 +896,7 @@ async function startServer() {
   });
 
   // Team
-  app.get("/api/team", async (req, res) => {
+  app.get("/api/team", requireAuth, async (req, res) => {
     const { workspaceId } = req.query;
     const members = await prisma.workspaceMembership.findMany({
       where: { workspaceId: workspaceId as string },
@@ -886,7 +906,7 @@ async function startServer() {
   });
 
   // Contacts / CRM
-  app.get("/api/contacts", async (req, res) => {
+  app.get("/api/contacts", requireAuth, async (req, res) => {
     const { workspaceId } = req.query;
     const contacts = await prisma.contact.findMany({
       where: { workspaceId: workspaceId as string },
@@ -900,7 +920,7 @@ async function startServer() {
     res.json(contacts);
   });
 
-  app.get("/api/contacts/:id", async (req, res) => {
+  app.get("/api/contacts/:id", requireAuth, async (req, res) => {
     const contact = await prisma.contact.findUnique({
       where: { id: req.params.id },
       include: {
@@ -913,7 +933,7 @@ async function startServer() {
     res.json(contact);
   });
 
-  app.patch("/api/contacts/:id", async (req, res) => {
+  app.patch("/api/contacts/:id", requireAuth, async (req, res) => {
     const { pipelineStage, name, phoneNumber, leadSource, tags, notes, assignedToId } = req.body;
     const oldContact = await prisma.contact.findUnique({ where: { id: req.params.id } });
     
@@ -937,7 +957,7 @@ async function startServer() {
   });
 
   // Tasks
-  app.get("/api/tasks", async (req, res) => {
+  app.get("/api/tasks", requireAuth, async (req, res) => {
     const { workspaceId, contactId, conversationId } = req.query;
     const tasks = await prisma.task.findMany({
       where: { 
@@ -950,7 +970,7 @@ async function startServer() {
     res.json(tasks);
   });
 
-  app.post("/api/tasks", async (req, res) => {
+  app.post("/api/tasks", requireAuth, async (req, res) => {
     const { title, description, dueDate, priority, assignedToId, contactId, conversationId, workspaceId } = req.body;
     const task = await prisma.task.create({
       data: {
@@ -978,7 +998,7 @@ async function startServer() {
     res.json(task);
   });
 
-  app.patch("/api/tasks/:id", async (req, res) => {
+  app.patch("/api/tasks/:id", requireAuth, async (req, res) => {
     const { status, title, description, dueDate, priority, assignedToId } = req.body;
     const task = await prisma.task.update({
       where: { id: req.params.id },
@@ -988,7 +1008,7 @@ async function startServer() {
   });
 
   // Automation Rules
-  app.get("/api/automation/rules", async (req, res) => {
+  app.get("/api/automation/rules", requireAuth, async (req, res) => {
     const { workspaceId } = req.query;
     const rules = await prisma.automationRule.findMany({
       where: { workspaceId: workspaceId as string }
@@ -996,7 +1016,7 @@ async function startServer() {
     res.json(rules);
   });
 
-  app.post("/api/automation/rules", async (req, res) => {
+  app.post("/api/automation/rules", requireAuth, async (req, res) => {
     const { name, trigger, conditions, actions, workspaceId } = req.body;
     const rule = await prisma.automationRule.create({
       data: {
@@ -1011,7 +1031,7 @@ async function startServer() {
   });
 
   // Activity Logs
-  app.get("/api/activity-logs", async (req, res) => {
+  app.get("/api/activity-logs", requireAuth, async (req, res) => {
     const { workspaceId, contactId, conversationId } = req.query;
     const logs = await prisma.activityLog.findMany({
       where: {
@@ -1026,7 +1046,7 @@ async function startServer() {
   });
 
   // Campaigns
-  app.get("/api/campaigns", async (req, res) => {
+  app.get("/api/campaigns", requireAuth, async (req, res) => {
     const { workspaceId } = req.query;
     const campaigns = await prisma.broadcastCampaign.findMany({
       where: { workspaceId: workspaceId as string },
@@ -1038,7 +1058,7 @@ async function startServer() {
   });
 
   // Billing
-  app.get("/api/billing/ledger", async (req, res) => {
+  app.get("/api/billing/ledger", requireAuth, async (req, res) => {
     const { workspaceId } = req.query;
     const ledger = await prisma.billingLedgerEntry.findMany({
       where: { workspaceId: workspaceId as string },
@@ -1048,7 +1068,7 @@ async function startServer() {
   });
 
   // Bootstrap Route
-  app.post("/api/dev/bootstrap", async (req, res) => {
+  app.post("/api/dev/bootstrap", requireAuth, async (req, res) => {
     try {
       // 1. Ensure User exists
       const user = await prisma.user.upsert({
@@ -1091,7 +1111,7 @@ async function startServer() {
     }
   });
   // Superadmin Routes
-  app.get("/api/superadmin/stats", async (req, res) => {
+  app.get("/api/superadmin/stats", requireAuth, async (req, res) => {
     const [totalUsers, totalWorkspaces, totalMessages, ledgerEntries] = await Promise.all([
       prisma.user.count(),
       prisma.workspace.count(),
@@ -1110,7 +1130,7 @@ async function startServer() {
   });
 
   // Dev Seeding Route
-  app.post("/api/dev/seed", async (req, res) => {
+  app.post("/api/dev/seed", requireAuth, async (req, res) => {
     const { workspaceId, userId } = req.body;
     if (!workspaceId || !userId) return res.status(400).json({ error: "Missing workspaceId or userId" });
 
@@ -1183,7 +1203,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/superadmin/workspaces", async (req, res) => {
+  app.get("/api/superadmin/workspaces", requireAuth, async (req, res) => {
     const workspaces = await prisma.workspace.findMany({
       include: {
         members: { take: 1 },

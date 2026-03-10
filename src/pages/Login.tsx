@@ -25,7 +25,7 @@ export default function Login() {
     setError('');
     try {
       const res = await axios.post('/api/auth/login', { email, password });
-      setUser(res.data.user);
+      setUser(res.data.user, res.data.token);
       navigate('/app');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');

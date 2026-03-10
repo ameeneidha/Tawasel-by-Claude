@@ -16,9 +16,10 @@ interface Workspace {
 
 interface AppContextType {
   user: User | null;
+  token: string | null;
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
-  setUser: (user: User | null) => void;
+  setUser: (user: User | null, token: string | null) => void;
   setActiveWorkspace: (workspace: Workspace | null) => void;
   isLoading: boolean;
 }
@@ -27,28 +28,48 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
-    if (savedUser) {
+    const savedToken = localStorage.getItem('token');
+    
+    if (savedUser && savedToken) {
       const parsedUser = JSON.parse(savedUser);
+      setToken(savedToken);
+      
+      // Configure axios with token
+      axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+      
       // Verify user still exists and get fresh data
       axios.get(`/api/users/${parsedUser.id}`).then(res => {
         setUser(res.data);
         localStorage.setItem('user', JSON.stringify(res.data));
         fetchWorkspaces(res.data.id);
       }).catch(() => {
-        // If user not found, clear session
-        setUser(null);
-        localStorage.removeItem('user');
+        // If user not found or token invalid, clear session
+        handleSetUser(null, null);
         setIsLoading(false);
       });
     } else {
       setIsLoading(false);
     }
+
+    // Add interceptor for 401 errors
+    const interceptor = axios.interceptors.response.use(
+      response => response,
+      error => {
+        if (error.response?.status === 401) {
+          handleSetUser(null, null);
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => axios.interceptors.response.eject(interceptor);
   }, []);
 
   const fetchWorkspaces = async (userId: string) => {
@@ -72,14 +93,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleSetUser = (u: User | null) => {
+  const handleSetUser = (u: User | null, t: string | null) => {
     setUser(u);
-    if (u) {
+    setToken(t);
+    if (u && t) {
       localStorage.setItem('user', JSON.stringify(u));
+      localStorage.setItem('token', t);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${t}`;
       fetchWorkspaces(u.id);
     } else {
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
       localStorage.removeItem('activeWorkspaceId');
+      delete axios.defaults.headers.common['Authorization'];
       setWorkspaces([]);
       setActiveWorkspace(null);
     }
@@ -97,6 +123,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{ 
       user, 
+      token,
       workspaces, 
       activeWorkspace, 
       setUser: handleSetUser, 
