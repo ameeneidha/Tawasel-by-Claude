@@ -615,7 +615,8 @@ function Billing() {
                   onClick={async () => {
                     try {
                       const res = await axios.post('/api/billing/create-checkout-session', {
-                        planId: key, // In a real app, this would be a Stripe Price ID
+                        planId: PLANS[key].stripePriceId,
+                        planKey: key,
                         workspaceId: activeWorkspace?.id,
                         successUrl: `${window.location.origin}/app/settings/billing?success=true`,
                         cancelUrl: `${window.location.origin}/app/settings/billing?canceled=true`

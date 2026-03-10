@@ -195,8 +195,15 @@ export default function Sidebar() {
 
               <DropdownMenu.Separator className="h-px bg-gray-100 dark:bg-slate-800 my-1" />
 
+              <div className="px-3 py-2 text-[10px] text-gray-400 text-center">
+                <p>© {new Date().getFullYear()} WABA Hub</p>
+                <p>Created by <a href="https://quantops.ae" target="_blank" rel="noopener noreferrer" className="text-[#25D366] hover:underline">Quantops.ae</a></p>
+              </div>
+
+              <DropdownMenu.Separator className="h-px bg-gray-100 dark:bg-slate-800 my-1" />
+
               <DropdownMenu.Item 
-                onClick={() => setUser(null)}
+                onClick={() => setUser(null, null)}
                 className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 rounded-lg cursor-pointer outline-none hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 <LogOut className="w-4 h-4" />

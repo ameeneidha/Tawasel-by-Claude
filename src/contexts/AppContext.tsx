@@ -5,6 +5,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  emailVerified: boolean;
 }
 
 interface Workspace {
@@ -21,6 +22,7 @@ interface AppContextType {
   activeWorkspace: Workspace | null;
   setUser: (user: User | null, token: string | null) => void;
   setActiveWorkspace: (workspace: Workspace | null) => void;
+  verifyEmail: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -120,6 +122,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const verifyEmail = async () => {
+    try {
+      const res = await axios.post('/api/auth/verify-email');
+      if (res.data.success) {
+        const updatedUser = { ...user!, emailVerified: true };
+        setUser(updatedUser, token);
+      }
+    } catch (error) {
+      console.error('Failed to verify email', error);
+      throw error;
+    }
+  };
+
   return (
     <AppContext.Provider value={{ 
       user, 
@@ -128,6 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       activeWorkspace, 
       setUser: handleSetUser, 
       setActiveWorkspace: handleSetActiveWorkspace,
+      verifyEmail,
       isLoading 
     }}>
       {children}

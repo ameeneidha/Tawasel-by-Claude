@@ -122,15 +122,24 @@ async function startServer() {
       case 'checkout.session.completed':
         const session = event.data.object as Stripe.Checkout.Session;
         const workspaceId = session.metadata?.workspaceId;
+        const planKey = session.metadata?.planKey;
         if (workspaceId) {
           // Update workspace billing status or add credits
-          console.log(`Payment successful for workspace: ${workspaceId}`);
+          console.log(`Payment successful for workspace: ${workspaceId}, plan: ${planKey}`);
+          
+          if (planKey) {
+            await prisma.workspace.update({
+              where: { id: workspaceId },
+              data: { plan: planKey }
+            });
+          }
+
           await prisma.billingLedgerEntry.create({
             data: {
               workspaceId,
               amount: (session.amount_total || 0) / 100,
               type: 'CREDIT',
-              description: 'Subscription payment'
+              description: `Subscription payment - ${planKey || 'Plan'}`
             }
           });
         }
@@ -204,7 +213,7 @@ async function startServer() {
   // Stripe Checkout
   app.post("/api/billing/create-checkout-session", requireAuth, async (req, res) => {
     if (!stripe) return res.status(500).json({ error: "Stripe not configured" });
-    const { planId, workspaceId, successUrl, cancelUrl } = req.body;
+    const { planId, planKey, workspaceId, successUrl, cancelUrl } = req.body;
 
     try {
       const session = await stripe.checkout.sessions.create({
@@ -218,7 +227,7 @@ async function startServer() {
         mode: "subscription",
         success_url: successUrl,
         cancel_url: cancelUrl,
-        metadata: { workspaceId },
+        metadata: { workspaceId, planKey },
       });
       res.json({ url: session.url });
     } catch (e: any) {
@@ -488,6 +497,69 @@ async function startServer() {
   });
 
   // Auth Mock (For demo purposes)
+  app.post("/api/auth/register", async (req, res) => {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "Missing name, email or password" });
+    }
+
+    try {
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+      if (existingUser) {
+        return res.status(400).json({ error: "User already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await prisma.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          emailVerified: false,
+        },
+      });
+
+      // Create initial workspace for the user
+      const workspace = await prisma.workspace.create({
+        data: {
+          name: `${name}'s Workspace`,
+          slug: `${name.toLowerCase().replace(/ /g, '-')}-${Date.now()}`,
+          plan: 'STARTER',
+        }
+      });
+
+      await prisma.workspaceMembership.create({
+        data: {
+          userId: user.id,
+          workspaceId: workspace.id,
+          role: 'OWNER'
+        }
+      });
+
+      const token = jwt.sign(
+        { userId: user.id, email: user.email },
+        process.env.JWT_SECRET || 'fallback-secret',
+        { expiresIn: '7d' }
+      );
+
+      res.json({ token, user });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/auth/verify-email", requireAuth, async (req, res) => {
+    try {
+      const user = await prisma.user.update({
+        where: { id: (req as any).user.userId },
+        data: { emailVerified: true }
+      });
+      res.json({ success: true, user });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
     const user = await prisma.user.findUnique({

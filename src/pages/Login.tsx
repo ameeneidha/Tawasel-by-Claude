@@ -15,7 +15,11 @@ export default function Login() {
 
   useEffect(() => {
     if (user) {
-      navigate('/app');
+      if (sessionStorage.getItem('pendingPlan')) {
+        navigate('/');
+      } else {
+        navigate('/app');
+      }
     }
   }, [user, navigate]);
 
@@ -26,7 +30,12 @@ export default function Login() {
     try {
       const res = await axios.post('/api/auth/login', { email, password });
       setUser(res.data.user, res.data.token);
-      navigate('/app');
+      
+      if (sessionStorage.getItem('pendingPlan')) {
+        navigate('/');
+      } else {
+        navigate('/app');
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
     } finally {

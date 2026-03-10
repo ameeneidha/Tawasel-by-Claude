@@ -6,6 +6,7 @@ export const PLANS = {
     chatbotLimit: 1,
     userLimit: 1,
     price: 99,
+    stripePriceId: 'price_1T9Wo7I1cBVPBGguaxTuXskN',
   },
   GROWTH: {
     name: 'Growth',
@@ -14,6 +15,7 @@ export const PLANS = {
     chatbotLimit: 3,
     userLimit: 3,
     price: 299,
+    stripePriceId: 'price_1T9WoUI1cBVPBGgu1kSpUzUa',
   },
   PRO: {
     name: 'Pro',
@@ -22,6 +24,7 @@ export const PLANS = {
     chatbotLimit: 10,
     userLimit: 5,
     price: 599,
+    stripePriceId: 'price_1T9WorI1cBVPBGguvOq6RbCO',
   },
 };
 
