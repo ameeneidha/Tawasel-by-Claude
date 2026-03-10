@@ -3,6 +3,7 @@ import { AppProvider } from './contexts/AppContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import AppLayout from './layouts/AppLayout';
 import Login from './pages/Login';
+import Home from './pages/Home';
 import Inbox from './pages/Inbox';
 import Compose from './pages/Compose';
 import Broadcast from './pages/Broadcast';
@@ -26,6 +27,7 @@ export default function App() {
       <AppProvider>
         <BrowserRouter>
           <Routes>
+            <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/app" element={<AppLayout />}>
               <Route index element={<Navigate to="/app/inbox" replace />} />
@@ -45,7 +47,6 @@ export default function App() {
               <Route path="web-chat-widget" element={<WebChatWidget />} />
               <Route path="settings/*" element={<Settings />} />
             </Route>
-            <Route path="/" element={<Navigate to="/app" replace />} />
           </Routes>
         </BrowserRouter>
         <Toaster position="top-right" />
