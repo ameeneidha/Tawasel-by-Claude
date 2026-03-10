@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
+    "start": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
@@ -40,11 +41,15 @@
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
     "motion": "^12.35.1",
+    "openai": "^6.27.0",
     "prisma": "^6.4.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.13.1",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "sonner": "^2.0.7",
+    "stripe": "^20.4.1",
     "tailwind-merge": "^3.5.0",
     "vite": "^6.2.0",
     "zod": "^4.3.6"

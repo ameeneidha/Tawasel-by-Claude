@@ -7,7 +7,7 @@ export default function AppLayout() {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[#F8F9FA]">
+      <div className="h-screen w-screen flex items-center justify-center bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
         <div className="w-12 h-12 border-4 border-[#25D366]/20 border-t-[#25D366] rounded-full animate-spin" />
       </div>
     );
@@ -18,7 +18,7 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-[#F8F9FA] overflow-hidden">
+    <div className="flex h-screen bg-[#F8F9FA] dark:bg-slate-950 overflow-hidden transition-colors">
       <Sidebar />
       <main className="flex-1 overflow-hidden relative">
         <Outlet />

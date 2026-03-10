@@ -49,24 +49,24 @@ export default function Templates() {
   };
 
   return (
-    <div className="h-full bg-[#F8F9FA] p-8 overflow-y-auto">
+    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 p-8 overflow-y-auto transition-colors">
       <div className="max-w-6xl mx-auto">
         <Tabs.Root defaultValue="whatsapp" className="space-y-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Message Templates</h1>
-              <p className="text-gray-500 mt-1">Manage reusable message structures for your business.</p>
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Message Templates</h1>
+              <p className="text-gray-500 dark:text-gray-400 mt-1">Manage reusable message structures for your business.</p>
             </div>
-            <Tabs.List className="bg-white p-1 rounded-xl border border-gray-100 flex gap-1">
+            <Tabs.List className="bg-white dark:bg-slate-900 p-1 rounded-xl border border-gray-100 dark:border-slate-800 flex gap-1 transition-colors">
               <Tabs.Trigger 
                 value="whatsapp"
-                className="px-4 py-1.5 text-sm font-medium rounded-lg transition-all data-[state=active]:bg-[#25D366] data-[state=active]:text-white text-gray-500"
+                className="px-4 py-1.5 text-sm font-medium rounded-lg transition-all data-[state=active]:bg-[#25D366] data-[state=active]:text-white text-gray-500 dark:text-gray-400"
               >
                 WhatsApp
               </Tabs.Trigger>
               <Tabs.Trigger 
                 value="session"
-                className="px-4 py-1.5 text-sm font-medium rounded-lg transition-all data-[state=active]:bg-[#25D366] data-[state=active]:text-white text-gray-500"
+                className="px-4 py-1.5 text-sm font-medium rounded-lg transition-all data-[state=active]:bg-[#25D366] data-[state=active]:text-white text-gray-500 dark:text-gray-400"
               >
                 Session
               </Tabs.Trigger>
@@ -77,18 +77,18 @@ export default function Templates() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4 flex-1 max-w-md">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
                   <input 
                     type="text" 
                     placeholder="Search templates..."
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#25D366]/10"
+                    className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#25D366]/10 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 transition-colors"
                   />
                 </div>
-                <button className="p-2 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-gray-600">
+                <button className="p-2 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
                   <Filter className="w-4 h-4" />
                 </button>
               </div>
-              <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all shadow-sm">
+              <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all shadow-sm">
                 <RefreshCw className="w-4 h-4" />
                 Sync from WhatsApp
               </button>
@@ -107,11 +107,11 @@ export default function Templates() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4 flex-1 max-w-md">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
                   <input 
                     type="text" 
                     placeholder="Search session templates..."
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#25D366]/10"
+                    className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#25D366]/10 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 transition-colors"
                   />
                 </div>
               </div>
@@ -140,41 +140,41 @@ function TemplateCard({ template, type }: { template: any, type: 'whatsapp' | 's
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
+      className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group"
     >
       <div className="flex items-start justify-between mb-4">
-        <div className="p-2 bg-gray-50 text-gray-600 rounded-xl">
+        <div className="p-2 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-400 rounded-xl transition-colors">
           <FileText className="w-5 h-5" />
         </div>
         <div className="flex items-center gap-2">
           {type === 'whatsapp' && (
-            <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded uppercase">Approved</span>
+            <span className="px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-[10px] font-bold rounded uppercase">Approved</span>
           )}
-          <button className="p-1 text-gray-400 hover:text-gray-600">
+          <button className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
             <MoreVertical className="w-5 h-5" />
           </button>
         </div>
       </div>
-      <h3 className="font-semibold text-gray-900 mb-2 truncate">{template.name}</h3>
-      <div className="bg-gray-50 p-3 rounded-xl mb-4 min-h-[80px]">
-        <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed">
+      <h3 className="font-semibold text-gray-900 dark:text-white mb-2 truncate">{template.name}</h3>
+      <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded-xl mb-4 min-h-[80px] transition-colors">
+        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3 leading-relaxed">
           {template.content}
         </p>
       </div>
-      <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+      <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-slate-800 transition-colors">
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+          <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
             {type === 'whatsapp' ? template.category : 'Session'}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button className="p-1.5 text-gray-400 hover:text-[#25D366] hover:bg-[#25D366]/5 rounded-lg transition-colors">
+          <button className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-[#25D366] hover:bg-[#25D366]/5 rounded-lg transition-colors">
             <Copy className="w-4 h-4" />
           </button>
-          <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+          <button className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
             <Edit className="w-4 h-4" />
           </button>
-          <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+          <button className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
             <Trash2 className="w-4 h-4" />
           </button>
         </div>

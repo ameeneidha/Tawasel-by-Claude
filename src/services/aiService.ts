@@ -1,8 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// The platform injects GEMINI_API_KEY into the environment.
+// In the frontend, this is typically available via process.env.GEMINI_API_KEY
+// if the build system is configured to define it.
+const getAI = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not defined");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 export async function generateReplySuggestions(conversationHistory: { content: string; senderType: string }[]) {
+  const ai = getAI();
   const model = "gemini-3-flash-preview";
   
   const historyString = conversationHistory
@@ -33,9 +43,44 @@ export async function generateReplySuggestions(conversationHistory: { content: s
     const text = response.text;
     if (!text) return [];
     
-    return JSON.parse(text) as string[];
+    try {
+      return JSON.parse(text) as string[];
+    } catch (e) {
+      console.error("Failed to parse AI suggestions JSON:", text);
+      return [];
+    }
   } catch (error) {
     console.error("Error generating suggestions:", error);
-    return [];
+    throw error; // Let the caller handle it
+  }
+}
+
+export async function summarizeConversation(conversationHistory: { content: string; senderType: string }[]) {
+  const ai = getAI();
+  const model = "gemini-3-flash-preview";
+  
+  const historyString = conversationHistory
+    .map((msg) => `${msg.senderType}: ${msg.content}`)
+    .join("\n");
+
+  const prompt = `
+    Summarize the following conversation history between a customer and a business in the UAE.
+    Highlight the main intent, key issues, and any next steps for the agent.
+    Keep it concise (max 3 sentences).
+    
+    Conversation History:
+    ${historyString}
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: [{ parts: [{ text: prompt }] }],
+    });
+
+    return response.text || "No summary available.";
+  } catch (error) {
+    console.error("Error generating summary:", error);
+    throw error;
   }
 }

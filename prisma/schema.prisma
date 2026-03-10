@@ -18,12 +18,14 @@ model User {
   memberships   WorkspaceMembership[]
   invites       WorkspaceInvite[]
   personalSettings PersonalSetting?
+  assignedConversations Conversation[] @relation("AssignedConversations")
 }
 
 model Workspace {
   id            String    @id @default(cuid())
   name          String
   slug          String    @unique
+  plan          String    @default("STARTER") // STARTER, PRO, ENTERPRISE
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
@@ -45,6 +47,9 @@ model Workspace {
   issueReports    IssueReport[]
   widgetSetting   WidgetSetting?
   conversations   Conversation[]
+  tasks           Task[]
+  activities      ActivityLog[]
+  automationRules AutomationRule[]
 }
 
 model WorkspaceMembership {
@@ -93,9 +98,10 @@ model InstagramAccount {
   accessToken   String?
   status        String    @default("CONNECTED")
   workspaceId   String
+  chatbotId     String?
   workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  chatbot       Chatbot?  @relation(fields: [chatbotId], references: [id])
   conversations Conversation[]
-  chatbots      Chatbot[]
   createdAt     DateTime  @default(now())
 }
 
@@ -106,11 +112,19 @@ model Contact {
   instagramId   String?
   instagramUsername String?
   avatar        String?
+  pipelineStage String    @default("NEW_LEAD") // NEW_LEAD, CONTACTED, QUALIFIED, QUOTE_SENT, WON, LOST
+  leadSource    String?
+  lastCampaignId String?
+  tags          String?   // Comma separated tags
+  notes         String?
   workspaceId   String
+  assignedToId  String?
   workspace     Workspace @relation(fields: [workspaceId], references: [id])
   conversations Conversation[]
   customValues  ContactCustomAttributeValue[]
   listMemberships ContactListMember[]
+  tasks         Task[]
+  activities    ActivityLog[]
   permission    String    @default("ALLOWED") // ALLOWED, BLOCKED
   createdAt     DateTime  @default(now())
 }
@@ -118,18 +132,29 @@ model Contact {
 model Conversation {
   id            String    @id @default(cuid())
   status        String    @default("ACTIVE") // ACTIVE, ARCHIVED, SPAM
+  internalStatus String   @default("OPEN") // OPEN, WAITING_FOR_CUSTOMER, WAITING_FOR_INTERNAL, RESOLVED
   channelType   String    @default("WHATSAPP") // WHATSAPP, INSTAGRAM
   lastMessageAt DateTime  @default(now())
+  firstResponseAt DateTime?
+  resolvedAt    DateTime?
+  priority      String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  assignedToId  String?
+  slaDeadline   DateTime?
+  slaStatus     String    @default("OK") // OK, BREACHED
+  tags          String?   // Comma separated tags for simplicity in SQLite
   contactId     String
   workspaceId   String
   numberId      String?
   instagramAccountId String?
   contact       Contact   @relation(fields: [contactId], references: [id])
   workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  assignedTo    User?     @relation("AssignedConversations", fields: [assignedToId], references: [id])
   number        WhatsAppNumber? @relation(fields: [numberId], references: [id])
   instagramAccount InstagramAccount? @relation(fields: [instagramAccountId], references: [id])
   messages      Message[]
   notes         ConversationNote[]
+  tasks         Task[]
+  activities    ActivityLog[]
 }
 
 model Message {
@@ -181,9 +206,57 @@ model BroadcastCampaign {
   templateId    String?
   numberId      String
   workspaceId   String
+  deliveredCount Int      @default(0)
+  readCount      Int      @default(0)
+  repliedCount   Int      @default(0)
   workspace     Workspace @relation(fields: [workspaceId], references: [id])
   number        WhatsAppNumber @relation(fields: [numberId], references: [id])
   recipients    BroadcastRecipient[]
+}
+
+model Task {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  dueDate       DateTime?
+  priority      String    @default("MEDIUM") // LOW, MEDIUM, HIGH
+  status        String    @default("PENDING") // PENDING, COMPLETED
+  assignedToId  String?
+  contactId     String?
+  conversationId String?
+  workspaceId   String
+  contact       Contact?  @relation(fields: [contactId], references: [id])
+  conversation  Conversation? @relation(fields: [conversationId], references: [id])
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model ActivityLog {
+  id            String    @id @default(cuid())
+  type          String    // STAGE_CHANGE, ASSIGNMENT, NOTE_ADDED, TASK_CREATED, MESSAGE_SENT, SLA_BREACH
+  content       String
+  metadata      String?   // JSON string for extra data
+  contactId     String?
+  conversationId String?
+  workspaceId   String
+  userId        String?
+  contact       Contact?  @relation(fields: [contactId], references: [id])
+  conversation  Conversation? @relation(fields: [conversationId], references: [id])
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt     DateTime  @default(now())
+}
+
+model AutomationRule {
+  id            String    @id @default(cuid())
+  name          String
+  trigger       String    // KEYWORD, INACTIVITY, NEW_LEAD, STAGE_CHANGE
+  conditions    String    // JSON string for conditions
+  actions       String    // JSON string for actions
+  enabled       Boolean   @default(true)
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt     DateTime  @default(now())
 }
 
 model BroadcastRecipient {
@@ -198,6 +271,7 @@ model Chatbot {
   id            String    @id @default(cuid())
   name          String
   instructions  String
+  model         String    @default("gpt-4o-mini")
   enabled       Boolean   @default(true)
   language      String    @default("en")
   workspaceId   String

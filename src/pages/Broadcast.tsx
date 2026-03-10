@@ -30,21 +30,21 @@ export default function Broadcast() {
   }, [activeWorkspace]);
 
   const fetchCampaigns = async () => {
-    // Mock campaigns for now
-    setCampaigns([
-      { id: '1', name: 'Ramadan Special Offer', status: 'COMPLETED', sentCount: 1250, date: '2024-03-01' },
-      { id: '2', name: 'Service Reminder - heavy bus', status: 'SCHEDULED', sentCount: 450, date: '2024-03-15' },
-      { id: '3', name: 'New Location Announcement', status: 'DRAFT', sentCount: 0, date: '2024-03-08' },
-    ]);
+    try {
+      const res = await axios.get(`/api/campaigns?workspaceId=${activeWorkspace?.id}`);
+      setCampaigns(res.data);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
-    <div className="h-full bg-[#F8F9FA] p-8 overflow-y-auto">
+    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 p-8 overflow-y-auto transition-colors">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Broadcast Campaigns</h1>
-            <p className="text-gray-500 mt-1">Manage and schedule bulk message campaigns.</p>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Broadcast Campaigns</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">Manage and schedule bulk message campaigns.</p>
           </div>
           <button 
             onClick={() => setIsCreating(true)}
@@ -64,37 +64,51 @@ export default function Broadcast() {
                 key={campaign.id}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
+                className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className={cn(
                     "p-2 rounded-xl",
-                    campaign.status === 'COMPLETED' ? "bg-green-50 text-green-600" :
-                    campaign.status === 'SCHEDULED' ? "bg-blue-50 text-blue-600" : "bg-gray-50 text-gray-600"
+                    campaign.status === 'COMPLETED' ? "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400" :
+                    campaign.status === 'SCHEDULED' ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" : "bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-400"
                   )}>
                     <Radio className="w-5 h-5" />
                   </div>
-                  <button className="p-1 text-gray-400 hover:text-gray-600">
+                  <button className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
                     <MoreHorizontal className="w-5 h-5" />
                   </button>
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-1">{campaign.name}</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{campaign.name}</h3>
                 <div className="flex items-center gap-2 mb-4">
                   <span className={cn(
                     "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
-                    campaign.status === 'COMPLETED' ? "bg-green-100 text-green-700" :
-                    campaign.status === 'SCHEDULED' ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700"
+                    campaign.status === 'COMPLETED' ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" :
+                    campaign.status === 'SCHEDULED' ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" : "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300"
                   )}>
                     {campaign.status}
                   </span>
-                  <span className="text-[10px] text-gray-400">
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">
                     {format(new Date(campaign.date), 'MMM dd, yyyy')}
                   </span>
                 </div>
-                <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <div className="text-center p-2 bg-gray-50 dark:bg-slate-800 rounded-lg transition-colors">
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">Delivered</p>
+                    <p className="text-xs font-bold text-gray-900 dark:text-white">{campaign.deliveredCount || 0}</p>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 dark:bg-slate-800 rounded-lg transition-colors">
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">Read</p>
+                    <p className="text-xs font-bold text-gray-900 dark:text-white">{campaign.readCount || 0}</p>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 dark:bg-slate-800 rounded-lg transition-colors">
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">Replied</p>
+                    <p className="text-xs font-bold text-gray-900 dark:text-white">{campaign.repliedCount || 0}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-slate-800 transition-colors">
                   <div className="flex items-center gap-1.5">
-                    <Users className="w-4 h-4 text-gray-400" />
-                    <span className="text-xs font-medium text-gray-700">{campaign.sentCount} recipients</span>
+                    <Users className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{campaign.sentCount} recipients</span>
                   </div>
                   <button className="text-xs font-bold text-[#25D366] flex items-center gap-1 group-hover:gap-2 transition-all">
                     View Details
@@ -117,15 +131,15 @@ function BroadcastBuilder({ onCancel }: { onCancel: () => void }) {
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+      className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden transition-colors"
     >
-      <div className="flex border-b border-gray-100">
+      <div className="flex border-b border-gray-100 dark:border-slate-800">
         {[1, 2, 3].map((s) => (
           <div 
             key={s}
             className={cn(
               "flex-1 py-4 text-center text-sm font-medium transition-colors relative",
-              step === s ? "text-[#25D366]" : "text-gray-400"
+              step === s ? "text-[#25D366]" : "text-gray-400 dark:text-gray-500"
             )}
           >
             Step {s}: {s === 1 ? 'Setup' : s === 2 ? 'Content' : 'Review'}
@@ -138,25 +152,33 @@ function BroadcastBuilder({ onCancel }: { onCancel: () => void }) {
         {step === 1 && (
           <div className="space-y-6 max-w-xl mx-auto">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Campaign Name</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Campaign Name</label>
               <input
                 type="text"
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#25D366]/20 outline-none"
+                className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#25D366]/20 outline-none text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 transition-colors"
                 placeholder="e.g. Ramadan Offer 2024"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">From Sender</label>
-              <select className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">From Sender</label>
+              <select className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg outline-none text-gray-900 dark:text-white transition-colors">
                 <option>Support Line (+971 50 123 4567)</option>
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">To Contact List</label>
-              <select className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none">
-                <option>All Customers (1,250)</option>
-                <option>VIP Clients (120)</option>
-                <option>Inactive Users (450)</option>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">To Contact List / Segment</label>
+              <select className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg outline-none text-gray-900 dark:text-white transition-colors">
+                <optgroup label="Static Lists" className="dark:bg-slate-900">
+                  <option>All Customers (1,250)</option>
+                  <option>VIP Clients (120)</option>
+                  <option>Inactive Users (450)</option>
+                </optgroup>
+                <optgroup label="CRM Segments (Pipeline Stage)" className="dark:bg-slate-900">
+                  <option>New Leads (320)</option>
+                  <option>Qualified Leads (150)</option>
+                  <option>Quote Sent (85)</option>
+                  <option>Won Customers (45)</option>
+                </optgroup>
               </select>
             </div>
           </div>
@@ -166,22 +188,22 @@ function BroadcastBuilder({ onCancel }: { onCancel: () => void }) {
           <div className="grid grid-cols-2 gap-8">
             <div className="space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Select Template</label>
-                <select className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Template</label>
+                <select className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg outline-none text-gray-900 dark:text-white transition-colors">
                   <option>welcome_message</option>
                   <option>payment_options</option>
                 </select>
               </div>
-              <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
-                <ImageIcon className="w-8 h-8 text-gray-300 mb-2" />
-                <p className="text-xs text-gray-500 font-medium">Upload Header Image (Optional)</p>
-                <p className="text-[10px] text-gray-400 mt-1">Max size 5MB. JPG, PNG supported.</p>
+              <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700 flex flex-col items-center justify-center text-center transition-colors">
+                <ImageIcon className="w-8 h-8 text-gray-300 dark:text-gray-600 mb-2" />
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Upload Header Image (Optional)</p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Max size 5MB. JPG, PNG supported.</p>
               </div>
               <div className="space-y-4">
-                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Variable Mapping</h4>
+                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Variable Mapping</h4>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">{"{{1}}"}</span>
-                  <select className="flex-1 text-xs px-3 py-1.5 bg-white border border-gray-200 rounded-lg">
+                  <span className="text-xs font-mono bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded text-gray-600 dark:text-gray-400 transition-colors">{"{{1}}"}</span>
+                  <select className="flex-1 text-xs px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white transition-colors">
                     <option>Contact Name</option>
                     <option>Company Name</option>
                   </select>
@@ -189,16 +211,16 @@ function BroadcastBuilder({ onCancel }: { onCancel: () => void }) {
               </div>
             </div>
             <div className="space-y-4">
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Message Preview</h4>
-              <div className="bg-[#E5DDD5] p-4 rounded-2xl min-h-[300px] flex flex-col">
-                <div className="bg-white p-3 rounded-xl rounded-tl-none shadow-sm max-w-[85%]">
-                  <div className="w-full aspect-video bg-gray-100 rounded-lg mb-2 flex items-center justify-center">
-                    <ImageIcon className="w-6 h-6 text-gray-300" />
+              <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Message Preview</h4>
+              <div className="bg-[#E5DDD5] dark:bg-slate-800/50 p-4 rounded-2xl min-h-[300px] flex flex-col transition-colors">
+                <div className="bg-white dark:bg-slate-900 p-3 rounded-xl rounded-tl-none shadow-sm max-w-[85%] transition-colors">
+                  <div className="w-full aspect-video bg-gray-100 dark:bg-slate-800 rounded-lg mb-2 flex items-center justify-center transition-colors">
+                    <ImageIcon className="w-6 h-6 text-gray-300 dark:text-gray-600" />
                   </div>
-                  <p className="text-sm text-gray-800">
+                  <p className="text-sm text-gray-800 dark:text-gray-200">
                     Hello Ahmed Hassan, Welcome to our service! How can we help you today?
                   </p>
-                  <p className="text-[10px] text-gray-400 text-right mt-1">14:30</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 text-right mt-1">14:30</p>
                 </div>
               </div>
             </div>
@@ -208,31 +230,31 @@ function BroadcastBuilder({ onCancel }: { onCancel: () => void }) {
         {step === 3 && (
           <div className="space-y-8 max-w-xl mx-auto">
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-gray-50 rounded-xl">
-                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Recipients</p>
-                <p className="text-xl font-semibold text-gray-900">1,250</p>
+              <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-xl transition-colors">
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Total Recipients</p>
+                <p className="text-xl font-semibold text-gray-900 dark:text-white">1,250</p>
               </div>
-              <div className="p-4 bg-gray-50 rounded-xl">
-                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Estimated Credits</p>
-                <p className="text-xl font-semibold text-gray-900">1,250.00</p>
+              <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-xl transition-colors">
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Estimated Credits</p>
+                <p className="text-xl font-semibold text-gray-900 dark:text-white">1,250.00</p>
               </div>
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-sm font-medium text-gray-700">Schedule Options</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Schedule Options</h4>
               <div className="grid grid-cols-2 gap-4">
-                <button className="flex items-center gap-3 p-4 border-2 border-[#25D366] bg-[#25D366]/5 rounded-xl text-left">
+                <button className="flex items-center gap-3 p-4 border-2 border-[#25D366] bg-[#25D366]/5 dark:bg-[#25D366]/10 rounded-xl text-left transition-colors">
                   <CheckCircle2 className="w-5 h-5 text-[#25D366]" />
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">Send Now</p>
-                    <p className="text-[10px] text-gray-500">Start sending immediately</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">Send Now</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Start sending immediately</p>
                   </div>
                 </button>
-                <button className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl text-left hover:bg-gray-50">
-                  <Clock className="w-5 h-5 text-gray-400" />
+                <button className="flex items-center gap-3 p-4 border border-gray-200 dark:border-slate-700 rounded-xl text-left hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                  <Clock className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">Schedule</p>
-                    <p className="text-[10px] text-gray-500">Pick a date and time</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">Schedule</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Pick a date and time</p>
                   </div>
                 </button>
               </div>
@@ -240,10 +262,10 @@ function BroadcastBuilder({ onCancel }: { onCancel: () => void }) {
           </div>
         )}
 
-        <div className="mt-12 flex items-center justify-between pt-6 border-t border-gray-100">
+        <div className="mt-12 flex items-center justify-between pt-6 border-t border-gray-100 dark:border-slate-800 transition-colors">
           <button 
             onClick={step === 1 ? onCancel : () => setStep(step - 1)}
-            className="px-6 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+            className="px-6 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
           >
             {step === 1 ? 'Cancel' : 'Back'}
           </button>

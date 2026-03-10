@@ -61,6 +61,7 @@ async function main() {
     create: {
       name: 'Main Business',
       slug: 'main-business',
+      plan: 'PRO',
       businessSettings: { create: { timezone: 'Asia/Dubai' } },
       members: {
         create: {
@@ -152,6 +153,7 @@ async function main() {
       name: 'Ahmed Hassan',
       phoneNumber: '+971551112222',
       workspaceId: ws1.id,
+      pipelineStage: 'QUALIFIED',
     },
   });
 
@@ -160,6 +162,7 @@ async function main() {
       name: 'Sarah Miller',
       phoneNumber: '+971553334444',
       workspaceId: ws1.id,
+      pipelineStage: 'NEW_LEAD',
     },
   });
 
@@ -170,6 +173,9 @@ async function main() {
       workspaceId: ws1.id,
       numberId: num1.id,
       channelType: 'WHATSAPP',
+      priority: 'HIGH',
+      assignedToId: user1.id,
+      tags: 'registration,high-value',
       messages: {
         create: [
           { content: 'Hello, I need help with my vehicle registration.', direction: 'INCOMING', senderType: 'USER' },
@@ -186,6 +192,9 @@ async function main() {
       workspaceId: ws1.id,
       numberId: num1.id,
       channelType: 'WHATSAPP',
+      priority: 'MEDIUM',
+      assignedToId: user2.id,
+      tags: 'billing',
       messages: {
         create: [
           { content: 'Hi, what are your payment options?', direction: 'INCOMING', senderType: 'USER' },

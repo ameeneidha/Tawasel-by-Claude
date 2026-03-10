@@ -37,8 +37,8 @@ export default function FeatureRequest() {
     <div className="p-8 max-w-5xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Feature Requests</h1>
-          <p className="text-gray-500 mt-1">Help us prioritize what to build next.</p>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Feature Requests</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Help us prioritize what to build next.</p>
         </div>
         <button className="px-6 py-3 bg-[#25D366] text-white rounded-xl font-semibold hover:bg-[#21BD5B] transition-all shadow-sm shadow-[#25D366]/20 flex items-center gap-2">
           <Lightbulb className="w-5 h-5" />
@@ -46,12 +46,12 @@ export default function FeatureRequest() {
         </button>
       </div>
 
-      <div className="flex gap-8 border-b border-gray-100 mb-8">
+      <div className="flex gap-8 border-b border-gray-100 dark:border-slate-800 mb-8">
         <button 
           onClick={() => setActiveTab('all')}
           className={cn(
             "pb-4 text-sm font-medium transition-all relative",
-            activeTab === 'all' ? "text-[#25D366]" : "text-gray-500 hover:text-gray-700"
+            activeTab === 'all' ? "text-[#25D366]" : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           )}
         >
           All Requests
@@ -63,7 +63,7 @@ export default function FeatureRequest() {
           onClick={() => setActiveTab('my')}
           className={cn(
             "pb-4 text-sm font-medium transition-all relative",
-            activeTab === 'my' ? "text-[#25D366]" : "text-gray-500 hover:text-gray-700"
+            activeTab === 'my' ? "text-[#25D366]" : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           )}
         >
           My Requests
@@ -79,39 +79,39 @@ export default function FeatureRequest() {
             key={feature.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white p-6 rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all flex items-start gap-6"
+            className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-gray-200 dark:hover:border-slate-700 hover:shadow-sm transition-all flex items-start gap-6"
           >
-            <button className="flex flex-col items-center gap-1 p-3 rounded-xl bg-gray-50 hover:bg-[#25D366]/10 hover:text-[#25D366] transition-colors min-w-[64px]">
+            <button className="flex flex-col items-center gap-1 p-3 rounded-xl bg-gray-50 dark:bg-slate-800 hover:bg-[#25D366]/10 hover:text-[#25D366] dark:hover:text-[#25D366] transition-colors min-w-[64px]">
               <ThumbsUp className="w-5 h-5" />
               <span className="text-sm font-bold">{feature.votes}</span>
             </button>
 
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-1">
-                <h3 className="font-semibold text-gray-900 text-lg">{feature.title}</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{feature.title}</h3>
                 <span className={cn(
                   "px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full",
-                  feature.status === 'In Progress' ? "bg-blue-50 text-blue-600" :
-                  feature.status === 'Planned' ? "bg-purple-50 text-purple-600" :
-                  "bg-gray-100 text-gray-600"
+                  feature.status === 'In Progress' ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" :
+                  feature.status === 'Planned' ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400" :
+                  "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400"
                 )}>
                   {feature.status}
                 </span>
               </div>
-              <p className="text-gray-500 text-sm mb-4 leading-relaxed">{feature.description}</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4 leading-relaxed">{feature.description}</p>
               
               <div className="flex items-center gap-4">
-                <span className="text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md">
+                <span className="text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-slate-800 px-2 py-1 rounded-md">
                   {feature.category}
                 </span>
-                <div className="flex items-center gap-1 text-gray-400 text-xs">
+                <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500 text-xs">
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span>12 comments</span>
                 </div>
               </div>
             </div>
 
-            <ChevronRight className="w-5 h-5 text-gray-300 self-center" />
+            <ChevronRight className="w-5 h-5 text-gray-300 dark:text-gray-600 self-center" />
           </motion.div>
         ))}
       </div>

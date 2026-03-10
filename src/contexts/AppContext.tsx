@@ -11,6 +11,7 @@ interface Workspace {
   id: string;
   name: string;
   slug: string;
+  plan: string;
 }
 
 interface AppContextType {
@@ -34,8 +35,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      fetchWorkspaces(parsedUser.id);
+      // Verify user still exists and get fresh data
+      axios.get(`/api/users/${parsedUser.id}`).then(res => {
+        setUser(res.data);
+        localStorage.setItem('user', JSON.stringify(res.data));
+        fetchWorkspaces(res.data.id);
+      }).catch(() => {
+        // If user not found, clear session
+        setUser(null);
+        localStorage.removeItem('user');
+        setIsLoading(false);
+      });
     } else {
       setIsLoading(false);
     }

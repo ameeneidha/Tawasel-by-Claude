@@ -61,25 +61,25 @@ export default function Compose() {
   };
 
   return (
-    <div className="h-full bg-[#F8F9FA] p-8 overflow-y-auto">
+    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 p-8 overflow-y-auto transition-colors">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-gray-900">Compose Message</h1>
-          <p className="text-gray-500 mt-1">Send a one-to-one outbound message to a contact.</p>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Compose Message</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Send a one-to-one outbound message to a contact.</p>
         </div>
 
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8"
+          className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-8 transition-colors"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">From Number</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">From Number</label>
               <select
                 value={formData.fromNumber}
                 onChange={(e) => setFormData({ ...formData, fromNumber: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none"
+                className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none transition-colors"
                 required
               >
                 {numbers.map(num => (
@@ -90,27 +90,27 @@ export default function Compose() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Recipient Name</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Recipient Name</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
                     value={formData.recipientName}
                     onChange={(e) => setFormData({ ...formData, recipientName: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none"
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none transition-colors"
                     placeholder="John Doe"
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Phone Number</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number</label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="tel"
                     value={formData.recipientPhone}
                     onChange={(e) => setFormData({ ...formData, recipientPhone: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none"
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none transition-colors"
                     placeholder="+971 50 000 0000"
                     required
                   />
@@ -119,7 +119,7 @@ export default function Compose() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Template (Optional)</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Template (Optional)</label>
               <div className="relative">
                 <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <select
@@ -128,7 +128,7 @@ export default function Compose() {
                     const temp = templates.find(t => t.id === e.target.value);
                     setFormData({ ...formData, templateId: e.target.value, message: temp?.content || '' });
                   }}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none"
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none transition-colors"
                 >
                   <option value="">Select a template...</option>
                   {templates.map(temp => (
@@ -139,12 +139,12 @@ export default function Compose() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Message</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Message</label>
               <textarea
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 rows={5}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none resize-none"
+                className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none resize-none transition-colors"
                 placeholder="Type your message here..."
                 required
               />

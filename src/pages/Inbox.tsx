@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
+import socket from '../lib/socket';
 import { 
   Search, 
   Filter, 
@@ -18,11 +19,14 @@ import {
   Loader2,
   MessageSquare,
   Instagram,
-  Users
+  Users,
+  Plus,
+  ShieldAlert
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
+import { generateReplySuggestions, summarizeConversation } from '../services/aiService';
 
 interface Message {
   id: string;
@@ -33,17 +37,49 @@ interface Message {
   status: string;
   isInternal?: boolean;
   createdAt: string;
+  conversationId: string;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  status: 'PENDING' | 'COMPLETED';
+}
+
+interface Activity {
+  id: string;
+  type: string;
+  content: string;
+  createdAt: string;
 }
 
 interface Conversation {
   id: string;
   channelType: 'WHATSAPP' | 'INSTAGRAM';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  internalStatus: 'OPEN' | 'WAITING_FOR_CUSTOMER' | 'WAITING_FOR_INTERNAL' | 'RESOLVED';
+  slaStatus: 'OK' | 'BREACHED';
+  slaDeadline?: string;
+  assignedToId?: string;
+  assignedTo?: {
+    id: string;
+    name: string;
+    image?: string;
+  };
+  tags?: string;
   contact: {
     id: string;
     name: string;
     phoneNumber?: string;
     instagramUsername?: string;
     avatar?: string;
+    pipelineStage: string;
+    leadSource?: string;
+    activities?: Activity[];
+    tasks?: Task[];
   };
   messages: Message[];
   lastMessageAt: string;
@@ -53,10 +89,12 @@ interface Conversation {
   instagramAccount?: {
     username: string;
   };
+  tasks?: Task[];
+  activities?: Activity[];
 }
 
 export default function Inbox() {
-  const { activeWorkspace, user } = useApp();
+  const { activeWorkspace, workspaces, setActiveWorkspace, user, setUser } = useApp();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -66,23 +104,68 @@ export default function Inbox() {
   const [isSending, setIsSending] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [rightTab, setRightTab] = useState<'info' | 'tasks' | 'activity'>('info');
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [slaBreachAlert, setSlaBreachAlert] = useState<string | null>(null);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (activeWorkspace) {
       fetchConversations();
+      
+      // Socket.io setup
+      socket.connect();
+      socket.emit('join-workspace', activeWorkspace.id);
+
+      socket.on('new-message', (message: Message) => {
+        // Update messages if it belongs to the selected conversation
+        if (selectedConv && message.conversationId === selectedConv.id) {
+          setMessages(prev => {
+            // Avoid duplicates
+            if (prev.find(m => m.id === message.id)) return prev;
+            return [...prev, message];
+          });
+        }
+        
+        // Update conversation list last message
+        setConversations(prev => prev.map(conv => {
+          if (conv.id === message.conversationId) {
+            return {
+              ...conv,
+              messages: [message],
+              lastMessageAt: message.createdAt
+            };
+          }
+          return conv;
+        }).sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()));
+      });
+
+      socket.on('conversation-updated', (convId: string) => {
+        fetchConversations();
+      });
+
+      return () => {
+        socket.off('new-message');
+        socket.off('conversation-updated');
+        socket.disconnect();
+      };
     } else {
-      // If activeWorkspace is null, we shouldn't keep loading forever
-      // especially if the app context itself has finished loading
       setIsLoading(false);
     }
-  }, [activeWorkspace]);
+  }, [activeWorkspace, selectedConv?.id]);
 
   useEffect(() => {
     if (selectedConv) {
       fetchMessages(selectedConv.id);
+      setSummary(null);
     }
-  }, [selectedConv]);
+  }, [selectedConv?.id]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -95,6 +178,15 @@ export default function Inbox() {
       const res = await axios.get(`/api/conversations?workspaceId=${activeWorkspace?.id}`);
       const data = Array.isArray(res.data) ? res.data : [];
       setConversations(data);
+      
+      // Check for new SLA breaches
+      const breached = data.find(c => c.slaStatus === 'BREACHED');
+      if (breached) {
+        setSlaBreachAlert(`Urgent: Conversation with ${breached.contact.name || breached.contact.phoneNumber} has breached SLA!`);
+      } else {
+        setSlaBreachAlert(null);
+      }
+
       if (data.length > 0 && !selectedConv) {
         setSelectedConv(data[0]);
       }
@@ -120,13 +212,64 @@ export default function Inbox() {
     if (isInternalMode) return;
     setIsLoadingSuggestions(true);
     try {
-      const res = await axios.get(`/api/ai/suggestions?conversationId=${id}`);
-      const data = Array.isArray(res.data) ? res.data : [];
+      // Format history for AI
+      const history = messages
+        .filter(m => !m.isInternal)
+        .map(m => ({
+          content: m.content,
+          senderType: m.senderType
+        }));
+      
+      const data = await generateReplySuggestions(history);
       setSuggestions(data);
     } catch (error) {
       console.error('Failed to fetch suggestions', error);
     } finally {
       setIsLoadingSuggestions(false);
+    }
+  };
+
+  const updateConversation = async (id: string, data: Partial<Conversation>) => {
+    try {
+      await axios.patch(`/api/conversations/${id}`, data);
+      fetchConversations();
+    } catch (error) {
+      console.error('Failed to update conversation', error);
+    }
+  };
+
+  const fetchSummary = async () => {
+    if (!selectedConv) return;
+    setIsSummarizing(true);
+    try {
+      const history = messages
+        .filter(m => !m.isInternal)
+        .map(m => ({
+          content: m.content,
+          senderType: m.senderType
+        }));
+      
+      const summaryText = await summarizeConversation(history);
+      setSummary(summaryText);
+    } catch (error) {
+      console.error('Failed to fetch summary', error);
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  const updateContact = async (id: string, data: any) => {
+    try {
+      await axios.patch(`/api/contacts/${id}`, data);
+      if (selectedConv) {
+        setSelectedConv({
+          ...selectedConv,
+          contact: { ...selectedConv.contact, ...data }
+        });
+      }
+      fetchConversations();
+    } catch (error) {
+      console.error('Failed to update contact', error);
     }
   };
 
@@ -136,17 +279,18 @@ export default function Inbox() {
 
     setIsSending(true);
     try {
-      const res = await axios.post('/api/messages', {
+      // Use the new broadcast endpoint
+      const res = await axios.post('/api/messages/send', {
         conversationId: selectedConv.id,
         content: newMessage,
-        direction: 'OUTGOING',
-        senderType: 'USER',
-        isInternal: isInternalMode,
-        senderName: user?.name
+        senderId: user?.id,
+        senderName: user?.name,
+        isInternal: isInternalMode
       });
-      setMessages([...messages, res.data]);
+      
+      // We don't need to manually update state here because the socket will broadcast it back to us
+      // But for better UX, we can optimistically update or just wait for the socket
       setNewMessage('');
-      fetchConversations(); // Update last message in list
       fetchSuggestions(selectedConv.id);
     } catch (error) {
       console.error('Failed to send message', error);
@@ -163,34 +307,140 @@ export default function Inbox() {
     );
   }
 
+  const handleCreateWorkspace = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!newWorkspaceName.trim() || !user || isCreating) return;
+
+    setIsCreating(true);
+    try {
+      await axios.post('/api/workspaces', { name: newWorkspaceName, userId: user.id });
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Failed to create workspace:', error.response?.data || error.message);
+      alert(`Failed to create workspace: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   if (!activeWorkspace) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-white">
-        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-300 mb-4">
+      <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-slate-950 relative z-10 transition-colors">
+        <div className="w-20 h-20 bg-gray-100 dark:bg-slate-900 rounded-full flex items-center justify-center text-gray-300 dark:text-gray-700 mb-4">
           <Users className="w-10 h-10" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900">No workspace selected</h3>
-        <p className="text-sm text-gray-500 max-w-xs mt-2">
-          Please select a workspace from the user menu in the sidebar to view your inbox.
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No workspace selected</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mt-2 mb-8">
+          {workspaces.length > 0 
+            ? "Please select one of your workspaces below to view your inbox."
+            : "You don't have any workspaces yet. Please create one to get started."}
         </p>
+        
+        {workspaces.length === 0 && (
+          <div className="mb-8 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 rounded-2xl text-amber-700 dark:text-amber-400 text-xs max-w-xs">
+            <p className="font-bold mb-1">Having trouble?</p>
+            <p className="mb-3">If you can't create a workspace, the system might need a quick repair.</p>
+            <button 
+              onClick={async () => {
+                try {
+                  await axios.post('/api/dev/bootstrap');
+                  window.location.reload();
+                } catch (e) {
+                  alert("Repair failed. Please try again later.");
+                }
+              }}
+              className="px-4 py-2 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition-all"
+            >
+              Run Quick Repair
+            </button>
+          </div>
+        )}
+
+        {workspaces.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-md">
+            {workspaces.map(ws => (
+              <button
+                key={ws.id}
+                onClick={() => setActiveWorkspace(ws)}
+                className="flex items-center gap-3 p-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl hover:border-[#25D366] hover:shadow-md transition-all text-left group cursor-pointer"
+              >
+                <div className="w-10 h-10 bg-gray-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-gray-400 dark:text-gray-600 group-hover:bg-[#25D366]/10 group-hover:text-[#25D366] font-bold">
+                  {ws.name[0]}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{ws.name}</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">{ws.plan} Plan</p>
+                </div>
+              </button>
+            ))}
+            <button 
+              onClick={() => setIsCreatingWorkspace(true)}
+              className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-slate-900/50 border border-dashed border-gray-200 dark:border-slate-800 rounded-2xl hover:border-[#25D366] hover:bg-white dark:hover:bg-slate-900 transition-all text-left group cursor-pointer"
+            >
+              <div className="w-10 h-10 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 rounded-xl flex items-center justify-center text-gray-400 dark:text-gray-600 group-hover:text-[#25D366]">
+                <Plus className="w-5 h-5" />
+              </div>
+              <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 group-hover:text-[#25D366]">New Workspace</p>
+            </button>
+          </div>
+        ) : (
+          <div className="w-full max-w-sm">
+            {!isCreatingWorkspace ? (
+              <button 
+                onClick={() => setIsCreatingWorkspace(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-[#25D366] text-white font-bold rounded-2xl hover:bg-[#128C7E] transition-all shadow-lg cursor-pointer mx-auto"
+              >
+                <Plus className="w-5 h-5" />
+                Create Your First Workspace
+              </button>
+            ) : (
+              <form onSubmit={handleCreateWorkspace} className="bg-gray-50 dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800">
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Workspace Name (e.g. My Business)"
+                  value={newWorkspaceName}
+                  onChange={(e) => setNewWorkspaceName(e.target.value)}
+                  className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#25D366]/20 mb-4"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreatingWorkspace(false)}
+                    className="flex-1 px-4 py-2 text-sm font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!newWorkspaceName.trim() || isCreating}
+                    className="flex-1 px-4 py-2 text-sm font-bold bg-[#25D366] text-white rounded-xl hover:bg-[#128C7E] transition-colors disabled:opacity-50"
+                  >
+                    {isCreating ? 'Creating...' : 'Create'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="h-full flex bg-white">
+    <div className="h-full flex bg-white dark:bg-slate-950 transition-colors">
       {/* Left Column: Conversation List */}
-      <div className="w-80 border-r border-gray-100 flex flex-col">
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+      <div className="w-80 border-r border-gray-100 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-colors">
+        <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-[#25D366] rounded-full" />
-            <span className="font-medium text-sm">Active</span>
+            <span className="font-medium text-sm dark:text-gray-200">Active</span>
           </div>
           <div className="flex items-center gap-2">
-            <button className="p-1.5 hover:bg-gray-50 rounded-lg text-gray-400">
+            <button className="p-1.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
               <Search className="w-4 h-4" />
             </button>
-            <button className="p-1.5 hover:bg-gray-50 rounded-lg text-gray-400">
+            <button className="p-1.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
               <Filter className="w-4 h-4" />
             </button>
           </div>
@@ -202,11 +452,11 @@ export default function Inbox() {
               key={conv.id}
               onClick={() => setSelectedConv(conv)}
               className={cn(
-                "w-full p-4 flex items-center gap-3 transition-colors border-b border-gray-50",
-                selectedConv?.id === conv.id ? "bg-[#25D366]/5" : "hover:bg-gray-50"
+                "w-full p-4 flex items-center gap-3 transition-colors border-b border-gray-50 dark:border-slate-800/50",
+                selectedConv?.id === conv.id ? "bg-[#25D366]/5 dark:bg-[#25D366]/10" : "hover:bg-gray-50 dark:hover:bg-slate-800/50"
               )}
             >
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 shrink-0 relative">
+              <div className="w-12 h-12 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400 shrink-0 relative">
                 {conv.contact.avatar ? (
                   <img src={conv.contact.avatar} alt="" className="w-full h-full rounded-full object-cover" />
                 ) : (
@@ -223,60 +473,135 @@ export default function Inbox() {
                   )}
                 </div>
               </div>
-              <div className="flex-1 min-w-0 text-left">
-                <div className="flex items-center justify-between mb-0.5">
-                  <h3 className="font-medium text-sm text-gray-900 truncate">
-                    {conv.contact.name || conv.contact.phoneNumber || conv.contact.instagramUsername}
-                  </h3>
-                  <span className="text-[10px] text-gray-400">
-                    {conv.lastMessageAt ? (
-                      (() => {
-                        try {
-                          return format(new Date(conv.lastMessageAt), 'HH:mm');
-                        } catch (e) {
-                          return '';
-                        }
-                      })()
-                    ) : ''}
-                  </span>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <h3 className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                        {conv.contact.name || conv.contact.phoneNumber || conv.contact.instagramUsername}
+                      </h3>
+                      {conv.priority === 'HIGH' && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" title="High Priority" />}
+                      {conv.priority === 'URGENT' && <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 animate-pulse" title="Urgent Priority" />}
+                      {conv.slaStatus === 'BREACHED' && (
+                        <div className="px-1 py-0.5 bg-red-50 text-red-600 text-[8px] font-bold rounded uppercase tracking-tighter shrink-0">SLA</div>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-gray-400 shrink-0">
+                      {conv.lastMessageAt ? (
+                        (() => {
+                          try {
+                            return format(new Date(conv.lastMessageAt), 'HH:mm');
+                          } catch (e) {
+                            return '';
+                          }
+                        })()
+                      ) : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-gray-500 truncate flex-1 mr-2">
+                      {conv.messages[0]?.content || 'No messages'}
+                    </p>
+                    {conv.assignedTo && (
+                      <div className="flex -space-x-1 shrink-0">
+                        <div className="w-4 h-4 rounded-full bg-gray-200 border border-white flex items-center justify-center overflow-hidden" title={`Assigned to ${conv.assignedTo.name}`}>
+                          {conv.assignedTo.image ? (
+                            <img src={conv.assignedTo.image} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="w-2.5 h-2.5 text-gray-400" />
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 truncate">
-                  {conv.messages[0]?.content || 'No messages'}
-                </p>
-              </div>
             </button>
           ))}
         </div>
       </div>
 
       {/* Center Column: Chat Timeline */}
-      <div className="flex-1 flex flex-col bg-[#F8F9FA]">
+      <div className="flex-1 flex flex-col bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
+        {slaBreachAlert && (
+          <div className="bg-red-500 text-white px-6 py-2 text-xs font-bold flex items-center justify-between animate-pulse shrink-0">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4" />
+              {slaBreachAlert}
+            </div>
+            <button onClick={() => setSlaBreachAlert(null)} className="hover:opacity-80">Dismiss</button>
+          </div>
+        )}
         {selectedConv ? (
           <>
-            <div className="h-16 bg-white border-b border-gray-100 px-6 flex items-center justify-between shrink-0">
+            <div className="h-16 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-6 flex items-center justify-between shrink-0 transition-colors">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-400">
+                <div className="w-8 h-8 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400">
                   <User className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-gray-900">
-                    {selectedConv.contact.name || selectedConv.contact.phoneNumber || selectedConv.contact.instagramUsername}
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {selectedConv.contact.name || selectedConv.contact.phoneNumber || selectedConv.contact.instagramUsername}
+                    </h2>
+                    <select 
+                      value={selectedConv.priority}
+                      onChange={(e) => updateConversation(selectedConv.id, { priority: e.target.value as any })}
+                      className={cn(
+                        "text-[10px] font-bold px-1.5 py-0.5 rounded border-none outline-none cursor-pointer",
+                        selectedConv.priority === 'URGENT' ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" :
+                        selectedConv.priority === 'HIGH' ? "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400" :
+                        selectedConv.priority === 'MEDIUM' ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" :
+                        "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-400"
+                      )}
+                    >
+                      <option value="LOW">LOW</option>
+                      <option value="MEDIUM">MEDIUM</option>
+                      <option value="HIGH">HIGH</option>
+                      <option value="URGENT">URGENT</option>
+                    </select>
+                    <select 
+                      value={selectedConv.internalStatus}
+                      onChange={(e) => updateConversation(selectedConv.id, { internalStatus: e.target.value as any })}
+                      className={cn(
+                        "text-[10px] font-bold px-1.5 py-0.5 rounded border-none outline-none cursor-pointer",
+                        selectedConv.internalStatus === 'RESOLVED' ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" :
+                        selectedConv.internalStatus === 'WAITING_FOR_CUSTOMER' ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400" :
+                        selectedConv.internalStatus === 'WAITING_FOR_INTERNAL' ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400" :
+                        "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-400"
+                      )}
+                    >
+                      <option value="OPEN">OPEN</option>
+                      <option value="WAITING_FOR_CUSTOMER">WAITING FOR CUSTOMER</option>
+                      <option value="WAITING_FOR_INTERNAL">WAITING FOR INTERNAL</option>
+                      <option value="RESOLVED">RESOLVED</option>
+                    </select>
+                  </div>
                   <p className="text-[10px] text-[#25D366] font-medium uppercase tracking-wider">
                     Online
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100">
-                  <span className="text-xs text-gray-500">From:</span>
-                  <span className="text-xs font-medium text-gray-700">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Assigned to:</span>
+                  <select
+                    value={selectedConv.assignedToId || ''}
+                    onChange={(e) => updateConversation(selectedConv.id, { assignedToId: e.target.value || undefined })}
+                    className="text-xs font-medium text-gray-700 dark:text-gray-300 bg-transparent border-none outline-none cursor-pointer"
+                  >
+                    <option value="">Unassigned</option>
+                    <option value={user?.id}>{user?.name} (You)</option>
+                    {/* In a real app, we'd fetch all team members here */}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">From:</span>
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                     {selectedConv.channelType === 'INSTAGRAM' 
                       ? `@${selectedConv.instagramAccount?.username || 'instagram'}`
                       : selectedConv.number?.phoneNumber || '+971 50 123 4567'}
                   </span>
                 </div>
-                <button className="p-2 hover:bg-gray-50 rounded-lg text-gray-400">
+                <button className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
                   <MoreVertical className="w-5 h-5" />
                 </button>
               </div>
@@ -296,12 +621,12 @@ export default function Inbox() {
                 >
                   <div 
                     className={cn(
-                      "px-4 py-2.5 rounded-2xl text-sm shadow-sm",
+                      "px-4 py-2.5 rounded-2xl text-sm shadow-sm transition-colors",
                       msg.isInternal 
-                        ? "bg-yellow-50 border border-yellow-100 text-yellow-800 w-full max-w-2xl italic"
+                        ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-900/30 text-yellow-800 dark:text-yellow-200 w-full max-w-2xl italic"
                         : (msg.direction === 'OUTGOING' 
-                          ? "bg-[#DCF8C6] text-gray-800 rounded-tr-none" 
-                          : "bg-white text-gray-800 rounded-tl-none")
+                          ? "bg-[#DCF8C6] dark:bg-[#25D366]/20 text-gray-800 dark:text-gray-100 rounded-tr-none" 
+                          : "bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 rounded-tl-none")
                     )}
                   >
                     {msg.isInternal && (
@@ -336,13 +661,13 @@ export default function Inbox() {
               ))}
             </div>
 
-            <div className="p-4 bg-white border-t border-gray-100 shrink-0">
+            <div className="p-4 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 shrink-0 transition-colors">
               <div className="flex items-center gap-4 mb-3 px-1">
                 <button 
                   onClick={() => setIsInternalMode(false)}
                   className={cn(
                     "text-xs font-bold uppercase tracking-widest pb-1 transition-all border-b-2",
-                    !isInternalMode ? "text-[#25D366] border-[#25D366]" : "text-gray-400 border-transparent hover:text-gray-600"
+                    !isInternalMode ? "text-[#25D366] border-[#25D366]" : "text-gray-400 dark:text-gray-500 border-transparent hover:text-gray-600 dark:hover:text-gray-300"
                   )}
                 >
                   Reply
@@ -351,7 +676,7 @@ export default function Inbox() {
                   onClick={() => setIsInternalMode(true)}
                   className={cn(
                     "text-xs font-bold uppercase tracking-widest pb-1 transition-all border-b-2",
-                    isInternalMode ? "text-yellow-600 border-yellow-600" : "text-gray-400 border-transparent hover:text-gray-600"
+                    isInternalMode ? "text-yellow-600 border-yellow-600" : "text-gray-400 dark:text-gray-500 border-transparent hover:text-gray-600 dark:hover:text-gray-300"
                   )}
                 >
                   Internal Note
@@ -370,7 +695,9 @@ export default function Inbox() {
                       <button
                         key={idx}
                         onClick={() => setNewMessage(suggestion)}
-                        className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs text-gray-600 hover:border-[#25D366] hover:text-[#25D366] transition-all shadow-sm"
+                        className={cn(
+                          "px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-full text-xs text-gray-600 dark:text-gray-300 hover:border-[#25D366] hover:text-[#25D366] transition-all shadow-sm"
+                        )}
                       >
                         {suggestion}
                       </button>
@@ -381,13 +708,13 @@ export default function Inbox() {
 
               <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
-                  <button type="button" className="p-2 hover:bg-gray-50 rounded-lg text-gray-400">
+                  <button type="button" className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
                     <Smile className="w-5 h-5" />
                   </button>
-                  <button type="button" className="p-2 hover:bg-gray-50 rounded-lg text-gray-400">
+                  <button type="button" className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
                     <Paperclip className="w-5 h-5" />
                   </button>
-                  <button type="button" className="p-2 hover:bg-gray-50 rounded-lg text-gray-400">
+                  <button type="button" className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
                     <FileText className="w-5 h-5" />
                   </button>
                 </div>
@@ -399,11 +726,11 @@ export default function Inbox() {
                   className={cn(
                     "flex-1 border-none rounded-xl px-4 py-2.5 text-sm outline-none transition-all",
                     isInternalMode 
-                      ? "bg-yellow-50 focus:ring-2 focus:ring-yellow-200 text-yellow-900 placeholder:text-yellow-400" 
-                      : "bg-gray-50 focus:ring-2 focus:ring-[#25D366]/20 text-gray-900"
+                      ? "bg-yellow-50 dark:bg-yellow-900/20 focus:ring-2 focus:ring-yellow-200 dark:focus:ring-yellow-900/40 text-yellow-900 dark:text-yellow-100 placeholder:text-yellow-400 dark:placeholder:text-yellow-700" 
+                      : "bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-[#25D366]/20 dark:focus:ring-[#25D366]/10 text-gray-900 dark:text-gray-100 transition-colors"
                   )}
                 />
-                <button type="button" className="p-2 hover:bg-gray-50 rounded-lg text-gray-400">
+                <button type="button" className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
                   <Mic className="w-5 h-5" />
                 </button>
                 <button 
@@ -426,75 +753,235 @@ export default function Inbox() {
           </>
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center p-8">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-300 mb-4">
+            <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-300 dark:text-gray-600 mb-4 transition-colors">
               <MessageSquare className="w-10 h-10" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">No conversation selected</h3>
-            <p className="text-sm text-gray-500 max-w-xs mt-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No conversation selected</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mt-2">
               Select a conversation from the list to start messaging.
             </p>
           </div>
         )}
       </div>
 
-      {/* Right Column: Contact Info */}
-      <div className="w-72 border-l border-gray-100 flex flex-col bg-white">
+      {/* Right Column: Contact Info / Tasks / Activity */}
+      <div className="w-80 border-l border-gray-100 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-colors">
         {selectedConv && (
-          <div className="p-6 space-y-8 overflow-y-auto">
-            <div className="text-center">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mx-auto mb-4">
-                <User className="w-10 h-10" />
-              </div>
-              <h3 className="font-semibold text-gray-900">
-                {selectedConv.contact.name || 'Unknown Contact'}
-              </h3>
-              <p className="text-sm text-gray-500 mt-1">
-                {selectedConv.channelType === 'INSTAGRAM' 
-                  ? `@${selectedConv.contact.instagramUsername}`
-                  : selectedConv.contact.phoneNumber}
-              </p>
-              <button className="mt-4 flex items-center gap-2 px-4 py-1.5 bg-gray-50 text-gray-600 text-xs font-medium rounded-full hover:bg-gray-100 mx-auto">
-                <Edit2 className="w-3 h-3" />
-                Edit Profile
+          <>
+            <div className="flex border-b border-gray-100 dark:border-slate-800 shrink-0">
+              <button 
+                onClick={() => setRightTab('info')}
+                className={cn(
+                  "flex-1 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all",
+                  rightTab === 'info' ? "text-[#25D366] border-[#25D366]" : "text-gray-400 dark:text-gray-500 border-transparent hover:text-gray-600 dark:hover:text-gray-300"
+                )}
+              >
+                Info
+              </button>
+              <button 
+                onClick={() => setRightTab('tasks')}
+                className={cn(
+                  "flex-1 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all",
+                  rightTab === 'tasks' ? "text-[#25D366] border-[#25D366]" : "text-gray-400 dark:text-gray-500 border-transparent hover:text-gray-600 dark:hover:text-gray-300"
+                )}
+              >
+                Tasks
+              </button>
+              <button 
+                onClick={() => setRightTab('activity')}
+                className={cn(
+                  "flex-1 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all",
+                  rightTab === 'activity' ? "text-[#25D366] border-[#25D366]" : "text-gray-400 dark:text-gray-500 border-transparent hover:text-gray-600 dark:hover:text-gray-300"
+                )}
+              >
+                Activity
               </button>
             </div>
 
-            <div className="space-y-4">
-              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Custom Attributes</h4>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-500">Vehicle Type</span>
-                  <span className="font-medium text-gray-900">Light Vehicle</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-500">Last Service</span>
-                  <span className="font-medium text-gray-900">2024-03-01</span>
-                </div>
-              </div>
-            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              {rightTab === 'info' && (
+                <div className="space-y-8">
+                  <div className="text-center">
+                    <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400 mx-auto mb-4">
+                      <User className="w-10 h-10" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                      {selectedConv.contact.name || 'Unknown Contact'}
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      {selectedConv.channelType === 'INSTAGRAM' 
+                        ? `@${selectedConv.contact.instagramUsername}`
+                        : selectedConv.contact.phoneNumber}
+                    </p>
+                    
+                    <div className="mt-4 flex flex-col gap-2">
+                      <select 
+                        value={selectedConv.contact.pipelineStage || 'NEW_LEAD'}
+                        onChange={(e) => updateContact(selectedConv.contact.id, { pipelineStage: e.target.value })}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl border-none outline-none cursor-pointer uppercase tracking-wider transition-colors"
+                      >
+                        <option value="NEW_LEAD">New Lead</option>
+                        <option value="CONTACTED">Contacted</option>
+                        <option value="QUALIFIED">Qualified</option>
+                        <option value="QUOTE_SENT">Quote Sent</option>
+                        <option value="WON">Won</option>
+                        <option value="LOST">Lost</option>
+                      </select>
+                    </div>
+                  </div>
 
-            <div className="space-y-4">
-              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Permissions</h4>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-1 bg-green-50 text-green-600 text-[10px] font-bold rounded uppercase">Allowed</span>
-              </div>
-            </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">AI Summary</h4>
+                      <button 
+                        onClick={fetchSummary}
+                        disabled={isSummarizing}
+                        className="text-[10px] font-bold text-[#25D366] uppercase hover:underline disabled:opacity-50"
+                      >
+                        {isSummarizing ? 'Summarizing...' : (summary ? 'Refresh' : 'Generate')}
+                      </button>
+                    </div>
+                    {summary ? (
+                      <div className="p-3 bg-[#25D366]/5 dark:bg-[#25D366]/10 rounded-xl border border-[#25D366]/10 dark:border-[#25D366]/20">
+                        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed italic">
+                          "{summary}"
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-gray-400 italic">No summary generated yet.</p>
+                    )}
+                  </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Notes</h4>
-                <button className="text-[10px] font-bold text-[#25D366] uppercase">Add Note</button>
-              </div>
-              <div className="space-y-3">
-                <div className="p-3 bg-gray-50 rounded-xl">
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    Customer is interested in heavy bus registration services. Follow up next week.
-                  </p>
-                  <p className="text-[10px] text-gray-400 mt-2">Mar 08, 2024</p>
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Lead Source</h4>
+                    <span className="px-2 py-1 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-400 text-[10px] font-bold rounded uppercase">
+                      {selectedConv.contact.leadSource || 'Direct Search'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Custom Attributes</h4>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500 dark:text-gray-400">Vehicle Type</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-200">Light Vehicle</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500 dark:text-gray-400">Last Service</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-200">2024-03-01</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {rightTab === 'tasks' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Follow-up Tasks</h4>
+                    <button 
+                      onClick={() => setIsAddingTask(true)}
+                      className="p-1 hover:bg-gray-50 dark:hover:bg-slate-800 rounded text-[#25D366]"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {isAddingTask && (
+                    <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 space-y-3">
+                      <input 
+                        type="text"
+                        placeholder="Task title..."
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#25D366]/20"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={async () => {
+                            if (!newTaskTitle.trim()) return;
+                            try {
+                              await axios.post('/api/tasks', {
+                                title: newTaskTitle,
+                                workspaceId: activeWorkspace?.id,
+                                contactId: selectedConv.contact.id,
+                                conversationId: selectedConv.id,
+                                priority: 'MEDIUM'
+                              });
+                              setNewTaskTitle('');
+                              setIsAddingTask(false);
+                              fetchMessages(selectedConv.id); // Refresh to get tasks
+                            } catch (e) {
+                              console.error(e);
+                            }
+                          }}
+                          className="flex-1 py-1.5 bg-[#25D366] text-white text-[10px] font-bold rounded-lg uppercase"
+                        >
+                          Save
+                        </button>
+                        <button 
+                          onClick={() => setIsAddingTask(false)}
+                          className="flex-1 py-1.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 text-gray-400 dark:text-gray-500 text-[10px] font-bold rounded-lg uppercase"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    {selectedConv.tasks?.length ? selectedConv.tasks.map((task) => (
+                      <div key={task.id} className="p-3 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-sm">
+                        <div className="flex items-start gap-3">
+                          <button 
+                            onClick={async () => {
+                              try {
+                                await axios.patch(`/api/tasks/${task.id}`, { status: task.status === 'PENDING' ? 'COMPLETED' : 'PENDING' });
+                                fetchMessages(selectedConv.id);
+                              } catch (e) { console.error(e); }
+                            }}
+                            className={cn(
+                              "w-4 h-4 rounded border mt-0.5 flex items-center justify-center transition-colors",
+                              task.status === 'COMPLETED' ? "bg-[#25D366] border-[#25D366] text-white" : "border-gray-200 dark:border-slate-600 hover:border-[#25D366]"
+                            )}
+                          >
+                            {task.status === 'COMPLETED' && <Check className="w-3 h-3" />}
+                          </button>
+                          <div>
+                            <p className={cn("text-xs font-medium", task.status === 'COMPLETED' ? "text-gray-400 dark:text-gray-500 line-through" : "text-gray-900 dark:text-gray-100")}>
+                              {task.title}
+                            </p>
+                            {task.dueDate && (
+                              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Due {format(new Date(task.dueDate), 'MMM dd')}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )) : (
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 italic text-center py-8">No tasks for this conversation.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {rightTab === 'activity' && (
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Activity Timeline</h4>
+                  <div className="relative space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-px before:bg-gray-100 dark:before:bg-slate-800">
+                    {selectedConv.activities?.length ? selectedConv.activities.map((activity) => (
+                      <div key={activity.id} className="relative pl-8">
+                        <div className="absolute left-0 top-1.5 w-4 h-4 bg-white dark:bg-slate-900 border-2 border-[#25D366] rounded-full z-10" />
+                        <p className="text-xs text-gray-900 dark:text-gray-100 font-medium">{activity.content}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{format(new Date(activity.createdAt), 'MMM dd, HH:mm')}</p>
+                      </div>
+                    )) : (
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 italic text-center py-8">No activity recorded yet.</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>
