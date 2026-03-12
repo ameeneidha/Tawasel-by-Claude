@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
-import { PLANS, PlanType } from '../constants/plans';
+import { getPlanConfig, PLANS, PlanType } from '../constants/plans';
 import { 
   Hash, 
   Plus, 
@@ -21,6 +21,7 @@ import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import * as Switch from '@radix-ui/react-switch';
 import { toast } from 'sonner';
+import ActivationChecklist from '../components/ActivationChecklist';
 
 export default function Channels() {
   const { activeWorkspace } = useApp();
@@ -28,8 +29,8 @@ export default function Channels() {
   const [instagramAccounts, setInstagramAccounts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const currentPlan = (activeWorkspace?.plan || 'STARTER') as PlanType;
-  const planInfo = PLANS[currentPlan];
+  const currentPlan = activeWorkspace?.plan || 'NONE';
+  const planInfo = getPlanConfig(currentPlan) || PLANS.STARTER;
   const isMetaTestNumber = (phoneNumber?: string) => phoneNumber?.replace(/\D/g, '') === '15551363768';
 
   const waLimitReached = numbers.length >= planInfo.whatsappLimit;
@@ -101,6 +102,23 @@ export default function Channels() {
             </button>
           </div>
         </div>
+
+        {!isLoading && numbers.length === 0 && instagramAccounts.length === 0 && (
+          <div className="mb-8 space-y-6">
+            <ActivationChecklist />
+            <div className="rounded-3xl border border-dashed border-[#25D366]/30 bg-white p-6 shadow-sm dark:border-[#25D366]/15 dark:bg-slate-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Connect your first channel</h2>
+              <p className="mt-2 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
+                Start with one WhatsApp number so the inbox can receive live conversations. After that, assign a bot, import contacts, and launch your first campaign.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
+                <span className="rounded-full bg-gray-100 px-3 py-1 dark:bg-slate-800">1. Add a WhatsApp number</span>
+                <span className="rounded-full bg-gray-100 px-3 py-1 dark:bg-slate-800">2. Test an incoming message</span>
+                <span className="rounded-full bg-gray-100 px-3 py-1 dark:bg-slate-800">3. Attach an AI bot</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">

@@ -160,6 +160,7 @@ async function main() {
     data: {
       name: 'Ahmed Hassan',
       phoneNumber: '+971551112222',
+      city: 'Abu Dhabi',
       workspaceId: ws1.id,
       pipelineStage: 'QUALIFIED',
     },
@@ -169,6 +170,7 @@ async function main() {
     data: {
       name: 'Sarah Miller',
       phoneNumber: '+971553334444',
+      city: 'Dubai',
       workspaceId: ws1.id,
       pipelineStage: 'NEW_LEAD',
     },
@@ -217,6 +219,7 @@ async function main() {
       name: 'Instagram User',
       instagramId: 'ig_user_789',
       instagramUsername: 'ig_user_789',
+      city: 'Abu Dhabi',
       workspaceId: ws1.id,
     },
   });

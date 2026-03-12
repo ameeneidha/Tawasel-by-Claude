@@ -6,6 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+/dev.db
 prisma/*.bak
 prisma/prisma/
 prisma/test.db

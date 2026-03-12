@@ -26,7 +26,12 @@ model Workspace {
   id            String    @id @default(cuid())
   name          String
   slug          String    @unique
-  plan          String    @default("STARTER") // STARTER, PRO, ENTERPRISE
+  plan          String    @default("NONE") // NONE, STARTER, GROWTH, PRO
+  stripeCustomerId String?
+  stripeSubscriptionId String?
+  subscriptionStatus String?
+  subscriptionCurrentPeriodEnd DateTime?
+  subscriptionCancelAtPeriodEnd Boolean @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
@@ -114,6 +119,7 @@ model Contact {
   instagramUsername String?
   avatar        String?
   pipelineStage String    @default("NEW_LEAD") // NEW_LEAD, CONTACTED, QUALIFIED, QUOTE_SENT, WON, LOST
+  city          String?
   leadSource    String?
   lastCampaignId String?
   tags          String?   // Comma separated tags
@@ -135,6 +141,7 @@ model Conversation {
   status        String    @default("ACTIVE") // ACTIVE, ARCHIVED, SPAM
   internalStatus String   @default("OPEN") // OPEN, WAITING_FOR_CUSTOMER, WAITING_FOR_INTERNAL, RESOLVED
   channelType   String    @default("WHATSAPP") // WHATSAPP, INSTAGRAM
+  aiPaused      Boolean   @default(false)
   lastMessageAt DateTime  @default(now())
   firstResponseAt DateTime?
   resolvedAt    DateTime?
@@ -161,7 +168,10 @@ model Conversation {
 model Message {
   id            String    @id @default(cuid())
   content       String
-  type          String    @default("TEXT") // TEXT, IMAGE, DOCUMENT, TEMPLATE
+  type          String    @default("TEXT") // TEXT, IMAGE, DOCUMENT, AUDIO, TEMPLATE
+  mediaId       String?
+  mediaMimeType String?
+  mediaFilename String?
   direction     String    // INCOMING, OUTGOING
   senderType    String    @default("USER") // USER, AI_BOT, SYSTEM
   senderName    String?
@@ -205,6 +215,8 @@ model BroadcastCampaign {
   status        String    @default("DRAFT") // DRAFT, SCHEDULED, SENDING, COMPLETED
   scheduledAt   DateTime?
   templateId    String?
+  messageBody   String?
+  headerImageData String?
   numberId      String
   workspaceId   String
   deliveredCount Int      @default(0)
@@ -263,6 +275,7 @@ model AutomationRule {
 model BroadcastRecipient {
   id            String    @id @default(cuid())
   phoneNumber   String
+  metaMessageId String?   @unique
   status        String    @default("PENDING")
   campaignId    String
   campaign      BroadcastCampaign @relation(fields: [campaignId], references: [id])

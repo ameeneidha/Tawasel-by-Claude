@@ -25,6 +25,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import ActivationChecklist from '../components/ActivationChecklist';
+import { getPlanConfig, isPaidPlan, PLANS, PlanType } from '../constants/plans';
 
 const settingsNav = [
   { icon: User, label: 'Personal', path: '/app/settings/personal' },
@@ -470,14 +472,17 @@ function ApiKeys() {
   );
 }
 
-import { PLANS, PlanType } from '../constants/plans';
-
 function Billing() {
   const location = useLocation();
-  const { activeWorkspace } = useApp();
+  const { activeWorkspace, refreshWorkspaces, hasVerifiedEmail } = useApp();
   const [ledger, setLedger] = useState<any[]>([]);
 
-  const currentPlan = (activeWorkspace?.plan || 'STARTER') as PlanType;
+  const currentPlan = activeWorkspace?.plan || 'NONE';
+  const currentPlanInfo = getPlanConfig(currentPlan);
+  const selectedPlanFromQuery = (new URLSearchParams(location.search).get('plan') || '').toUpperCase() as PlanType | '';
+  const nextBillingDate = activeWorkspace?.subscriptionCurrentPeriodEnd
+    ? new Date(activeWorkspace.subscriptionCurrentPeriodEnd)
+    : null;
 
   useEffect(() => {
     if (activeWorkspace) {
@@ -485,6 +490,22 @@ function Billing() {
         .then(res => setLedger(res.data));
     }
   }, [activeWorkspace]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('success') === 'true') {
+      if (!activeWorkspace) return;
+      axios.post('/api/billing/sync-subscription', { workspaceId: activeWorkspace.id })
+        .catch((error) => {
+          console.error('Failed to sync workspace subscription after checkout', error);
+        })
+        .finally(() => {
+          refreshWorkspaces().catch((error) => {
+            console.error('Failed to refresh workspaces after checkout', error);
+          });
+        });
+    }
+  }, [activeWorkspace, location.search, refreshWorkspaces]);
 
   return (
     <div className="space-y-12">
@@ -525,66 +546,112 @@ function Billing() {
 
       <Routes>
         <Route index element={
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm transition-colors">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-gray-900 dark:text-white">Current Plan</h3>
-                <span className="px-3 py-1 bg-[#25D366]/10 text-[#25D366] text-xs font-bold rounded-full uppercase tracking-wider">
-                  {PLANS[currentPlan].name}
-                </span>
-              </div>
-              <div className="space-y-4 mb-8">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">WhatsApp Numbers</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{PLANS[currentPlan].whatsappLimit}</span>
+          <div className="space-y-8">
+            <ActivationChecklist />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm transition-colors">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Current Plan</h3>
+                  <span className={cn(
+                    "px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider",
+                    currentPlanInfo
+                      ? "bg-[#25D366]/10 text-[#25D366]"
+                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                  )}>
+                    {currentPlanInfo ? currentPlanInfo.name : 'No Plan Selected'}
+                  </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Instagram Accounts</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{PLANS[currentPlan].instagramLimit}</span>
+                {currentPlanInfo ? (
+                  <div className="space-y-4 mb-8">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">WhatsApp Numbers</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{currentPlanInfo.whatsappLimit}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">Instagram Accounts</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{currentPlanInfo.instagramLimit}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">AI Chatbots</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{currentPlanInfo.chatbotLimit}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">Users</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{currentPlanInfo.userLimit}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-8 rounded-2xl border border-dashed border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-700 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-300">
+                    No package has been selected for this workspace yet. Choose one of the paid packages below to activate the account.
+                  </div>
+                )}
+                <div className="mb-8 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">Subscription status</span>
+                  <span className="font-semibold uppercase text-gray-900 dark:text-white">
+                    {activeWorkspace?.subscriptionStatus || 'pending'}
+                  </span>
+                  </div>
+                  <div className="mt-2 flex justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">
+                      {activeWorkspace?.subscriptionCancelAtPeriodEnd ? 'Ends on' : 'Next payment'}
+                    </span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {nextBillingDate ? format(nextBillingDate, 'MMM dd, yyyy') : 'Not available yet'}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">AI Chatbots</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{PLANS[currentPlan].chatbotLimit}</span>
+                <Link to="/app/settings/billing/plans" className="block w-full py-3 bg-gray-900 dark:bg-slate-800 text-white text-center font-bold rounded-xl hover:bg-gray-800 dark:hover:bg-slate-700 transition-all shadow-sm">
+                  {currentPlanInfo ? 'Change Plan' : 'Choose Your Plan'}
+                </Link>
+              </div>
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm transition-colors">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Credit Balance</h3>
+                  <button className="p-2 text-gray-400 hover:text-[#25D366] transition-colors"><RefreshCw className="w-4 h-4" /></button>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Users</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{PLANS[currentPlan].userLimit}</span>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-4xl font-bold text-gray-900 dark:text-white">500.00</span>
+                  <span className="text-sm font-medium text-gray-400 dark:text-gray-500 uppercase">Credits</span>
                 </div>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-6 leading-relaxed">
+                  Credits are used exclusively for AI chatbot API charges and token usage. Meta's WhatsApp conversation charges are handled directly through your WhatsApp Business Account (WABA).
+                </p>
+                <button className="w-full py-3 bg-[#25D366] text-white font-bold rounded-xl hover:bg-[#128C7E] transition-all shadow-sm shadow-[#25D366]/20">
+                  Add to Credit Balance
+                </button>
               </div>
-              <Link to="/app/settings/billing/plans" className="block w-full py-3 bg-gray-900 dark:bg-slate-800 text-white text-center font-bold rounded-xl hover:bg-gray-800 dark:hover:bg-slate-700 transition-all shadow-sm">
-                Upgrade Plan
-              </Link>
-            </div>
-            <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm transition-colors">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-gray-900 dark:text-white">Credit Balance</h3>
-                <button className="p-2 text-gray-400 hover:text-[#25D366] transition-colors"><RefreshCw className="w-4 h-4" /></button>
-              </div>
-              <div className="flex items-baseline gap-2 mb-2">
-                <span className="text-4xl font-bold text-gray-900 dark:text-white">500.00</span>
-                <span className="text-sm font-medium text-gray-400 dark:text-gray-500 uppercase">Credits</span>
-              </div>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-6 leading-relaxed">
-                Credits are used exclusively for AI chatbot API charges and token usage. Meta's WhatsApp conversation charges are handled directly through your WhatsApp Business Account (WABA).
-              </p>
-              <button className="w-full py-3 bg-[#25D366] text-white font-bold rounded-xl hover:bg-[#128C7E] transition-all shadow-sm shadow-[#25D366]/20">
-                Add to Credit Balance
-              </button>
             </div>
           </div>
         } />
         <Route path="plans" element={
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {(Object.entries(PLANS) as [PlanType, any][]).map(([key, plan]) => (
+          <div className="space-y-6">
+            {selectedPlanFromQuery && (
+              <div className="rounded-2xl border border-[#25D366]/20 bg-[#25D366]/5 px-5 py-4 text-sm text-gray-700 dark:border-[#25D366]/10 dark:bg-[#25D366]/10 dark:text-gray-200">
+                You selected the <span className="font-semibold text-[#25D366]">{PLANS[selectedPlanFromQuery]?.name || selectedPlanFromQuery}</span> plan from the homepage. Review it below and continue to checkout when you're ready.
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {(Object.entries(PLANS) as [PlanType, any][]).map(([key, plan]) => {
+                const isCurrent = isPaidPlan(currentPlan) && currentPlan === key;
+                const isRecommended = selectedPlanFromQuery === key && !isCurrent;
+                return (
               <div key={key} className={cn(
                 "bg-white dark:bg-slate-900 p-8 rounded-2xl border transition-all relative overflow-hidden",
-                currentPlan === key 
-                  ? "border-[#25D366] ring-1 ring-[#25D366] shadow-md" 
-                  : "border-gray-100 dark:border-slate-800 shadow-sm hover:border-gray-200 dark:hover:border-slate-700"
+                isCurrent
+                  ? "border-[#25D366] ring-1 ring-[#25D366] shadow-md"
+                  : isRecommended
+                    ? "border-blue-300 ring-1 ring-blue-200 shadow-md dark:border-blue-500/50 dark:ring-blue-500/30"
+                    : "border-gray-100 dark:border-slate-800 shadow-sm hover:border-gray-200 dark:hover:border-slate-700"
               )}>
                 {currentPlan === key && (
                   <div className="absolute top-0 right-0 bg-[#25D366] text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
                     Current
+                  </div>
+                )}
+                {isRecommended && (
+                  <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
+                    Selected
                   </div>
                 )}
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{plan.name}</h3>
@@ -611,8 +678,12 @@ function Billing() {
                   </li>
                 </ul>
                 <button 
-                  disabled={currentPlan === key}
+                  disabled={isCurrent}
                   onClick={async () => {
+                    if (!hasVerifiedEmail) {
+                      toast.error('Verify your email before subscribing');
+                      return;
+                    }
                     try {
                       const res = await axios.post('/api/billing/create-checkout-session', {
                         planId: PLANS[key].stripePriceId,
@@ -629,15 +700,18 @@ function Billing() {
                   }}
                   className={cn(
                     "w-full py-3 rounded-xl font-bold transition-all",
-                    currentPlan === key 
+                    isCurrent 
                       ? "bg-gray-50 dark:bg-slate-800 text-gray-400 dark:text-gray-600 cursor-not-allowed" 
-                      : "bg-[#25D366] text-white hover:bg-[#128C7E] shadow-sm"
+                      : isRecommended
+                        ? "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                        : "bg-[#25D366] text-white hover:bg-[#128C7E] shadow-sm"
                   )}
                 >
-                  {currentPlan === key ? 'Active Plan' : 'Select Plan'}
+                  {isCurrent ? 'Active Plan' : isRecommended ? 'Continue With This Plan' : 'Select Plan'}
                 </button>
               </div>
-            ))}
+            )})}
+            </div>
           </div>
         } />
         <Route path="usage" element={

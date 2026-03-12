@@ -1,5 +1,4 @@
 import { Link, useLocation } from 'react-router-dom';
-import axios from 'axios';
 import { 
   MessageSquare, 
   Send, 
@@ -19,18 +18,22 @@ import {
   AlertCircle,
   MessageCircle,
   ShieldAlert,
+  Lock,
   Sun,
-  Moon
+  Moon,
+  ContactRound
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { cn } from '../lib/utils';
+import { cn, getDisplayName } from '../lib/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { motion } from 'motion/react';
+import AppTooltip from './AppTooltip';
 
 const navItems = [
   { icon: MessageSquare, label: 'Inbox', path: '/app/inbox' },
   { icon: LayoutGrid, label: 'CRM Pipeline', path: '/app/crm' },
+  { icon: ContactRound, label: 'Contacts', path: '/app/contacts' },
   { icon: Send, label: 'Compose', path: '/app/compose' },
   { icon: Radio, label: 'Broadcast', path: '/app/broadcast' },
   { icon: FileText, label: 'Templates', path: '/app/templates' },
@@ -41,8 +44,9 @@ const navItems = [
 
 export default function Sidebar() {
   const location = useLocation();
-  const { user, workspaces, activeWorkspace, setActiveWorkspace, setUser } = useApp();
+  const { user, workspaces, activeWorkspace, setActiveWorkspace, setUser, hasFullAccess } = useApp();
   const { theme, toggleTheme } = useTheme();
+  const displayName = getDisplayName(user?.name, user?.email);
 
   return (
     <div className="w-20 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 flex flex-col items-center py-6 h-screen sticky top-0 transition-colors">
@@ -55,59 +59,64 @@ export default function Sidebar() {
       <nav className="flex-1 flex flex-col gap-4">
         {navItems.map((item) => {
           const isActive = location.pathname.startsWith(item.path);
+          const isLocked = !hasFullAccess && item.path !== '/app/inbox';
           return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "w-12 h-12 rounded-xl flex items-center justify-center transition-all group relative",
-                isActive 
-                  ? "bg-[#25D366]/10 text-[#25D366]" 
-                  : "text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-gray-300"
-              )}
-            >
-              <item.icon className="w-6 h-6" />
-              <div className="absolute left-full ml-4 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                {item.label}
-              </div>
-            </Link>
+            <div key={item.path}>
+              <AppTooltip content={isLocked ? `${item.label} locked until subscription` : item.label}>
+                <Link
+                  to={isLocked ? '/app/settings/billing/plans' : item.path}
+                  className={cn(
+                    "w-12 h-12 rounded-xl flex items-center justify-center transition-all relative",
+                    isActive 
+                      ? "bg-[#25D366]/10 text-[#25D366]" 
+                      : "text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-gray-300",
+                    isLocked && "opacity-60"
+                  )}
+                >
+                  <item.icon className="w-6 h-6" />
+                  {isLocked && <Lock className="absolute -right-0.5 -top-0.5 w-3.5 h-3.5 text-amber-500 bg-white rounded-full p-[1px]" />}
+                </Link>
+              </AppTooltip>
+            </div>
           );
         })}
 
         {user?.email === 'ameeneidha@gmail.com' && (
-          <Link
-            to="/app/superadmin"
-            className={cn(
-              "w-12 h-12 rounded-xl flex items-center justify-center transition-all group relative",
-              location.pathname.startsWith('/app/superadmin') 
-                ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400" 
-                : "text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 dark:hover:text-red-400"
-            )}
-          >
-            <ShieldAlert className="w-6 h-6" />
-            <div className="absolute left-full ml-4 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-              Superadmin
-            </div>
-          </Link>
+          <AppTooltip content="Superadmin">
+            <Link
+              to="/app/superadmin"
+              className={cn(
+                "w-12 h-12 rounded-xl flex items-center justify-center transition-all relative",
+                location.pathname.startsWith('/app/superadmin') 
+                  ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400" 
+                  : "text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 dark:hover:text-red-400"
+              )}
+            >
+              <ShieldAlert className="w-6 h-6" />
+            </Link>
+          </AppTooltip>
         )}
       </nav>
 
       <div className="mt-auto flex flex-col gap-4">
-        <button 
-          onClick={toggleTheme}
-          className="w-12 h-12 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-gray-300 transition-all group relative"
-        >
-          {theme === 'light' ? <Moon className="w-6 h-6" /> : <Sun className="w-6 h-6" />}
-          <div className="absolute left-full ml-4 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-            {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-          </div>
-        </button>
+        <AppTooltip content={theme === 'light' ? 'Dark Mode' : 'Light Mode'}>
+          <button 
+            onClick={toggleTheme}
+            className="w-12 h-12 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
+          >
+            {theme === 'light' ? <Moon className="w-6 h-6" /> : <Sun className="w-6 h-6" />}
+          </button>
+        </AppTooltip>
 
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
-            <button className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors overflow-hidden">
-              {user?.name?.[0] || 'U'}
-            </button>
+            <div>
+              <AppTooltip content="Account Menu">
+                <button className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors overflow-hidden">
+                  {displayName[0] || 'U'}
+                </button>
+              </AppTooltip>
+            </div>
           </DropdownMenu.Trigger>
 
           <DropdownMenu.Portal>
@@ -118,7 +127,7 @@ export default function Sidebar() {
               sideOffset={10}
             >
               <div className="px-3 py-2 border-bottom border-gray-50 dark:border-slate-800 mb-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.name}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{displayName}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
               </div>
 

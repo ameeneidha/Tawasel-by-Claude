@@ -29,3 +29,12 @@ export const PLANS = {
 };
 
 export type PlanType = keyof typeof PLANS;
+export type WorkspacePlan = PlanType | 'NONE';
+
+export function isPaidPlan(plan?: string | null): plan is PlanType {
+  return !!plan && plan in PLANS;
+}
+
+export function getPlanConfig(plan?: string | null) {
+  return isPaidPlan(plan) ? PLANS[plan] : null;
+}

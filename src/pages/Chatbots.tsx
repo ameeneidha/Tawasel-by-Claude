@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
-import { PLANS, PlanType } from '../constants/plans';
+import { getPlanConfig, PLANS } from '../constants/plans';
 import { 
   Bot, 
   Plus, 
@@ -29,8 +29,8 @@ export default function Chatbots() {
   const [selectedBot, setSelectedBot] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const currentPlan = (activeWorkspace?.plan || 'STARTER') as PlanType;
-  const planInfo = PLANS[currentPlan];
+  const currentPlan = activeWorkspace?.plan || 'NONE';
+  const planInfo = getPlanConfig(currentPlan) || PLANS.STARTER;
   const limitReached = chatbots.length >= planInfo.chatbotLimit;
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'motion/react';
 import { LogIn, Mail, Lock, Loader2 } from 'lucide-react';
@@ -8,18 +8,14 @@ import { LogIn, Mail, Lock, Loader2 } from 'lucide-react';
 export default function Login() {
   const { user, setUser } = useApp();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('ameeneidha@gmail.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (user) {
-      if (sessionStorage.getItem('pendingPlan')) {
-        navigate('/');
-      } else {
-        navigate('/app');
-      }
+      navigate('/app/inbox');
     }
   }, [user, navigate]);
 
@@ -30,12 +26,7 @@ export default function Login() {
     try {
       const res = await axios.post('/api/auth/login', { email, password });
       setUser(res.data.user, res.data.token);
-      
-      if (sessionStorage.getItem('pendingPlan')) {
-        navigate('/');
-      } else {
-        navigate('/app');
-      }
+      navigate('/app/inbox');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
     } finally {
@@ -106,7 +97,10 @@ export default function Login() {
 
         <div className="mt-8 pt-6 border-t border-gray-100 dark:border-slate-800 text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Don't have an account? <span className="text-[#25D366] font-medium cursor-pointer hover:text-[#128C7E] transition-colors">Contact sales</span>
+            Don't have an account?{' '}
+            <Link to="/register" className="text-[#25D366] font-medium hover:text-[#128C7E] transition-colors">
+              Create one
+            </Link>
           </p>
         </div>
       </motion.div>

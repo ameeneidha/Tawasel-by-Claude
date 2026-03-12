@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
+import { toast } from 'sonner';
+import ContactListPicker from '../components/ContactListPicker';
 
 interface Contact {
   id: string;
@@ -21,6 +23,11 @@ interface Contact {
   phoneNumber?: string;
   pipelineStage: string;
   conversations: any[];
+}
+
+interface ContactList {
+  id: string;
+  name: string;
 }
 
 const STAGES = [
@@ -35,7 +42,16 @@ const STAGES = [
 export default function CRM() {
   const { activeWorkspace } = useApp();
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [lists, setLists] = useState<ContactList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showAddLead, setShowAddLead] = useState(false);
+  const [isSavingLead, setIsSavingLead] = useState(false);
+  const [newLead, setNewLead] = useState({
+    name: '',
+    phoneNumber: '',
+    listNames: [] as string[],
+    pipelineStage: 'NEW_LEAD'
+  });
 
   useEffect(() => {
     if (activeWorkspace) {
@@ -54,12 +70,59 @@ export default function CRM() {
     }
   };
 
+  const fetchLists = async () => {
+    try {
+      const res = await axios.get(`/api/contact-lists?workspaceId=${activeWorkspace?.id}`);
+      setLists(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error('Failed to fetch contact lists', error);
+    }
+  };
+
+  useEffect(() => {
+    if (activeWorkspace) {
+      fetchLists();
+    }
+  }, [activeWorkspace]);
+
   const updateStage = async (contactId: string, newStage: string) => {
     try {
       await axios.patch(`/api/contacts/${contactId}`, { pipelineStage: newStage });
       setContacts(prev => prev.map(c => c.id === contactId ? { ...c, pipelineStage: newStage } : c));
+      toast.success('Lead moved');
     } catch (error) {
       console.error('Failed to update stage', error);
+      toast.error('Could not move lead');
+    }
+  };
+
+  const createLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeWorkspace || (!newLead.name.trim() && !newLead.phoneNumber.trim())) return;
+
+    setIsSavingLead(true);
+    try {
+      const res = await axios.post('/api/contacts', {
+        workspaceId: activeWorkspace.id,
+        name: newLead.name,
+        phoneNumber: newLead.phoneNumber,
+        listNames: newLead.listNames,
+        pipelineStage: newLead.pipelineStage,
+      });
+      setContacts(prev => [res.data, ...prev]);
+      setNewLead({ name: '', phoneNumber: '', listNames: [], pipelineStage: 'NEW_LEAD' });
+      await fetchLists();
+      setShowAddLead(false);
+      toast.success('Lead saved');
+    } catch (error) {
+      console.error('Failed to create lead', error);
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.error || 'Could not save lead');
+      } else {
+        toast.error('Could not save lead');
+      }
+    } finally {
+      setIsSavingLead(false);
     }
   };
 
@@ -93,12 +156,80 @@ export default function CRM() {
           <button className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl text-gray-400 border border-gray-100 dark:border-slate-800 transition-colors">
             <Filter className="w-4 h-4" />
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white text-sm font-bold rounded-xl hover:bg-[#128C7E] transition-colors shadow-sm">
+          <button
+            onClick={() => {
+              fetchLists();
+              setShowAddLead(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white text-sm font-bold rounded-xl hover:bg-[#128C7E] transition-colors shadow-sm"
+          >
             <Plus className="w-4 h-4" />
             Add Lead
           </button>
         </div>
       </div>
+
+      {showAddLead && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/35 p-4">
+          <form onSubmit={createLead} className="w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-5">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Add New Lead</h2>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Save a customer into the CRM so their number and stage stay in your database.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Customer name"
+                value={newLead.name}
+                onChange={(e) => setNewLead(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+              <input
+                type="text"
+                placeholder="Phone number"
+                value={newLead.phoneNumber}
+                onChange={(e) => setNewLead(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+              <ContactListPicker
+                options={lists}
+                value={newLead.listNames}
+                onChange={(value) => setNewLead(prev => ({ ...prev, listNames: value }))}
+                placeholder="Add custom lists like Abu Dhabi, VIP, Ramadan"
+              />
+              <select
+                value={newLead.pipelineStage}
+                onChange={(e) => setNewLead(prev => ({ ...prev, pipelineStage: e.target.value }))}
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200"
+              >
+                {STAGES.map((stage) => (
+                  <option key={stage.id} value={stage.id}>{stage.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowAddLead(false)}
+                className="rounded-2xl px-4 py-2 text-sm font-semibold text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingLead || (!newLead.name.trim() && !newLead.phoneNumber.trim())}
+                className="rounded-2xl bg-[#25D366] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-[#128C7E] disabled:opacity-50"
+              >
+                {isSavingLead ? 'Saving...' : 'Save Lead'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="flex-1 overflow-x-auto p-8">
         <div className="flex gap-6 h-full min-w-max">

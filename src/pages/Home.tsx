@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import axios from 'axios';
-import { PLANS, PlanType } from '../constants/plans';
 import { motion } from 'motion/react';
+import { toast } from 'sonner';
 import { 
   Check, 
   MessageSquare, 
@@ -40,7 +40,8 @@ const translations = {
       desc: 'Access your dashboard and conversations',
       email: 'Email Address',
       password: 'Password',
-      button: 'Sign In'
+      button: 'Sign In',
+      forgotPassword: 'Forgot password?'
     },
     features: {
       title: 'Everything you need to scale',
@@ -87,7 +88,8 @@ const translations = {
       desc: 'الوصول إلى لوحة التحكم والمحادثات الخاصة بك',
       email: 'البريد الإلكتروني',
       password: 'كلمة المرور',
-      button: 'تسجيل الدخول'
+      button: 'تسجيل الدخول',
+      forgotPassword: 'هل نسيت كلمة المرور؟'
     },
     features: {
       title: 'كل ما تحتاجه للتوسع',
@@ -170,83 +172,21 @@ const PRICING_PLANS = [
 export default function Home() {
   const { user, setUser } = useApp();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('ameeneidha@gmail.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<'en' | 'ar'>('en');
   const [isSignUp, setIsSignUp] = useState(true);
   const [name, setName] = useState('');
+  const trustedTeamMarkers = ['MK', 'SA', 'LR', 'NH'];
 
   const t = translations[lang];
   const isRtl = lang === 'ar';
-  const { activeWorkspace } = useApp();
-
-  const handlePlanSelect = async (planId: string) => {
-    if (!user) {
-      sessionStorage.setItem('pendingPlan', planId);
-      setIsSignUp(true); // Switch to Sign Up mode
-      const loginSection = document.getElementById('login');
-      if (loginSection) {
-        loginSection.scrollIntoView({ behavior: 'smooth' });
-      }
-      return;
-    }
-
-    if (!activeWorkspace) {
-      navigate('/app');
-      return;
-    }
-
-    try {
-      const planKey = planId.toUpperCase() as PlanType;
-      const stripePriceId = PLANS[planKey]?.stripePriceId;
-
-      if (!stripePriceId || stripePriceId.includes('placeholder')) {
-        alert('Stripe is not fully configured for this plan yet. Please update the Price ID in src/constants/plans.ts');
-        return;
-      }
-
-      const res = await axios.post('/api/billing/create-checkout-session', {
-        planId: stripePriceId,
-        planKey: planKey,
-        workspaceId: activeWorkspace.id,
-        successUrl: `${window.location.origin}/app/settings/billing?success=true`,
-        cancelUrl: `${window.location.origin}/?canceled=true`
-      });
-      window.location.href = res.data.url;
-    } catch (err: any) {
-      console.error('Checkout error:', err);
-      alert(err.response?.data?.error || 'Failed to start checkout');
-    }
+  const handlePlanSelect = (planId: string) => {
+    sessionStorage.setItem('pendingPlan', planId);
+    navigate(user ? `/app/settings/billing/plans?plan=${planId}` : `/register?plan=${planId}`);
   };
-
-  // Handle pending plan redirect for logged-in users
-  useEffect(() => {
-    const storedPlan = sessionStorage.getItem('pendingPlan');
-    if (user && activeWorkspace && storedPlan) {
-      const planKey = storedPlan.toUpperCase() as PlanType;
-      const stripePriceId = PLANS[planKey]?.stripePriceId;
-      
-      if (stripePriceId && !stripePriceId.includes('placeholder')) {
-        setIsRedirecting(true);
-        sessionStorage.removeItem('pendingPlan');
-        axios.post('/api/billing/create-checkout-session', {
-          planId: stripePriceId,
-          planKey: planKey,
-          workspaceId: activeWorkspace.id,
-          successUrl: `${window.location.origin}/app/settings/billing?success=true`,
-          cancelUrl: `${window.location.origin}/?canceled=true`
-        }).then(res => {
-          window.location.href = res.data.url;
-        }).catch(err => {
-          console.error('Auto-checkout error:', err);
-          setIsRedirecting(false);
-        });
-      }
-    }
-  }, [user, activeWorkspace]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -258,11 +198,7 @@ export default function Home() {
       
       const res = await axios.post(endpoint, payload);
       setUser(res.data.user, res.data.token);
-      
-      // If there's no pending plan, go to app
-      if (!sessionStorage.getItem('pendingPlan')) {
-        navigate('/app');
-      }
+      navigate('/app/inbox');
     } catch (err: any) {
       setError(err.response?.data?.error || (isSignUp ? 'Registration failed' : 'Login failed'));
     } finally {
@@ -272,14 +208,6 @@ export default function Home() {
 
   return (
     <div className={`min-h-screen bg-white text-slate-900 font-sans selection:bg-[#25D366]/30 ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
-      {isRedirecting && (
-        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
-          <Loader2 className="w-12 h-12 text-[#25D366] animate-spin mb-4" />
-          <h2 className="text-xl font-bold text-slate-900">Redirecting to checkout...</h2>
-          <p className="text-slate-500 mt-2">Please wait while we prepare your secure payment session.</p>
-        </div>
-      )}
-
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -326,14 +254,13 @@ export default function Home() {
                 {t.hero.cta} <ArrowRight className={`w-5 h-5 ${isRtl ? 'rotate-180' : ''}`} />
               </a>
               <div className={`flex ${isRtl ? 'flex-row-reverse' : 'flex-row'} -space-x-2 items-center`}>
-                {[1, 2, 3, 4].map(i => (
-                  <img 
-                    key={i}
-                    src={`https://picsum.photos/seed/user${i}/100/100`} 
-                    className={`w-10 h-10 rounded-full border-2 border-white ${isRtl ? 'ml-[-8px]' : 'mr-[-8px]'}`}
-                    alt="User"
-                    referrerPolicy="no-referrer"
-                  />
+                {trustedTeamMarkers.map((initials) => (
+                  <div
+                    key={initials}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-slate-900 text-xs font-bold text-white ${isRtl ? 'ml-[-8px]' : 'mr-[-8px]'}`}
+                  >
+                    {initials}
+                  </div>
                 ))}
                 <span className={`${isRtl ? 'mr-4' : 'ml-4'} text-sm font-medium text-slate-500`}>{t.hero.trusted}</span>
               </div>
@@ -401,7 +328,18 @@ export default function Home() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t.login.password}</label>
+                <div className={`flex items-center justify-between gap-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t.login.password}</label>
+                  {!isSignUp && (
+                    <button
+                      type="button"
+                      onClick={() => toast.info(isRtl ? 'سيتم تفعيل استعادة كلمة المرور قريبًا. تواصل مع الدعم مؤقتًا.' : 'Password reset will be available soon. Please contact support for now.')}
+                      className="text-[11px] font-semibold text-[#25D366] hover:text-[#128C7E] transition-colors"
+                    >
+                      {t.login.forgotPassword}
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <Lock className={`absolute ${isRtl ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400`} />
                   <input
@@ -428,12 +366,17 @@ export default function Home() {
               >
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                   <>
-                    {isSignUp ? (isRtl ? 'إنشاء حساب مجاني' : 'Create Free Account') : t.login.button} 
+                    {isSignUp ? (isRtl ? 'إنشاء حساب' : 'Create Account') : t.login.button} 
                     {isSignUp ? <Zap className="w-5 h-5 text-[#25D366]" /> : <LogIn className={`w-5 h-5 ${isRtl ? 'rotate-180' : ''}`} />}
                   </>
                 )}
               </button>
             </form>
+            {isSignUp && (
+              <p className="mt-4 text-sm text-slate-500">
+                Create your workspace first, then choose a paid package to unlock sending, CRM, and automation.
+              </p>
+            )}
           </motion.div>
         </div>
       </section>
@@ -508,7 +451,13 @@ export default function Home() {
                 </ul>
 
                 <button 
-                  onClick={() => handlePlanSelect(plan.id)}
+                  onClick={() => {
+                    if (plan.id === 'enterprise') {
+                      window.open('https://quantops.ae', '_blank', 'noopener,noreferrer');
+                      return;
+                    }
+                    handlePlanSelect(plan.id);
+                  }}
                   className={`w-full py-4 rounded-xl font-bold transition-all ${
                   plan.highlight
                     ? 'bg-[#25D366] text-white hover:bg-[#128C7E] shadow-lg shadow-[#25D366]/20'
@@ -536,35 +485,40 @@ export default function Home() {
               {t.footer.desc}
             </p>
             <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-[#25D366] transition-colors cursor-pointer">
+              <a
+                href="https://quantops.ae"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-[#25D366] transition-colors"
+              >
                 <Globe className="w-5 h-5" />
-              </div>
-              <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-[#25D366] transition-colors cursor-pointer">
+              </a>
+              <Link to="/about" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-[#25D366] transition-colors">
                 <Users className="w-5 h-5" />
-              </div>
+              </Link>
             </div>
           </div>
           <div>
             <h4 className="font-bold mb-6">{t.footer.product}</h4>
             <ul className="space-y-4 text-slate-400 text-sm">
-              <li><a href="#" className="hover:text-white transition-colors">{t.nav.features}</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Integrations</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">{t.nav.pricing}</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Changelog</a></li>
+              <li><a href="/#features" className="hover:text-white transition-colors">{t.nav.features}</a></li>
+              <li><Link to="/register" className="hover:text-white transition-colors">Integrations</Link></li>
+              <li><a href="/#pricing" className="hover:text-white transition-colors">{t.nav.pricing}</a></li>
+              <li><Link to="/changelog" className="hover:text-white transition-colors">Changelog</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="font-bold mb-6">{t.footer.company}</h4>
             <ul className="space-y-4 text-slate-400 text-sm">
-              <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
+              <li><Link to="/about" className="hover:text-white transition-colors">About Us</Link></li>
+              <li><Link to="/careers" className="hover:text-white transition-colors">Careers</Link></li>
+              <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
             </ul>
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-4 mt-20 pt-8 border-t border-slate-800 text-center text-slate-500 text-sm">
-          <p className="mb-2">© {new Date().getFullYear()} WABA Hub. All rights reserved.</p>
+          <p className="mb-2">(c) {new Date().getFullYear()} WABA Hub. All rights reserved.</p>
           <p>{t.footer.created} <a href="https://quantops.ae" target="_blank" rel="noopener noreferrer" className="text-[#25D366] hover:underline font-medium">Quantops.ae</a></p>
         </div>
       </footer>

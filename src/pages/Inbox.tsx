@@ -21,16 +21,26 @@ import {
   Instagram,
   Users,
   Plus,
-  ShieldAlert
+  ShieldAlert,
+  Bot,
+  BotOff
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, getDisplayName } from '../lib/utils';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { generateReplySuggestions, summarizeConversation } from '../services/aiService';
+import ActivationChecklist from '../components/ActivationChecklist';
+import { toast } from 'sonner';
+import ContactListPicker from '../components/ContactListPicker';
+import AppTooltip from '../components/AppTooltip';
 
 interface Message {
   id: string;
   content: string;
+  type: 'TEXT' | 'IMAGE' | 'DOCUMENT' | 'AUDIO' | 'TEMPLATE' | string;
+  mediaId?: string | null;
+  mediaMimeType?: string | null;
+  mediaFilename?: string | null;
   direction: 'INCOMING' | 'OUTGOING';
   senderType: 'USER' | 'AI_BOT' | 'SYSTEM';
   senderName?: string;
@@ -56,11 +66,22 @@ interface Activity {
   createdAt: string;
 }
 
+interface ContactListOption {
+  id: string;
+  name: string;
+}
+
+interface PendingAttachment {
+  id: string;
+  file: File;
+}
+
 interface Conversation {
   id: string;
   channelType: 'WHATSAPP' | 'INSTAGRAM';
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   internalStatus: 'OPEN' | 'WAITING_FOR_CUSTOMER' | 'WAITING_FOR_INTERNAL' | 'RESOLVED';
+  aiPaused?: boolean;
   slaStatus: 'OK' | 'BREACHED';
   slaDeadline?: string;
   assignedToId?: string;
@@ -80,21 +101,164 @@ interface Conversation {
     leadSource?: string;
     activities?: Activity[];
     tasks?: Task[];
+    listMemberships?: {
+      list: ContactListOption;
+    }[];
   };
   messages: Message[];
   lastMessageAt: string;
   number?: {
     phoneNumber: string;
+    autoReply?: boolean;
+    chatbotId?: string | null;
+    chatbot?: {
+      id: string;
+      name: string;
+      enabled: boolean;
+    } | null;
   };
   instagramAccount?: {
     username: string;
+    chatbotId?: string | null;
+    chatbot?: {
+      id: string;
+      name: string;
+      enabled: boolean;
+    } | null;
   };
   tasks?: Task[];
   activities?: Activity[];
 }
 
+const QUICK_EMOJIS = ['\u{1F642}', '\u{1F44D}', '\u{1F64F}', '\u{1F525}', '\u{2705}', '\u{1F389}', '\u{1F4DE}', '\u{1F440}'];
+const SESSION_TEMPLATES = [
+  { id: 'greeting', name: 'Quick Greeting', content: 'Hi there! How can I help you today?' },
+  { id: 'follow-up', name: 'Follow Up', content: 'Just checking in on your request. Let me know if you still need help.' },
+  { id: 'closing', name: 'Closing Statement', content: 'Thank you for contacting us. If you need anything else, we are here to help.' },
+];
+
+function MessageMedia({ message }: { message: Message }) {
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(Boolean(message.mediaId));
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!message.mediaId) {
+      setMediaUrl(null);
+      setIsLoading(false);
+      return;
+    }
+
+    let isActive = true;
+    let objectUrl: string | null = null;
+
+    setIsLoading(true);
+    setError(null);
+
+    axios
+      .get(`/api/messages/${message.id}/media`, { responseType: 'blob' })
+      .then((response) => {
+        objectUrl = URL.createObjectURL(response.data);
+        if (!isActive) return;
+        setMediaUrl(objectUrl);
+      })
+      .catch((err) => {
+        if (!isActive) return;
+        if (axios.isAxiosError(err)) {
+          setError(err.response?.data?.error || 'Could not load media');
+        } else {
+          setError('Could not load media');
+        }
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [message.id, message.mediaId]);
+
+  const filename = message.mediaFilename || 'Attachment';
+  const isImage = message.type === 'IMAGE';
+  const isAudio = message.type === 'AUDIO';
+  const isDocument = message.type === 'DOCUMENT';
+  const trimmedContent = message.content?.trim() || '';
+  const hideDefaultLabel =
+    trimmedContent === '[Image]' ||
+    trimmedContent === '[Audio]' ||
+    trimmedContent === '[Voice note]' ||
+    trimmedContent === `[Document] ${filename}`;
+
+  return (
+    <div className="space-y-2">
+      {isLoading && (
+        <div className="flex items-center gap-2 text-xs text-gray-400">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Loading media...
+        </div>
+      )}
+
+      {!isLoading && error && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300">
+          {error}
+        </div>
+      )}
+
+      {!isLoading && !error && mediaUrl && isImage && (
+        <a href={mediaUrl} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-2xl">
+          <img
+            src={mediaUrl}
+            alt={filename}
+            className="max-h-72 w-full rounded-2xl object-cover"
+          />
+        </a>
+      )}
+
+      {!isLoading && !error && mediaUrl && isAudio && (
+        <div className="space-y-2">
+          <audio controls className="max-w-full">
+            <source src={mediaUrl} type={message.mediaMimeType || undefined} />
+          </audio>
+          <a
+            href={mediaUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-[#25D366]"
+          >
+            <Mic className="h-3.5 w-3.5" />
+            Download audio
+          </a>
+        </div>
+      )}
+
+      {!isLoading && !error && mediaUrl && isDocument && (
+        <a
+          href={mediaUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white/70 px-3 py-2 text-left text-sm text-gray-700 transition hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:bg-slate-900/40 dark:text-gray-200"
+        >
+          <FileText className="h-4 w-4 shrink-0" />
+          <span className="truncate">{filename}</span>
+        </a>
+      )}
+
+      {trimmedContent && !hideDefaultLabel && (
+        <div className="whitespace-pre-wrap break-words">{trimmedContent}</div>
+      )}
+    </div>
+  );
+}
+
 export default function Inbox() {
-  const { activeWorkspace, workspaces, setActiveWorkspace, user, setUser } = useApp();
+  const { activeWorkspace, workspaces, setActiveWorkspace, user, hasFullAccess, hasVerifiedEmail } = useApp();
+  const currentUserDisplayName = getDisplayName(user?.name, user?.email);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -113,11 +277,40 @@ export default function Inbox() {
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [channelFilter, setChannelFilter] = useState<'ALL' | 'WHATSAPP' | 'INSTAGRAM'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'WAITING_FOR_CUSTOMER' | 'WAITING_FOR_INTERNAL' | 'RESOLVED'>('ALL');
+  const [contactDraft, setContactDraft] = useState({ name: '', phoneNumber: '', listNames: [] as string[] });
+  const [contactLists, setContactLists] = useState<ContactListOption[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLInputElement>(null);
+  const isRestrictedMode = !hasFullAccess;
+  const filteredConversations = conversations.filter((conversation) => {
+    const query = searchQuery.trim().toLowerCase();
+    const matchesSearch =
+      query.length === 0 ||
+      (conversation.contact.name || '').toLowerCase().includes(query) ||
+      (conversation.contact.phoneNumber || '').toLowerCase().includes(query) ||
+      (conversation.contact.instagramUsername || '').toLowerCase().includes(query) ||
+      (conversation.messages?.[0]?.content || '').toLowerCase().includes(query);
+
+    const matchesChannel = channelFilter === 'ALL' || conversation.channelType === channelFilter;
+    const matchesStatus = statusFilter === 'ALL' || conversation.internalStatus === statusFilter;
+
+    return matchesSearch && matchesChannel && matchesStatus;
+  });
 
   useEffect(() => {
     if (activeWorkspace) {
       fetchConversations();
+      fetchContactLists();
       
       // Socket.io setup
       socket.connect();
@@ -131,6 +324,7 @@ export default function Inbox() {
             if (prev.find(m => m.id === message.id)) return prev;
             return [...prev, message];
           });
+          loadConversationDetails(message.conversationId);
         }
         
         // Update conversation list last message
@@ -147,7 +341,10 @@ export default function Inbox() {
       });
 
       socket.on('conversation-updated', (convId: string) => {
-        fetchConversations();
+        fetchConversations(convId);
+        if (selectedConv?.id === convId) {
+          loadConversationDetails(convId);
+        }
       });
 
       return () => {
@@ -162,10 +359,20 @@ export default function Inbox() {
 
   useEffect(() => {
     if (selectedConv) {
-      fetchMessages(selectedConv.id);
+      loadConversationDetails(selectedConv.id);
       setSummary(null);
     }
   }, [selectedConv?.id]);
+
+  useEffect(() => {
+    if (selectedConv) {
+      setContactDraft({
+        name: selectedConv.contact.name || '',
+        phoneNumber: selectedConv.contact.phoneNumber || '',
+        listNames: selectedConv.contact.listMemberships?.map((membership) => membership.list.name) || []
+      });
+    }
+  }, [selectedConv?.id, selectedConv?.contact.name, selectedConv?.contact.phoneNumber, selectedConv?.contact.listMemberships]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -173,7 +380,7 @@ export default function Inbox() {
     }
   }, [messages]);
 
-  const fetchConversations = async () => {
+  const fetchConversations = async (focusConversationId?: string) => {
     try {
       const res = await axios.get(`/api/conversations?workspaceId=${activeWorkspace?.id}`);
       const data = Array.isArray(res.data) ? res.data : [];
@@ -187,6 +394,27 @@ export default function Inbox() {
         setSlaBreachAlert(null);
       }
 
+      if (focusConversationId) {
+        const refreshedConversation = data.find(conversation => conversation.id === focusConversationId);
+        if (refreshedConversation) {
+          setSelectedConv(prev => {
+            if (prev && prev.id !== focusConversationId) return prev;
+            return {
+              ...(prev || refreshedConversation),
+              ...refreshedConversation,
+              messages: prev?.messages || refreshedConversation.messages,
+              tasks: prev?.tasks || refreshedConversation.tasks,
+              activities: prev?.activities || refreshedConversation.activities,
+              contact: {
+                ...refreshedConversation.contact,
+                tasks: prev?.contact?.tasks || refreshedConversation.contact.tasks,
+                activities: prev?.contact?.activities || refreshedConversation.contact.activities,
+              },
+            };
+          });
+        }
+      }
+
       if (data.length > 0 && !selectedConv) {
         setSelectedConv(data[0]);
       }
@@ -197,23 +425,37 @@ export default function Inbox() {
     }
   };
 
-  const fetchMessages = async (id: string) => {
+  const fetchContactLists = async () => {
+    try {
+      const res = await axios.get(`/api/contact-lists?workspaceId=${activeWorkspace?.id}`);
+      setContactLists(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error('Failed to fetch contact lists', error);
+    }
+  };
+
+  const loadConversationDetails = async (id: string) => {
     try {
       const res = await axios.get(`/api/conversations/${id}`);
-      const data = res.data?.messages || [];
+      const conversation = res.data;
+      const data = conversation?.messages || [];
       setMessages(data);
-      fetchSuggestions(id);
+      setSelectedConv(prev => {
+        if (prev && prev.id !== id) return prev;
+        return conversation;
+      });
+      fetchSuggestions(id, data);
     } catch (error) {
       console.error('Failed to fetch messages', error);
     }
   };
 
-  const fetchSuggestions = async (id: string) => {
+  const fetchSuggestions = async (id: string, messageList?: Message[]) => {
     if (isInternalMode) return;
     setIsLoadingSuggestions(true);
     try {
       // Format history for AI
-      const history = messages
+      const history = (messageList || messages)
         .filter(m => !m.isInternal)
         .map(m => ({
           content: m.content,
@@ -224,15 +466,25 @@ export default function Inbox() {
       setSuggestions(data);
     } catch (error) {
       console.error('Failed to fetch suggestions', error);
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.error || 'Could not generate AI suggestions');
+      } else {
+        toast.error('Could not generate AI suggestions');
+      }
     } finally {
       setIsLoadingSuggestions(false);
     }
   };
 
   const updateConversation = async (id: string, data: Partial<Conversation>) => {
+    if (isRestrictedMode) return;
     try {
-      await axios.patch(`/api/conversations/${id}`, data);
-      fetchConversations();
+      const res = await axios.patch(`/api/conversations/${id}`, data);
+      const updated = res.data;
+      setSelectedConv(prev => prev && prev.id === id ? { ...prev, ...updated } : prev);
+      setConversations(prev => prev.map(conv => conv.id === id ? { ...conv, ...updated } : conv));
+      loadConversationDetails(id);
+      fetchConversations(id);
     } catch (error) {
       console.error('Failed to update conversation', error);
     }
@@ -253,12 +505,18 @@ export default function Inbox() {
       setSummary(summaryText);
     } catch (error) {
       console.error('Failed to fetch summary', error);
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.error || 'Could not generate AI summary');
+      } else {
+        toast.error('Could not generate AI summary');
+      }
     } finally {
       setIsSummarizing(false);
     }
   };
 
   const updateContact = async (id: string, data: any) => {
+    if (isRestrictedMode) return;
     try {
       await axios.patch(`/api/contacts/${id}`, data);
       if (selectedConv) {
@@ -266,36 +524,161 @@ export default function Inbox() {
           ...selectedConv,
           contact: { ...selectedConv.contact, ...data }
         });
+        loadConversationDetails(selectedConv.id);
       }
-      fetchConversations();
+      fetchConversations(selectedConv?.id);
+      fetchContactLists();
+      toast.success('Contact saved');
     } catch (error) {
       console.error('Failed to update contact', error);
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.error || 'Could not save contact');
+      } else {
+        toast.error('Could not save contact');
+      }
     }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedConv || isSending) return;
+    if ((!newMessage.trim() && pendingAttachments.length === 0) || !selectedConv || isSending || isRestrictedMode) return;
 
     setIsSending(true);
+    setSendError(null);
     try {
-      // Use the new broadcast endpoint
-      const res = await axios.post('/api/messages/send', {
-        conversationId: selectedConv.id,
-        content: newMessage,
-        senderId: user?.id,
-        senderName: user?.name,
-        isInternal: isInternalMode
-      });
+      const trimmedMessage = newMessage.trim();
+
+      if (isInternalMode) {
+        const content = [
+          trimmedMessage,
+          pendingAttachments.length > 0 ? `Attachments: ${pendingAttachments.map((attachment) => attachment.file.name).join(', ')}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+
+        await axios.post('/api/messages', {
+          conversationId: selectedConv.id,
+          content,
+          direction: 'OUTGOING',
+          senderType: 'USER',
+            senderName: currentUserDisplayName,
+          isInternal: isInternalMode
+        });
+      } else {
+        if (selectedConv.channelType === 'INSTAGRAM' && pendingAttachments.length > 0) {
+          throw new Error('Instagram attachments are not connected yet. Send text only for now.');
+        }
+
+        const formData = new FormData();
+        formData.append('conversationId', selectedConv.id);
+        formData.append('content', trimmedMessage);
+        formData.append('senderId', user?.id || '');
+        formData.append('senderName', currentUserDisplayName);
+        formData.append('isInternal', String(isInternalMode));
+        pendingAttachments.forEach((attachment) => {
+          formData.append('attachments', attachment.file, attachment.file.name);
+        });
+
+        await axios.post('/api/messages/send', formData);
+      }
       
       // We don't need to manually update state here because the socket will broadcast it back to us
       // But for better UX, we can optimistically update or just wait for the socket
       setNewMessage('');
+      setPendingAttachments([]);
+      setShowEmojiPicker(false);
+      setShowTemplatePicker(false);
+      loadConversationDetails(selectedConv.id);
+      fetchConversations(selectedConv.id);
       fetchSuggestions(selectedConv.id);
     } catch (error) {
       console.error('Failed to send message', error);
+      if (axios.isAxiosError(error)) {
+        setSendError(error.response?.data?.error || error.message || 'Message could not be sent.');
+      } else {
+        setSendError('Message could not be sent. Please try again.');
+      }
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleEmojiInsert = (emoji: string) => {
+    setNewMessage((prev) => `${prev}${emoji}`);
+    setSendError(null);
+    setShowEmojiPicker(false);
+    setTimeout(() => messageInputRef.current?.focus(), 0);
+  };
+
+  const handleAttachmentPick = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []) as File[];
+    if (files.length === 0) return;
+    setPendingAttachments((prev) => [
+      ...prev,
+      ...files.map((file) => ({
+        id: `${file.name}-${file.size}-${file.lastModified}`,
+        file,
+      })),
+    ]);
+    setSendError(null);
+    event.target.value = '';
+    setTimeout(() => messageInputRef.current?.focus(), 0);
+  };
+
+  const handleTemplateInsert = (templateContent: string) => {
+    setNewMessage(templateContent);
+    setSendError(null);
+    setShowTemplatePicker(false);
+    setTimeout(() => messageInputRef.current?.focus(), 0);
+  };
+
+  const conversationHasAiBot = (conversation: Conversation | null) => {
+    if (!conversation) return false;
+    if (conversation.channelType === 'WHATSAPP') {
+      return Boolean(conversation.number?.autoReply && conversation.number?.chatbotId);
+    }
+    return Boolean(conversation.instagramAccount?.chatbotId);
+  };
+
+  const getAssignedBotName = (conversation: Conversation | null) => {
+    if (!conversation) return null;
+    if (conversation.channelType === 'WHATSAPP') {
+      return conversation.number?.chatbot?.name || null;
+    }
+    return conversation.instagramAccount?.chatbot?.name || null;
+  };
+
+  const handleAiToggle = async () => {
+    if (!selectedConv || isRestrictedMode || !conversationHasAiBot(selectedConv)) return;
+    await updateConversation(selectedConv.id, { aiPaused: !selectedConv.aiPaused });
+  };
+
+  const getConversationStatusStyles = (status: Conversation['internalStatus']) => {
+    switch (status) {
+      case 'WAITING_FOR_CUSTOMER':
+        return {
+          rail: 'before:bg-yellow-500',
+          pill: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+          label: 'Waiting for customer'
+        };
+      case 'WAITING_FOR_INTERNAL':
+        return {
+          rail: 'before:bg-purple-500',
+          pill: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+          label: 'Waiting for internal'
+        };
+      case 'RESOLVED':
+        return {
+          rail: 'before:bg-green-500',
+          pill: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+          label: 'Resolved'
+        };
+      default:
+        return {
+          rail: 'before:bg-slate-200 dark:before:bg-slate-700',
+          pill: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+          label: 'Open'
+        };
     }
   };
 
@@ -309,7 +692,7 @@ export default function Inbox() {
 
   const handleCreateWorkspace = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!newWorkspaceName.trim() || !user || isCreating) return;
+    if (!newWorkspaceName.trim() || !user || isCreating || isRestrictedMode) return;
 
     setIsCreating(true);
     try {
@@ -369,7 +752,9 @@ export default function Inbox() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">{ws.name}</p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">{ws.plan} Plan</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    {ws.plan === 'NONE' ? 'NO PLAN SELECTED' : `${ws.plan} Plan`}
+                  </p>
                 </div>
               </button>
             ))}
@@ -431,28 +816,104 @@ export default function Inbox() {
     <div className="h-full flex bg-white dark:bg-slate-950 transition-colors">
       {/* Left Column: Conversation List */}
       <div className="w-80 border-r border-gray-100 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-colors">
+        {isRestrictedMode && (
+          <div className="mx-4 mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+            {hasVerifiedEmail
+              ? 'Inbox is view-only until you subscribe to a plan in Billing.'
+              : 'Verify your email first, then choose a plan in Billing to unlock replies and CRM actions.'}
+          </div>
+        )}
         <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-[#25D366] rounded-full" />
             <span className="font-medium text-sm dark:text-gray-200">Active</span>
           </div>
           <div className="flex items-center gap-2">
-            <button className="p-1.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
-              <Search className="w-4 h-4" />
-            </button>
-            <button className="p-1.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
-              <Filter className="w-4 h-4" />
-            </button>
+            <AppTooltip content="Search conversations" side="bottom">
+              <button
+                onClick={() => setIsSearchOpen((prev) => !prev)}
+                className={cn(
+                  "p-1.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors",
+                  isSearchOpen ? "text-[#25D366] bg-[#25D366]/10" : "text-gray-400"
+                )}
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </AppTooltip>
+            <AppTooltip content="Filter conversations" side="bottom">
+              <button
+                onClick={() => setShowFilters((prev) => !prev)}
+                className={cn(
+                  "p-1.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors",
+                  showFilters || channelFilter !== 'ALL' || statusFilter !== 'ALL'
+                    ? "text-[#25D366] bg-[#25D366]/10"
+                    : "text-gray-400"
+                )}
+              >
+                <Filter className="w-4 h-4" />
+              </button>
+            </AppTooltip>
           </div>
         </div>
 
+        {(isSearchOpen || showFilters) && (
+          <div className="border-b border-gray-100 dark:border-slate-800 px-4 py-3 space-y-3 bg-white dark:bg-slate-900">
+            {isSearchOpen && (
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search name, number, or latest message..."
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none transition-colors focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            )}
+
+            {showFilters && (
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={channelFilter}
+                  onChange={(e) => setChannelFilter(e.target.value as 'ALL' | 'WHATSAPP' | 'INSTAGRAM')}
+                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700 outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200"
+                >
+                  <option value="ALL">All channels</option>
+                  <option value="WHATSAPP">WhatsApp</option>
+                  <option value="INSTAGRAM">Instagram</option>
+                </select>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as 'ALL' | 'OPEN' | 'WAITING_FOR_CUSTOMER' | 'WAITING_FOR_INTERNAL' | 'RESOLVED')}
+                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700 outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200"
+                >
+                  <option value="ALL">All statuses</option>
+                  <option value="OPEN">Open</option>
+                  <option value="WAITING_FOR_CUSTOMER">Waiting for customer</option>
+                  <option value="WAITING_FOR_INTERNAL">Waiting for internal</option>
+                  <option value="RESOLVED">Resolved</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setChannelFilter('ALL');
+                    setStatusFilter('ALL');
+                  }}
+                  className="col-span-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-500 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:text-gray-400"
+                >
+                  Clear search and filters
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto">
-          {conversations.map((conv) => (
+          {filteredConversations.map((conv) => (
             <button
               key={conv.id}
               onClick={() => setSelectedConv(conv)}
               className={cn(
-                "w-full p-4 flex items-center gap-3 transition-colors border-b border-gray-50 dark:border-slate-800/50",
+                "relative w-full p-4 flex items-center gap-3 transition-colors border-b border-gray-50 dark:border-slate-800/50 before:absolute before:left-0 before:top-3 before:bottom-3 before:w-1 before:rounded-r-full",
+                getConversationStatusStyles(conv.internalStatus).rail,
                 selectedConv?.id === conv.id ? "bg-[#25D366]/5 dark:bg-[#25D366]/10" : "hover:bg-gray-50 dark:hover:bg-slate-800/50"
               )}
             >
@@ -497,6 +958,18 @@ export default function Inbox() {
                       ) : ''}
                     </span>
                   </div>
+                  <div className="mb-1.5 flex items-center gap-2">
+                    {conv.internalStatus !== 'OPEN' && (
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider",
+                          getConversationStatusStyles(conv.internalStatus).pill
+                        )}
+                      >
+                        {getConversationStatusStyles(conv.internalStatus).label}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-gray-500 truncate flex-1 mr-2">
                       {conv.messages[0]?.content || 'No messages'}
@@ -513,9 +986,20 @@ export default function Inbox() {
                       </div>
                     )}
                   </div>
-                </div>
+              </div>
             </button>
           ))}
+          {filteredConversations.length === 0 && (
+            <div className="px-6 py-12 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-gray-500">
+                <Search className="h-5 w-5" />
+              </div>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-200">No conversations match</p>
+              <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                Try a different search term or clear the active filters.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -528,6 +1012,11 @@ export default function Inbox() {
               {slaBreachAlert}
             </div>
             <button onClick={() => setSlaBreachAlert(null)} className="hover:opacity-80">Dismiss</button>
+          </div>
+        )}
+        {(!hasFullAccess || conversations.length === 0) && (
+          <div className="shrink-0 border-b border-gray-100 p-6 dark:border-slate-800">
+            <ActivationChecklist />
           </div>
         )}
         {selectedConv ? (
@@ -578,9 +1067,45 @@ export default function Inbox() {
                   <p className="text-[10px] text-[#25D366] font-medium uppercase tracking-wider">
                     Online
                   </p>
+                  {getAssignedBotName(selectedConv) && (
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                      Bot: <span className="font-semibold text-gray-600 dark:text-gray-300">{getAssignedBotName(selectedConv)}</span>
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-4">
+                {conversationHasAiBot(selectedConv) && (
+                  <AppTooltip
+                    content={
+                      selectedConv.aiPaused
+                        ? `AI is paused. ${getAssignedBotName(selectedConv) || 'Assigned bot'} will not auto-reply until you turn it back on.`
+                        : `${getAssignedBotName(selectedConv) || 'Assigned bot'} is handling auto replies for this conversation.`
+                    }
+                    side="bottom"
+                  >
+                    <button
+                      type="button"
+                      onClick={handleAiToggle}
+                      disabled={isRestrictedMode}
+                      className={cn(
+                        "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
+                        selectedConv.aiPaused
+                          ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300"
+                          : "border-[#25D366]/20 bg-[#25D366]/10 text-[#128C7E] dark:border-[#25D366]/30 dark:bg-[#25D366]/15 dark:text-[#7DE2A8]",
+                        isRestrictedMode ? "cursor-not-allowed opacity-60" : "hover:opacity-90"
+                      )}
+                    >
+                      {selectedConv.aiPaused ? <BotOff className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                      {selectedConv.aiPaused ? 'AI Off' : 'AI On'}
+                      {getAssignedBotName(selectedConv) && (
+                        <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold text-inherit dark:bg-slate-900/40">
+                          {getAssignedBotName(selectedConv)}
+                        </span>
+                      )}
+                    </button>
+                  </AppTooltip>
+                )}
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700">
                   <span className="text-xs text-gray-500 dark:text-gray-400">Assigned to:</span>
                   <select
@@ -589,21 +1114,23 @@ export default function Inbox() {
                     className="text-xs font-medium text-gray-700 dark:text-gray-300 bg-transparent border-none outline-none cursor-pointer"
                   >
                     <option value="">Unassigned</option>
-                    <option value={user?.id}>{user?.name} (You)</option>
+                    <option value={user?.id}>{currentUserDisplayName} (You)</option>
                     {/* In a real app, we'd fetch all team members here */}
                   </select>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700">
                   <span className="text-xs text-gray-500 dark:text-gray-400">From:</span>
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                    {selectedConv.channelType === 'INSTAGRAM' 
-                      ? `@${selectedConv.instagramAccount?.username || 'instagram'}`
-                      : selectedConv.number?.phoneNumber || '+971 50 123 4567'}
-                  </span>
-                </div>
-                <button className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
-                  <MoreVertical className="w-5 h-5" />
-                </button>
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {selectedConv.channelType === 'INSTAGRAM' 
+                      ? `@${selectedConv.contact.instagramUsername || selectedConv.instagramAccount?.username || 'instagram'}`
+                      : selectedConv.contact.phoneNumber || selectedConv.number?.phoneNumber || 'No customer number'}
+                    </span>
+                  </div>
+                <AppTooltip content="Conversation actions" side="bottom">
+                  <button className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                </AppTooltip>
               </div>
             </div>
 
@@ -629,6 +1156,13 @@ export default function Inbox() {
                           : "bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 rounded-tl-none")
                     )}
                   >
+                    {!msg.isInternal && msg.direction === 'OUTGOING' && (
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        {msg.senderType === 'AI_BOT'
+                          ? getDisplayName(msg.senderName) || 'AI Bot'
+                          : getDisplayName(msg.senderName) || 'Agent'}
+                      </div>
+                    )}
                     {msg.isInternal && (
                       <div className="flex items-center gap-2 mb-1 not-italic">
                         <Edit2 className="w-3 h-3" />
@@ -636,10 +1170,14 @@ export default function Inbox() {
                         {msg.senderName && <span className="text-[10px] opacity-60">• {msg.senderName}</span>}
                       </div>
                     )}
-                    {msg.content}
+                    {msg.type === 'TEXT' || msg.isInternal ? (
+                      <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                    ) : (
+                      <MessageMedia message={msg} />
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5 mt-1.5 px-1">
-                    {msg.senderType === 'AI_BOT' && (
+                    {msg.senderType === 'AI_BOT' && !msg.senderName && (
                       <span className="text-[10px] font-bold text-[#25D366] uppercase tracking-tighter">AI Bot</span>
                     )}
                     <span className="text-[10px] text-gray-400">
@@ -706,22 +1244,125 @@ export default function Inbox() {
                 </div>
               )}
 
+                {pendingAttachments.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {pendingAttachments.map((attachment) => (
+                      <div
+                        key={attachment.id}
+                        className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-600 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300"
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                        <span>{attachment.file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setPendingAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}
+                          className="text-gray-400 transition hover:text-red-500"
+                        >
+                          x
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {sendError && (
+                <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-400">
+                  {sendError}
+                </div>
+              )}
+
               <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                <input
+                  ref={attachmentInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleAttachmentPick}
+                />
                 <div className="flex items-center gap-1">
-                  <button type="button" className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
-                    <Smile className="w-5 h-5" />
-                  </button>
-                  <button type="button" className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
-                    <Paperclip className="w-5 h-5" />
-                  </button>
-                  <button type="button" className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
-                    <FileText className="w-5 h-5" />
-                  </button>
+                  <div className="relative">
+                    <AppTooltip content="Emoji picker" side="top">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEmojiPicker((prev) => !prev);
+                          setShowTemplatePicker(false);
+                        }}
+                        className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
+                      >
+                        <Smile className="w-5 h-5" />
+                      </button>
+                    </AppTooltip>
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-12 left-0 z-20 flex w-52 flex-wrap gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                        {QUICK_EMOJIS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => handleEmojiInsert(emoji)}
+                            className="rounded-xl px-2 py-1 text-lg transition hover:bg-gray-100 dark:hover:bg-slate-800"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <AppTooltip content="Attach files" side="top">
+                    <button
+                      type="button"
+                      onClick={() => attachmentInputRef.current?.click()}
+                      className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
+                    >
+                      <Paperclip className="w-5 h-5" />
+                    </button>
+                  </AppTooltip>
+                  <div className="relative">
+                    <AppTooltip content="Insert template" side="top">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowTemplatePicker((prev) => !prev);
+                          setShowEmojiPicker(false);
+                        }}
+                        className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
+                      >
+                        <FileText className="w-5 h-5" />
+                      </button>
+                    </AppTooltip>
+                    {showTemplatePicker && (
+                      <div className="absolute bottom-12 left-0 z-20 w-72 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                          Session Templates
+                        </div>
+                        {SESSION_TEMPLATES.map((template) => (
+                          <button
+                            key={template.id}
+                            type="button"
+                            onClick={() => handleTemplateInsert(template.content)}
+                            className="w-full rounded-xl px-3 py-2 text-left transition hover:bg-gray-50 dark:hover:bg-slate-800"
+                          >
+                            <div className="text-xs font-semibold text-gray-900 dark:text-white">{template.name}</div>
+                            <div className="mt-1 line-clamp-2 text-[11px] text-gray-500 dark:text-gray-400">
+                              {template.content}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <input
+                  ref={messageInputRef}
                   type="text"
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={(e) => {
+                    setNewMessage(e.target.value);
+                    if (sendError) {
+                      setSendError(null);
+                    }
+                  }}
+                  disabled={isRestrictedMode}
                   placeholder={isInternalMode ? "Type an internal note (only your team sees this)..." : "Type a message..."}
                   className={cn(
                     "flex-1 border-none rounded-xl px-4 py-2.5 text-sm outline-none transition-all",
@@ -730,24 +1371,46 @@ export default function Inbox() {
                       : "bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-[#25D366]/20 dark:focus:ring-[#25D366]/10 text-gray-900 dark:text-gray-100 transition-colors"
                   )}
                 />
-                <button type="button" className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
-                  <Mic className="w-5 h-5" />
-                </button>
-                <button 
-                  type="submit"
-                  disabled={!newMessage.trim() || isSending}
-                  className={cn(
-                    "p-2.5 text-white rounded-xl transition-colors disabled:opacity-50",
-                    isInternalMode ? "bg-yellow-500 hover:bg-yellow-600" : "bg-[#25D366] hover:bg-[#128C7E]"
-                  )}
-                >
-                  {isInternalMode ? <Edit2 className="w-5 h-5" /> : <Send className="w-5 h-5" />}
-                </button>
+                <AppTooltip content="Voice note recording is coming soon" side="top">
+                  <button type="button" className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
+                    <Mic className="w-5 h-5" />
+                  </button>
+                </AppTooltip>
+                <AppTooltip content={isInternalMode ? 'Save internal note' : 'Send message'} side="top">
+                  <button 
+                    type="submit"
+                    disabled={(!newMessage.trim() && pendingAttachments.length === 0) || isSending || isRestrictedMode}
+                    className={cn(
+                      "p-2.5 text-white rounded-xl transition-colors disabled:opacity-50",
+                      isInternalMode ? "bg-yellow-500 hover:bg-yellow-600" : "bg-[#25D366] hover:bg-[#128C7E]"
+                    )}
+                  >
+                    {isInternalMode ? <Edit2 className="w-5 h-5" /> : <Send className="w-5 h-5" />}
+                  </button>
+                </AppTooltip>
               </form>
               <div className="mt-2 flex justify-end">
-                <p className="text-[10px] text-gray-400 italic">
-                  Auto replying with AI Bot
-                </p>
+                {conversationHasAiBot(selectedConv) ? (
+                  <button
+                    type="button"
+                    onClick={handleAiToggle}
+                    disabled={isRestrictedMode}
+                    className={cn(
+                      "inline-flex items-center gap-1 text-[10px] font-medium italic transition-colors",
+                      selectedConv.aiPaused
+                        ? "text-amber-600 dark:text-amber-300"
+                        : "text-[#25D366]",
+                      isRestrictedMode ? "cursor-not-allowed opacity-60" : "hover:opacity-80"
+                    )}
+                  >
+                    {selectedConv.aiPaused ? <BotOff className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                    {selectedConv.aiPaused ? 'AI chatbot paused. Agent is in control.' : 'Auto replying with AI Bot. Click to turn off.'}
+                  </button>
+                ) : (
+                  <p className="text-[10px] text-gray-400 italic">
+                    AI chatbot is not connected to this conversation.
+                  </p>
+                )}
               </div>
             </div>
           </>
@@ -815,8 +1478,44 @@ export default function Inbox() {
                     </p>
                     
                     <div className="mt-4 flex flex-col gap-2">
+                      <input
+                        type="text"
+                        value={contactDraft.name}
+                        disabled={isRestrictedMode}
+                        onChange={(e) => setContactDraft((prev) => ({ ...prev, name: e.target.value }))}
+                        placeholder="Customer name"
+                        className="w-full rounded-xl bg-gray-50 px-4 py-2 text-sm text-gray-700 outline-none transition-colors focus:ring-2 focus:ring-[#25D366]/20 dark:bg-slate-800 dark:text-gray-300"
+                      />
+                      <input
+                        type="text"
+                        value={contactDraft.phoneNumber}
+                        disabled={isRestrictedMode || selectedConv.channelType === 'INSTAGRAM'}
+                        onChange={(e) => setContactDraft((prev) => ({ ...prev, phoneNumber: e.target.value }))}
+                        placeholder="Customer phone number"
+                        className="w-full rounded-xl bg-gray-50 px-4 py-2 text-sm text-gray-700 outline-none transition-colors focus:ring-2 focus:ring-[#25D366]/20 dark:bg-slate-800 dark:text-gray-300 disabled:opacity-60"
+                      />
+                      <ContactListPicker
+                        options={contactLists}
+                        value={contactDraft.listNames}
+                        disabled={isRestrictedMode}
+                        onChange={(value) => setContactDraft((prev) => ({ ...prev, listNames: value }))}
+                        placeholder="Add custom lists like Abu Dhabi, VIP, Follow Up"
+                      />
+                      <button
+                        type="button"
+                        disabled={isRestrictedMode}
+                        onClick={() => updateContact(selectedConv.contact.id, {
+                          name: contactDraft.name,
+                          phoneNumber: selectedConv.channelType === 'INSTAGRAM' ? selectedConv.contact.phoneNumber : contactDraft.phoneNumber,
+                          listNames: contactDraft.listNames
+                        })}
+                        className="rounded-xl bg-[#25D366] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#128C7E] disabled:opacity-50"
+                      >
+                        Save Contact
+                      </button>
                       <select 
                         value={selectedConv.contact.pipelineStage || 'NEW_LEAD'}
+                        disabled={isRestrictedMode}
                         onChange={(e) => updateContact(selectedConv.contact.id, { pipelineStage: e.target.value })}
                         className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl border-none outline-none cursor-pointer uppercase tracking-wider transition-colors"
                       >
@@ -833,13 +1532,15 @@ export default function Inbox() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">AI Summary</h4>
-                      <button 
-                        onClick={fetchSummary}
-                        disabled={isSummarizing}
-                        className="text-[10px] font-bold text-[#25D366] uppercase hover:underline disabled:opacity-50"
-                      >
-                        {isSummarizing ? 'Summarizing...' : (summary ? 'Refresh' : 'Generate')}
-                      </button>
+                      <AppTooltip content="Generate a quick AI summary of this conversation" side="left">
+                        <button
+                          onClick={fetchSummary}
+                          disabled={isSummarizing || isRestrictedMode}
+                          className="text-[10px] font-bold text-[#25D366] uppercase hover:underline disabled:opacity-50"
+                        >
+                          {isSummarizing ? 'Summarizing...' : (summary ? 'Refresh' : 'Generate')}
+                        </button>
+                      </AppTooltip>
                     </div>
                     {summary ? (
                       <div className="p-3 bg-[#25D366]/5 dark:bg-[#25D366]/10 rounded-xl border border-[#25D366]/10 dark:border-[#25D366]/20">
@@ -879,10 +1580,11 @@ export default function Inbox() {
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <h4 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Follow-up Tasks</h4>
-                    <button 
-                      onClick={() => setIsAddingTask(true)}
-                      className="p-1 hover:bg-gray-50 dark:hover:bg-slate-800 rounded text-[#25D366]"
-                    >
+                      <button 
+                        disabled={isRestrictedMode}
+                        onClick={() => setIsAddingTask(true)}
+                        className="p-1 hover:bg-gray-50 dark:hover:bg-slate-800 rounded text-[#25D366]"
+                      >
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
@@ -898,8 +1600,9 @@ export default function Inbox() {
                       />
                       <div className="flex items-center gap-2">
                         <button 
-                          onClick={async () => {
-                            if (!newTaskTitle.trim()) return;
+                            onClick={async () => {
+                              if (isRestrictedMode) return;
+                              if (!newTaskTitle.trim()) return;
                             try {
                               await axios.post('/api/tasks', {
                                 title: newTaskTitle,
@@ -910,7 +1613,8 @@ export default function Inbox() {
                               });
                               setNewTaskTitle('');
                               setIsAddingTask(false);
-                              fetchMessages(selectedConv.id); // Refresh to get tasks
+                              loadConversationDetails(selectedConv.id);
+                              fetchConversations(selectedConv.id);
                             } catch (e) {
                               console.error(e);
                             }
@@ -935,9 +1639,11 @@ export default function Inbox() {
                         <div className="flex items-start gap-3">
                           <button 
                             onClick={async () => {
+                              if (isRestrictedMode) return;
                               try {
                                 await axios.patch(`/api/tasks/${task.id}`, { status: task.status === 'PENDING' ? 'COMPLETED' : 'PENDING' });
-                                fetchMessages(selectedConv.id);
+                                loadConversationDetails(selectedConv.id);
+                                fetchConversations(selectedConv.id);
                               } catch (e) { console.error(e); }
                             }}
                             className={cn(

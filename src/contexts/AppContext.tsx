@@ -13,6 +13,11 @@ interface Workspace {
   name: string;
   slug: string;
   plan: string;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  subscriptionStatus?: string | null;
+  subscriptionCurrentPeriodEnd?: string | null;
+  subscriptionCancelAtPeriodEnd?: boolean;
 }
 
 interface AppContextType {
@@ -20,9 +25,13 @@ interface AppContextType {
   token: string | null;
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
+  hasVerifiedEmail: boolean;
+  hasActiveSubscription: boolean;
+  hasFullAccess: boolean;
   setUser: (user: User | null, token: string | null) => void;
   setActiveWorkspace: (workspace: Workspace | null) => void;
   verifyEmail: () => Promise<void>;
+  refreshWorkspaces: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -135,15 +144,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshWorkspaces = async () => {
+    if (!user) return;
+    await fetchWorkspaces(user.id);
+  };
+
+  const hasVerifiedEmail = !!user?.emailVerified;
+  const hasActiveSubscription = ['active', 'trialing'].includes((activeWorkspace?.subscriptionStatus || '').toLowerCase());
+  const hasFullAccess = hasVerifiedEmail && hasActiveSubscription;
+
   return (
     <AppContext.Provider value={{ 
       user, 
       token,
       workspaces, 
       activeWorkspace, 
+      hasVerifiedEmail,
+      hasActiveSubscription,
+      hasFullAccess,
       setUser: handleSetUser, 
       setActiveWorkspace: handleSetActiveWorkspace,
       verifyEmail,
+      refreshWorkspaces,
       isLoading 
     }}>
       {children}
