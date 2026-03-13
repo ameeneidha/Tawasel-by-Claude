@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
-import { Loader2, Search, Plus, Users, Phone, Tags, CheckSquare, Square } from 'lucide-react';
+import { Loader2, Search, Plus, Users, Tags, CheckSquare, Square, Upload, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import ContactListPicker from '../components/ContactListPicker';
@@ -28,6 +28,94 @@ interface Contact {
   }[];
 }
 
+type CsvImportRow = Record<string, string>;
+
+const CSV_TEMPLATE = `name,phone,lead_source,pipeline_stage,custom_lists
+Ahmed Hassan,+971551112222,Website,NEW_LEAD,"Abu Dhabi, VIP"
+Sarah Miller,+971553334444,Instagram,CONTACTED,"Dubai"`;
+
+const normalizeColumnKey = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/^\ufeff/, '')
+    .replace(/[^a-z0-9]+/g, '');
+
+const parseCsvText = (text: string) => {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentValue = '';
+  let inQuotes = false;
+
+  const pushValue = () => {
+    currentRow.push(currentValue);
+    currentValue = '';
+  };
+
+  const pushRow = () => {
+    if (currentRow.length === 0 && !currentValue) return;
+    pushValue();
+    const hasValue = currentRow.some((cell) => cell.trim().length > 0);
+    if (hasValue) {
+      rows.push(currentRow);
+    }
+    currentRow = [];
+  };
+
+  const source = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        currentValue += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      pushValue();
+      continue;
+    }
+
+    if (char === '\n' && !inQuotes) {
+      pushRow();
+      continue;
+    }
+
+    currentValue += char;
+  }
+
+  if (currentValue.length > 0 || currentRow.length > 0) {
+    pushRow();
+  }
+
+  return rows;
+};
+
+const guessColumnMapping = (headers: string[]) => {
+  const normalizedHeaders = headers.map((header) => ({
+    raw: header,
+    key: normalizeColumnKey(header),
+  }));
+
+  const findHeader = (aliases: string[]) =>
+    normalizedHeaders.find((header) => aliases.includes(header.key))?.raw || '';
+
+  return {
+    name: findHeader(['name', 'fullname', 'contactname', 'customername']),
+    phoneNumber: findHeader(['phone', 'phonenumber', 'mobile', 'mobilenumber', 'whatsapp', 'whatsappnumber', 'number']),
+    leadSource: findHeader(['leadsource', 'source']),
+    pipelineStage: findHeader(['pipelinestage', 'stage', 'status']),
+    listNames: findHeader(['list', 'lists', 'contactlist', 'contactlists', 'customlist', 'customlists', 'segment', 'segments']),
+  };
+};
+
 export default function Contacts() {
   const { activeWorkspace, hasFullAccess } = useApp();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -39,8 +127,27 @@ export default function Contacts() {
   const [isLoading, setIsLoading] = useState(true);
   const [showContactModal, setShowContactModal] = useState(false);
   const [showListModal, setShowListModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importFileName, setImportFileName] = useState('');
+  const [importHeaders, setImportHeaders] = useState<string[]>([]);
+  const [importRows, setImportRows] = useState<CsvImportRow[]>([]);
+  const [importError, setImportError] = useState('');
+  const [importMapping, setImportMapping] = useState({
+    name: '',
+    phoneNumber: '',
+    leadSource: '',
+    pipelineStage: '',
+    listNames: '',
+  });
+  const [importDefaults, setImportDefaults] = useState({
+    pipelineStage: 'NEW_LEAD',
+    leadSource: '',
+    listNames: [] as string[],
+    duplicateMode: 'merge' as 'merge' | 'skip',
+  });
   const [contactForm, setContactForm] = useState({
     name: '',
     phoneNumber: '',
@@ -161,6 +268,143 @@ export default function Contacts() {
     }
   };
 
+  const resetImportState = () => {
+    setImportFileName('');
+    setImportHeaders([]);
+    setImportRows([]);
+    setImportError('');
+    setImportMapping({
+      name: '',
+      phoneNumber: '',
+      leadSource: '',
+      pipelineStage: '',
+      listNames: '',
+    });
+    setImportDefaults({
+      pipelineStage: 'NEW_LEAD',
+      leadSource: '',
+      listNames: [],
+      duplicateMode: 'merge',
+    });
+  };
+
+  const openImportModal = async () => {
+    await fetchLists();
+    resetImportState();
+    setShowImportModal(true);
+  };
+
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = parseCsvText(text);
+
+      if (parsed.length < 2) {
+        setImportError('Add a CSV with a header row and at least one data row.');
+        setImportFileName(file.name);
+        setImportHeaders([]);
+        setImportRows([]);
+        return;
+      }
+
+      const rawHeaders = parsed[0].map((header, index) => header.trim().replace(/^\ufeff/, '') || `Column ${index + 1}`);
+      const headers = rawHeaders.map((header, index) => {
+        const duplicateCount = rawHeaders.slice(0, index).filter((value) => value === header).length;
+        return duplicateCount > 0 ? `${header} (${duplicateCount + 1})` : header;
+      });
+
+      const rows = parsed
+        .slice(1)
+        .filter((row) => row.some((cell) => cell.trim().length > 0))
+        .map((row) =>
+          headers.reduce<CsvImportRow>((result, header, index) => {
+            result[header] = row[index]?.trim() || '';
+            return result;
+          }, {})
+        );
+
+      if (rows.length === 0) {
+        setImportError('The CSV file only contains empty rows.');
+        setImportFileName(file.name);
+        setImportHeaders([]);
+        setImportRows([]);
+        return;
+      }
+
+      setImportFileName(file.name);
+      setImportHeaders(headers);
+      setImportRows(rows);
+      setImportMapping(guessColumnMapping(headers));
+      setImportError('');
+    } catch (error) {
+      setImportError('Could not read this CSV file. Try a standard UTF-8 CSV export.');
+      setImportFileName(file.name);
+      setImportHeaders([]);
+      setImportRows([]);
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const downloadTemplate = () => {
+    const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'tawasel-contacts-template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const previewRows = useMemo(() => {
+    return importRows.slice(0, 5).map((row) => ({
+      name: importMapping.name ? row[importMapping.name] || '' : '',
+      phoneNumber: importMapping.phoneNumber ? row[importMapping.phoneNumber] || '' : '',
+      leadSource: importMapping.leadSource ? row[importMapping.leadSource] || importDefaults.leadSource : importDefaults.leadSource,
+      pipelineStage: importMapping.pipelineStage ? row[importMapping.pipelineStage] || importDefaults.pipelineStage : importDefaults.pipelineStage,
+      listNames: importMapping.listNames ? row[importMapping.listNames] || importDefaults.listNames.join(', ') : importDefaults.listNames.join(', '),
+    }));
+  }, [importRows, importMapping, importDefaults]);
+
+  const submitCsvImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeWorkspace || importRows.length === 0 || !importMapping.phoneNumber) return;
+
+    setIsImporting(true);
+    try {
+      const response = await axios.post('/api/contacts/import', {
+        workspaceId: activeWorkspace.id,
+        rows: importRows,
+        mappings: importMapping,
+        defaults: {
+          pipelineStage: importDefaults.pipelineStage,
+          leadSource: importDefaults.leadSource,
+          listNames: importDefaults.listNames,
+        },
+        duplicateMode: importDefaults.duplicateMode,
+      });
+
+      await Promise.all([fetchContacts(), fetchLists()]);
+      setShowImportModal(false);
+      resetImportState();
+
+      const { created, updated, skipped, errors } = response.data;
+      toast.success(`CSV imported: ${created} created, ${updated} updated, ${skipped} skipped`);
+      if (Array.isArray(errors) && errors.length > 0) {
+        toast.info(errors[0]);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Could not import contacts from CSV');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -227,7 +471,7 @@ export default function Contacts() {
             <div className="flex items-center gap-3">
               <button
                 disabled={!hasFullAccess}
-                onClick={() => toast.info('CSV import can be the next step. For now, add contacts manually or from inbox.')}
+                onClick={openImportModal}
                 className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300 disabled:opacity-60"
               >
                 Import Contacts
@@ -479,6 +723,265 @@ export default function Contacts() {
               </button>
               <button type="submit" disabled={saving || selectedContactIds.length === 0} className="rounded-2xl bg-[#25D366] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
                 {saving ? 'Saving...' : 'Create List'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/35 p-4">
+          <form onSubmit={submitCsvImport} className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Import Contacts from CSV</h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Upload a CSV, map the columns, choose duplicate handling, and optionally add every imported row to one or more custom lists.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowImportModal(false);
+                  resetImportState();
+                }}
+                className="rounded-2xl px-3 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="space-y-5">
+                <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 p-5 dark:border-slate-700 dark:bg-slate-950/40">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">Upload CSV file</p>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Use columns like name, phone, lead source, stage, and custom lists.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={downloadTemplate}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download Template
+                    </button>
+                  </div>
+
+                  <label className="mt-4 flex cursor-pointer items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-sm font-semibold text-gray-700 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:bg-slate-900 dark:text-gray-200">
+                    <Upload className="h-4 w-4" />
+                    {importFileName ? `Replace ${importFileName}` : 'Choose CSV file'}
+                    <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportFile} />
+                  </label>
+
+                  {importFileName && (
+                    <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                      Loaded <span className="font-semibold text-gray-700 dark:text-gray-200">{importFileName}</span>
+                      {importRows.length > 0 ? ` • ${importRows.length} rows detected` : ''}
+                    </p>
+                  )}
+
+                  {importError && (
+                    <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                      {importError}
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <span>Name column</span>
+                    <select
+                      value={importMapping.name}
+                      onChange={(e) => setImportMapping((prev) => ({ ...prev, name: e.target.value }))}
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="">Ignore</option>
+                      {importHeaders.map((header) => (
+                        <option key={header} value={header}>{header}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <span>Phone number column</span>
+                    <select
+                      value={importMapping.phoneNumber}
+                      onChange={(e) => setImportMapping((prev) => ({ ...prev, phoneNumber: e.target.value }))}
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="">Select required column</option>
+                      {importHeaders.map((header) => (
+                        <option key={header} value={header}>{header}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <span>Lead source column</span>
+                    <select
+                      value={importMapping.leadSource}
+                      onChange={(e) => setImportMapping((prev) => ({ ...prev, leadSource: e.target.value }))}
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="">Use default below</option>
+                      {importHeaders.map((header) => (
+                        <option key={header} value={header}>{header}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <span>Pipeline stage column</span>
+                    <select
+                      value={importMapping.pipelineStage}
+                      onChange={(e) => setImportMapping((prev) => ({ ...prev, pipelineStage: e.target.value }))}
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="">Use default below</option>
+                      {importHeaders.map((header) => (
+                        <option key={header} value={header}>{header}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-2 text-sm font-semibold text-gray-700 dark:text-gray-200 md:col-span-2">
+                    <span>Custom list column</span>
+                    <select
+                      value={importMapping.listNames}
+                      onChange={(e) => setImportMapping((prev) => ({ ...prev, listNames: e.target.value }))}
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="">No list column</option>
+                      {importHeaders.map((header) => (
+                        <option key={header} value={header}>{header}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <span>Default pipeline stage</span>
+                    <select
+                      value={importDefaults.pipelineStage}
+                      onChange={(e) => setImportDefaults((prev) => ({ ...prev, pipelineStage: e.target.value }))}
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="NEW_LEAD">New Lead</option>
+                      <option value="CONTACTED">Contacted</option>
+                      <option value="QUALIFIED">Qualified</option>
+                      <option value="QUOTE_SENT">Quote Sent</option>
+                      <option value="WON">Won</option>
+                      <option value="LOST">Lost</option>
+                    </select>
+                  </label>
+
+                  <label className="space-y-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <span>Duplicate handling</span>
+                    <select
+                      value={importDefaults.duplicateMode}
+                      onChange={(e) => setImportDefaults((prev) => ({ ...prev, duplicateMode: e.target.value as 'merge' | 'skip' }))}
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="merge">Merge into existing phone numbers</option>
+                      <option value="skip">Skip duplicates</option>
+                    </select>
+                  </label>
+
+                  <label className="space-y-2 text-sm font-semibold text-gray-700 dark:text-gray-200 md:col-span-2">
+                    <span>Default lead source</span>
+                    <input
+                      value={importDefaults.leadSource}
+                      onChange={(e) => setImportDefaults((prev) => ({ ...prev, leadSource: e.target.value }))}
+                      placeholder="Website, Meta Ad, Referral..."
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                  </label>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Add all imported contacts to these lists</span>
+                    <ContactListPicker
+                      options={lists}
+                      value={importDefaults.listNames}
+                      onChange={(value) => setImportDefaults((prev) => ({ ...prev, listNames: value }))}
+                      placeholder="Optional default lists like Abu Dhabi, VIP, Ramadan"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                <div className="rounded-3xl border border-gray-100 bg-gray-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/40">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Import preview</h3>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Previewing the first {Math.min(previewRows.length, 5)} rows after mapping.
+                  </p>
+
+                  <div className="mt-4 overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-slate-800 dark:bg-slate-900">
+                    <table className="min-w-full divide-y divide-gray-100 dark:divide-slate-800">
+                      <thead className="bg-gray-50 dark:bg-slate-950/50">
+                        <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                          <th className="px-3 py-2">Name</th>
+                          <th className="px-3 py-2">Phone</th>
+                          <th className="px-3 py-2">Source</th>
+                          <th className="px-3 py-2">Stage</th>
+                          <th className="px-3 py-2">Lists</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                        {previewRows.length > 0 ? previewRows.map((row, index) => (
+                          <tr key={`${row.phoneNumber}-${index}`} className="text-xs text-gray-700 dark:text-gray-200">
+                            <td className="px-3 py-2">{row.name || '-'}</td>
+                            <td className="px-3 py-2">{row.phoneNumber || '-'}</td>
+                            <td className="px-3 py-2">{row.leadSource || '-'}</td>
+                            <td className="px-3 py-2">{row.pipelineStage || '-'}</td>
+                            <td className="px-3 py-2">{row.listNames || (importDefaults.listNames.length > 0 ? importDefaults.listNames.join(', ') : '-')}</td>
+                          </tr>
+                        )) : (
+                          <tr>
+                            <td colSpan={5} className="px-3 py-10 text-center text-sm text-gray-400">
+                              Upload a CSV to preview imported contacts here.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl bg-white px-4 py-3 text-xs text-gray-500 dark:bg-slate-900 dark:text-gray-400">
+                    <p className="font-semibold text-gray-700 dark:text-gray-200">Import rules</p>
+                    <ul className="mt-2 space-y-1">
+                      <li>Phone number is required for each imported contact.</li>
+                      <li>Duplicate detection is based on phone number.</li>
+                      <li>Custom list names from CSV are created automatically if they do not exist yet.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowImportModal(false);
+                  resetImportState();
+                }}
+                className="rounded-2xl px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isImporting || importRows.length === 0 || !importMapping.phoneNumber}
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#25D366] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              >
+                <Upload className="h-4 w-4" />
+                {isImporting ? 'Importing...' : 'Import Contacts'}
               </button>
             </div>
           </form>

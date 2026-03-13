@@ -1730,6 +1730,41 @@ async function startServer() {
     return Array.from(resolvedIds);
   };
 
+  const parseImportedListNames = (value?: string | null) =>
+    Array.from(
+      new Set(
+        String(value || '')
+          .split(/[|;,]/)
+          .map((name) => name.trim())
+          .filter(Boolean)
+      )
+    );
+
+  const normalizePipelineStageValue = (value?: string | null) => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+
+    if (!normalized) {
+      return 'NEW_LEAD';
+    }
+
+    const pipelineMap: Record<string, string> = {
+      new_lead: 'NEW_LEAD',
+      newlead: 'NEW_LEAD',
+      contacted: 'CONTACTED',
+      qualified: 'QUALIFIED',
+      quote_sent: 'QUOTE_SENT',
+      quotesent: 'QUOTE_SENT',
+      won: 'WON',
+      lost: 'LOST',
+    };
+
+    return pipelineMap[normalized] || 'NEW_LEAD';
+  };
+
   const getAppBaseUrl = (req: express.Request) =>
     (process.env.APP_URL || `${req.protocol}://${req.get('host') || `localhost:${PORT}`}`).replace(/\/$/, '');
 
@@ -3629,6 +3664,214 @@ async function startServer() {
     });
 
     res.json(contact);
+  });
+
+  app.post("/api/contacts/import", requireAuth, requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+    const {
+      workspaceId,
+      rows,
+      mappings,
+      defaults,
+      duplicateMode,
+    } = req.body as {
+      workspaceId?: string;
+      rows?: Record<string, unknown>[];
+      mappings?: Record<string, string | undefined>;
+      defaults?: {
+        pipelineStage?: string;
+        leadSource?: string;
+        listNames?: string[];
+      };
+      duplicateMode?: 'skip' | 'merge';
+    };
+
+    if (!workspaceId) {
+      return res.status(400).json({ error: "Workspace is required" });
+    }
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ error: "Upload a CSV with at least one row" });
+    }
+
+    const normalizedMappings = {
+      name: mappings?.name || '',
+      phoneNumber: mappings?.phoneNumber || '',
+      leadSource: mappings?.leadSource || '',
+      pipelineStage: mappings?.pipelineStage || '',
+      listNames: mappings?.listNames || '',
+    };
+
+    if (!normalizedMappings.phoneNumber) {
+      return res.status(400).json({ error: "Map a phone number column before importing" });
+    }
+
+    const importDefaults = {
+      pipelineStage: normalizePipelineStageValue(defaults?.pipelineStage),
+      leadSource: defaults?.leadSource?.trim() || '',
+      listNames: Array.from(
+        new Set((Array.isArray(defaults?.listNames) ? defaults?.listNames : []).map((name) => String(name).trim()).filter(Boolean))
+      ),
+    };
+
+    const preparedRows = rows.filter((row) => row && typeof row === 'object');
+
+    const allListNames = new Set(importDefaults.listNames);
+    for (const row of preparedRows) {
+      const rowValue = normalizedMappings.listNames
+        ? row[normalizedMappings.listNames]
+        : '';
+      for (const listName of parseImportedListNames(String(rowValue || ''))) {
+        allListNames.add(listName);
+      }
+    }
+
+    if (allListNames.size > 0) {
+      await resolveContactListIds(workspaceId, [], Array.from(allListNames));
+    }
+
+    const workspaceLists = await prisma.contactList.findMany({
+      where: { workspaceId }
+    });
+    const listIdByName = new Map(
+      workspaceLists.map((list) => [list.name.trim().toLowerCase(), list.id])
+    );
+
+    const existingContacts = await prisma.contact.findMany({
+      where: {
+        workspaceId,
+        phoneNumber: { not: null }
+      },
+      include: {
+        listMemberships: {
+          include: { list: true }
+        }
+      }
+    });
+
+    const existingByPhone = new Map(
+      existingContacts
+        .map((contact) => [normalizePhone(contact.phoneNumber), contact] as const)
+        .filter(([digits]) => Boolean(digits))
+    );
+
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const [index, row] of preparedRows.entries()) {
+      const nameValue = normalizedMappings.name ? String(row[normalizedMappings.name] ?? '').trim() : '';
+      const phoneValue = normalizedMappings.phoneNumber ? String(row[normalizedMappings.phoneNumber] ?? '').trim() : '';
+      const normalizedPhone = normalizePhone(phoneValue);
+
+      if (!normalizedPhone) {
+        skipped += 1;
+        errors.push(`Row ${index + 2}: missing a valid phone number`);
+        continue;
+      }
+
+      const formattedPhone = phoneValue.startsWith('+') ? phoneValue : `+${normalizedPhone}`;
+      const leadSourceValue = normalizedMappings.leadSource
+        ? String(row[normalizedMappings.leadSource] ?? '').trim()
+        : '';
+      const pipelineStageValue = normalizedMappings.pipelineStage
+        ? String(row[normalizedMappings.pipelineStage] ?? '').trim()
+        : '';
+      const rowListNames = normalizedMappings.listNames
+        ? parseImportedListNames(String(row[normalizedMappings.listNames] ?? ''))
+        : [];
+
+      const resolvedRowListIds = Array.from(
+        new Set([...importDefaults.listNames, ...rowListNames].map((name) => listIdByName.get(name.trim().toLowerCase())).filter(Boolean))
+      ) as string[];
+
+      const existing = existingByPhone.get(normalizedPhone);
+      const nextName = nameValue || existing?.name || formattedPhone;
+      const nextLeadSource = leadSourceValue || importDefaults.leadSource || existing?.leadSource || null;
+      const nextPipelineStage = normalizePipelineStageValue(pipelineStageValue || importDefaults.pipelineStage || existing?.pipelineStage);
+
+      if (existing) {
+        if (duplicateMode === 'skip') {
+          skipped += 1;
+          continue;
+        }
+
+        const existingMembershipIds = new Set(existing.listMemberships.map((membership) => membership.listId));
+        const missingListIds = resolvedRowListIds.filter((listId) => !existingMembershipIds.has(listId));
+
+        const updatedContact = await prisma.contact.update({
+          where: { id: existing.id },
+          data: {
+            name: nextName,
+            phoneNumber: formattedPhone,
+            leadSource: nextLeadSource,
+            pipelineStage: nextPipelineStage,
+            lastActivityAt: new Date(),
+            listMemberships: missingListIds.length > 0
+              ? {
+                  create: missingListIds.map((listId) => ({ listId }))
+                }
+              : undefined
+          },
+          include: {
+            listMemberships: {
+              include: { list: true }
+            }
+          }
+        });
+
+        existingByPhone.set(normalizedPhone, updatedContact);
+        updated += 1;
+        continue;
+      }
+
+      const createdContact = await prisma.contact.create({
+        data: {
+          workspaceId,
+          name: nextName,
+          phoneNumber: formattedPhone,
+          pipelineStage: nextPipelineStage,
+          leadSource: nextLeadSource,
+          lastActivityAt: new Date(),
+          listMemberships: resolvedRowListIds.length > 0
+            ? {
+                create: resolvedRowListIds.map((listId) => ({ listId }))
+              }
+            : undefined
+        },
+        include: {
+          listMemberships: {
+            include: { list: true }
+          }
+        }
+      });
+
+      existingByPhone.set(normalizedPhone, createdContact);
+      created += 1;
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        type: 'CONTACT_IMPORT',
+        content: `CSV import completed: ${created} created, ${updated} updated, ${skipped} skipped`,
+        workspaceId,
+        userId: req.user?.id || null,
+        metadata: JSON.stringify({
+          created,
+          updated,
+          skipped,
+          duplicateMode: duplicateMode === 'skip' ? 'skip' : 'merge',
+        }),
+      }
+    });
+
+    res.json({
+      created,
+      updated,
+      skipped,
+      totalRows: preparedRows.length,
+      errors: errors.slice(0, 20),
+    });
   });
 
   app.get("/api/contacts/:id", requireAuth, async (req, res) => {
