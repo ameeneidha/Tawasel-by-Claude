@@ -7,7 +7,7 @@ import { useState } from 'react';
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isLoading, verifyEmail, hasVerifiedEmail, hasActiveSubscription, hasFullAccess, isSuperadmin } = useApp();
+  const { user, isLoading, requestEmailVerification, hasVerifiedEmail, hasActiveSubscription, hasFullAccess, isSuperadmin } = useApp();
   const [isVerifying, setIsVerifying] = useState(false);
 
   if (isLoading) {
@@ -40,7 +40,13 @@ export default function AppLayout() {
   const handleVerify = async () => {
     setIsVerifying(true);
     try {
-      await verifyEmail();
+      const result = await requestEmailVerification();
+      navigate('/verify-email-sent', {
+        state: {
+          email: user?.email,
+          ...result,
+        },
+      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -64,7 +70,7 @@ export default function AppLayout() {
               className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
             >
               {isVerifying ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-              Verify Now
+              Send verification email
             </button>
           </div>
         )}

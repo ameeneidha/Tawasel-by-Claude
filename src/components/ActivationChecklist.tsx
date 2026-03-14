@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import axios from 'axios';
 import { CheckCircle2, CreditCard, Loader2, MailCheck, MessageSquarePlus, Route, Sparkles } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import { cn } from '../lib/utils';
 
@@ -23,8 +23,9 @@ export default function ActivationChecklist({ className }: { className?: string 
     hasVerifiedEmail,
     hasActiveSubscription,
     hasFullAccess,
-    verifyEmail,
+    requestEmailVerification,
   } = useApp();
+  const navigate = useNavigate();
   const [channelCount, setChannelCount] = useState<number | null>(null);
   const [chatbotCount, setChatbotCount] = useState<number | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -66,7 +67,13 @@ export default function ActivationChecklist({ className }: { className?: string 
   const handleVerify = async () => {
     setIsVerifying(true);
     try {
-      await verifyEmail();
+      const result = await requestEmailVerification();
+      navigate('/verify-email-sent', {
+        state: {
+          email: user.email,
+          ...result,
+        },
+      });
     } finally {
       setIsVerifying(false);
     }
@@ -78,7 +85,7 @@ export default function ActivationChecklist({ className }: { className?: string 
       title: 'Verify email',
       description: 'Confirm the account before billing and workspace actions unlock.',
       complete: hasVerifiedEmail,
-      ctaLabel: hasVerifiedEmail ? undefined : (isVerifying ? 'Verifying...' : 'Verify now'),
+      ctaLabel: hasVerifiedEmail ? undefined : (isVerifying ? 'Preparing...' : 'Send verification email'),
       ctaAction: hasVerifiedEmail ? undefined : handleVerify,
       icon: MailCheck,
     },

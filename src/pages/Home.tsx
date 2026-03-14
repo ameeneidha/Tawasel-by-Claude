@@ -23,7 +23,6 @@ import {
   getPlanPrice,
   PLAN_ORDER,
   PLANS,
-  PRICING_ADD_ONS,
   PRICING_COMPARISON_GROUPS,
   PRICING_FAQ,
   PRICING_TRUST_SIGNALS,
@@ -503,23 +502,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-16 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm">
-              <h3 className="text-2xl font-bold text-slate-900">Popular add-ons</h3>
-              <p className="mt-2 text-slate-500">
-                Keep the base plan clean, then add more users, numbers, onboarding help, or campaign capacity only when you need it.
-              </p>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                {PRICING_ADD_ONS.map((addon) => (
-                  <div key={addon.name} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <p className="text-sm font-bold text-slate-900">{addon.name}</p>
-                    <p className="mt-1 text-sm font-semibold text-[#128C7E]">{addon.price}</p>
-                    <p className="mt-2 text-sm text-slate-500">{addon.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+          <div className="mt-16">
             <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm">
               <h3 className="text-2xl font-bold text-slate-900">Pricing FAQ</h3>
               <div className="mt-6 space-y-5">

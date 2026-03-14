@@ -8,6 +8,13 @@ interface User {
   emailVerified: boolean;
 }
 
+interface VerificationRequestResult {
+  success: boolean;
+  message: string;
+  emailSent?: boolean;
+  verificationUrl?: string;
+}
+
 interface Workspace {
   id: string;
   name: string;
@@ -31,7 +38,7 @@ interface AppContextType {
   hasFullAccess: boolean;
   setUser: (user: User | null, token: string | null) => void;
   setActiveWorkspace: (workspace: Workspace | null) => void;
-  verifyEmail: () => Promise<void>;
+  requestEmailVerification: () => Promise<VerificationRequestResult>;
   refreshWorkspaces: () => Promise<void>;
   isLoading: boolean;
 }
@@ -144,13 +151,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const verifyEmail = async () => {
+  const requestEmailVerification = async () => {
     try {
       const res = await axios.post('/api/auth/verify-email');
-      if (res.data.success) {
-        const updatedUser = { ...user!, emailVerified: true };
-        setUser(updatedUser, token);
-      }
+      return {
+        success: !!res.data?.success,
+        message: res.data?.message || 'Verification email is ready.',
+        emailSent: !!res.data?.emailSent,
+        verificationUrl: res.data?.verificationUrl || '',
+      };
     } catch (error) {
       console.error('Failed to verify email', error);
       throw error;
@@ -179,7 +188,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       hasFullAccess,
       setUser: handleSetUser, 
       setActiveWorkspace: handleSetActiveWorkspace,
-      verifyEmail,
+      requestEmailVerification,
       refreshWorkspaces,
       isLoading 
     }}>

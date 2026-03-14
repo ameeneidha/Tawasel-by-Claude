@@ -53,6 +53,14 @@ The repo also includes an App Platform spec:
   - added deal value support
   - added inline deal value editing on CRM cards
   - fixed CRM search and filter behavior
+- Implemented real email verification:
+  - registration now creates secure email verification tokens
+  - added resend and verification completion endpoints on the backend
+  - added `/verify-email` and `/verify-email-sent` public pages
+  - supports real delivery through Resend with `RESEND_API_KEY` and `EMAIL_FROM`
+  - falls back to preview verification links when email delivery is not configured
+- Polished the landing page pricing section:
+  - removed the add-ons block to keep the pricing page cleaner
 
 ### Demo Accounts
 
@@ -60,3 +68,7 @@ The repo also includes an App Platform spec:
 - Starter: `starter@wabahub.local` / `password123`
 - Growth: `growth@wabahub.local` / `password123`
 - Pro: `pro@wabahub.local` / `password123`
+
+Demo accounts are recreated by running:
+
+`npm run seed`

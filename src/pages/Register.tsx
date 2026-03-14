@@ -14,6 +14,7 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [skipAutoRedirect, setSkipAutoRedirect] = useState(false);
   const [billingCycle] = useState<BillingCycle>(() => {
     const stored = sessionStorage.getItem('pendingBillingCycle');
     return stored === 'annual' ? 'annual' : 'monthly';
@@ -32,10 +33,10 @@ export default function Register() {
   }, [navigate, plan, selectedPlan]);
 
   useEffect(() => {
-    if (user) {
-      navigate('/app/dashboard', { replace: true });
+    if (user && !skipAutoRedirect) {
+      navigate(user.emailVerified ? '/app/dashboard' : '/verify-email-sent', { replace: true });
     }
-  }, [navigate, user]);
+  }, [navigate, skipAutoRedirect, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,9 +44,18 @@ export default function Register() {
     setError('');
 
     try {
+      setSkipAutoRedirect(true);
       const res = await axios.post('/api/auth/register', { name, email, password });
       setUser(res.data.user, res.data.token);
-      navigate('/app/dashboard');
+      navigate('/verify-email-sent', {
+        replace: true,
+        state: {
+          email: res.data?.user?.email,
+          message: res.data?.verification?.message,
+          emailSent: res.data?.verification?.emailSent,
+          verificationUrl: res.data?.verification?.verificationUrl,
+        },
+      });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Registration failed');
     }
@@ -117,7 +127,7 @@ export default function Register() {
         <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm lg:p-10">
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">Create your account</h2>
             <p className="mt-2 text-sm text-slate-500">
-              Create your account, verify your email, then continue to billing to activate the {plan.name} package for your workspace.
+              Create your account, confirm your email from the verification link, then continue to billing to activate the {plan.name} package for your workspace.
             </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">

@@ -7,6 +7,8 @@ import Home from './pages/Home';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
+import VerifyEmailSent from './pages/VerifyEmailSent';
 import About from './pages/About';
 import Careers from './pages/Careers';
 import Changelog from './pages/Changelog';
@@ -43,6 +45,8 @@ export default function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/verify-email-sent" element={<VerifyEmailSent />} />
             <Route path="/signin" element={<Navigate to="/login" replace />} />
             <Route path="/signup" element={<Navigate to="/register" replace />} />
             <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />

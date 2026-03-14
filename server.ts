@@ -154,14 +154,19 @@ const sanitizeDisplayName = (name?: string | null, email?: string | null) => {
   return trimmedName;
 };
 
-const createPasswordResetToken = () => {
+const createSecureToken = () => {
   const token = crypto.randomBytes(32).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   return { token, tokenHash };
 };
 
-const hashPasswordResetToken = (token: string) =>
+const hashSecureToken = (token: string) =>
   crypto.createHash('sha256').update(token).digest('hex');
+
+const createPasswordResetToken = () => createSecureToken();
+const hashPasswordResetToken = (token: string) => hashSecureToken(token);
+const createEmailVerificationToken = () => createSecureToken();
+const hashEmailVerificationToken = (token: string) => hashSecureToken(token);
 
 const sanitizeUser = (user: any) => {
   if (!user) return user;
@@ -169,6 +174,9 @@ const sanitizeUser = (user: any) => {
     password,
     passwordResetTokenHash,
     passwordResetExpiresAt,
+    emailVerificationTokenHash,
+    emailVerificationExpiresAt,
+    emailVerificationSentAt,
     ...safeUser
   } = user;
   return safeUser;
@@ -1968,6 +1976,126 @@ async function startServer() {
   const getPublicAppBaseUrl = (req: express.Request) =>
     (PUBLIC_APP_URL || process.env.APP_URL || req.headers.origin || `${req.protocol}://${req.get('host') || `localhost:${PORT}`}`).replace(/\/$/, '');
 
+  const buildEmailVerificationUrl = (req: express.Request, token: string) =>
+    `${getPublicAppBaseUrl(req)}/verify-email?token=${encodeURIComponent(token)}`;
+
+  const sendEmailViaResend = async ({
+    to,
+    subject,
+    html,
+    text,
+  }: {
+    to: string;
+    subject: string;
+    html: string;
+    text: string;
+  }) => {
+    const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
+    const emailFrom = (process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL || '').trim();
+
+    if (!resendApiKey || !emailFrom) {
+      return {
+        delivered: false,
+        provider: 'preview',
+      } as const;
+    }
+
+    try {
+      await axios.post(
+        'https://api.resend.com/emails',
+        {
+          from: emailFrom,
+          to: [to],
+          subject,
+          html,
+          text,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    } catch (error) {
+      console.error('[email:resend]', error);
+      return {
+        delivered: false,
+        provider: 'preview',
+      } as const;
+    }
+
+    return {
+      delivered: true,
+      provider: 'resend',
+    } as const;
+  };
+
+  const issueEmailVerification = async (req: express.Request, user: {
+    id: string;
+    email?: string | null;
+    name?: string | null;
+  }) => {
+    if (!user.email?.trim()) {
+      throw new Error('User email is required for email verification');
+    }
+
+    const { token, tokenHash } = createEmailVerificationToken();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerificationTokenHash: tokenHash,
+        emailVerificationExpiresAt: expiresAt,
+        emailVerificationSentAt: new Date(),
+      } as any,
+    });
+
+    const verificationUrl = buildEmailVerificationUrl(req, token);
+    const displayName = sanitizeDisplayName(user.name, user.email);
+    const subject = 'Verify your email for Tawasel App';
+    const text = [
+      `Hi ${displayName},`,
+      '',
+      'Verify your email to unlock billing, CRM, campaigns, and automation in Tawasel App.',
+      '',
+      `Verify your email: ${verificationUrl}`,
+      '',
+      'This link expires in 24 hours.',
+    ].join('\n');
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a">
+        <p>Hi ${escapeHtml(displayName)},</p>
+        <p>Verify your email to unlock billing, CRM, campaigns, and automation in Tawasel App.</p>
+        <p>
+          <a href="${escapeHtml(verificationUrl)}" style="display:inline-block;background:#25D366;color:#ffffff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:700">
+            Verify Email
+          </a>
+        </p>
+        <p style="font-size:14px;color:#475569">This link expires in 24 hours.</p>
+        <p style="font-size:14px;color:#475569">If the button does not work, copy this link:<br />${escapeHtml(verificationUrl)}</p>
+      </div>
+    `;
+
+    const delivery = await sendEmailViaResend({
+      to: user.email,
+      subject,
+      html,
+      text,
+    });
+
+    return {
+      emailSent: delivery.delivered,
+      provider: delivery.provider,
+      verificationUrl: delivery.delivered ? undefined : verificationUrl,
+      message: delivery.delivered
+        ? 'Verification email sent. Check your inbox.'
+        : 'Email provider is not configured yet. Use the verification link below for testing.',
+    };
+  };
+
   const getEmbeddedSignupCallbackUrl = (req: express.Request) =>
     `${getApiBaseUrl(req)}/api/meta/embedded-signup/callback`;
 
@@ -2738,7 +2866,9 @@ async function startServer() {
 
   // Auth Mock (For demo purposes)
   app.post("/api/auth/register", authRateLimiter('register'), async (req, res) => {
-    const { name, email, password } = req.body;
+    const name = String(req.body?.name || '').trim();
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const password = String(req.body?.password || '');
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Missing name, email or password" });
     }
@@ -2776,13 +2906,15 @@ async function startServer() {
         }
       });
 
+      const verification = await issueEmailVerification(req, user);
+
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         JWT_SECRET,
         { expiresIn: '7d' }
       );
 
-      res.json({ token, user: sanitizeUser(user) });
+      res.json({ token, user: sanitizeUser(user), verification });
     } catch (e: any) {
       console.error('[auth:register]', e);
       res.status(500).json({ error: 'Registration failed' });
@@ -2791,15 +2923,97 @@ async function startServer() {
 
   app.post("/api/auth/verify-email", requireAuth, async (req, res) => {
     try {
-      const user = await prisma.user.update({
+      const user = await prisma.user.findUnique({
         where: { id: (req as any).user.userId },
-        data: { emailVerified: true }
       });
-      res.json({ success: true, user: sanitizeUser(user) });
+
+      if (!user?.id) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      if (user.emailVerified) {
+        return res.json({
+          success: true,
+          user: sanitizeUser(user),
+          emailSent: false,
+          message: 'Email is already verified.',
+        });
+      }
+
+      const verification = await issueEmailVerification(req, user);
+      res.json({ success: true, user: sanitizeUser(user), ...verification });
     } catch (e: any) {
       console.error('[auth:verify-email]', e);
-      res.status(500).json({ error: 'Could not verify email' });
+      res.status(500).json({ error: 'Could not send verification email' });
     }
+  });
+
+  app.get("/api/auth/verify-email/validate", async (req, res) => {
+    const token = String(req.query?.token || '').trim();
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token is required' });
+    }
+
+    const tokenHash = hashEmailVerificationToken(token);
+    const user = await prisma.user.findFirst({
+      where: {
+        emailVerificationTokenHash: tokenHash,
+        emailVerificationExpiresAt: {
+          gt: new Date(),
+        },
+      } as any,
+      select: {
+        id: true,
+        email: true,
+        emailVerified: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'This email verification link is invalid or has expired' });
+    }
+
+    if (user.emailVerified) {
+      return res.json({ success: true, alreadyVerified: true });
+    }
+
+    res.json({ success: true });
+  });
+
+  app.post("/api/auth/verify-email/complete", async (req, res) => {
+    const token = String(req.body?.token || '').trim();
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token is required' });
+    }
+
+    const tokenHash = hashEmailVerificationToken(token);
+    const user = await prisma.user.findFirst({
+      where: {
+        emailVerificationTokenHash: tokenHash,
+        emailVerificationExpiresAt: {
+          gt: new Date(),
+        },
+      } as any,
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'This email verification link is invalid or has expired' });
+    }
+
+    const verifiedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerified: true,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+      } as any,
+    });
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully.',
+      user: sanitizeUser(verifiedUser),
+    });
   });
 
   app.post("/api/auth/forgot-password", authRateLimiter('forgot-password'), async (req, res) => {
