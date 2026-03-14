@@ -1,0 +1,49 @@
+name: tawasel-app
+region: fra
+services:
+  - name: tawasel-web
+    environment_slug: node-js
+    source_dir: /
+    github:
+      repo: ameeneidha/saas-whatsapp-crm-Office
+      branch: main
+      deploy_on_push: true
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    build_command: npm install && npm run build
+    run_command: npm run start
+    envs:
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: production
+      - key: PORT
+        scope: RUN_TIME
+        value: "8080"
+      - key: APP_URL
+        scope: RUN_TIME
+        value: https://app.tawasel.io
+      - key: PUBLIC_APP_URL
+        scope: RUN_TIME
+        value: https://app.tawasel.io
+      - key: API_URL
+        scope: RUN_TIME
+        value: https://api.tawasel.io
+      - key: ALLOWED_ORIGINS
+        scope: RUN_TIME
+        value: https://app.tawasel.io,https://api.tawasel.io
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        value: file:./dev.db
+      - key: AUTO_SEED_DEMO
+        scope: RUN_TIME
+        value: "false"
+      - key: VITE_PUBLIC_APP_URL
+        scope: BUILD_TIME
+        value: https://app.tawasel.io
+      - key: VITE_API_BASE_URL
+        scope: BUILD_TIME
+        value: https://api.tawasel.io
+      - key: VITE_SOCKET_URL
+        scope: BUILD_TIME
+        value: https://api.tawasel.io

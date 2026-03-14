@@ -22,6 +22,7 @@ import { cn } from '../lib/utils';
 import * as Switch from '@radix-ui/react-switch';
 import { toast } from 'sonner';
 import ActivationChecklist from '../components/ActivationChecklist';
+import { getAllowedMessageOrigins } from '../lib/runtime-config';
 
 export default function Channels() {
   const { activeWorkspace } = useApp();
@@ -48,7 +49,8 @@ export default function Channels() {
 
   useEffect(() => {
     const handleEmbeddedSignupMessage = async (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
+      const allowedOrigins = getAllowedMessageOrigins();
+      if (!allowedOrigins.has(event.origin)) return;
       if (event.data?.type !== 'meta-embedded-signup') return;
       if (!activeWorkspace?.id) return;
 

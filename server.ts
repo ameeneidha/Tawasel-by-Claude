@@ -2,7 +2,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import prisma from "./src/lib/prisma.js";
@@ -100,19 +99,29 @@ const JWT_SECRET = (() => {
   return value;
 })();
 
+const normalizeOriginValue = (value: string) => {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return value.replace(/\/$/, '');
+  }
+};
+
+const PUBLIC_APP_URL = (process.env.PUBLIC_APP_URL || process.env.APP_URL || '').trim();
+const API_URL = (process.env.API_URL || '').trim();
+
 const ALLOWED_ORIGINS = Array.from(
   new Set(
-    [process.env.ALLOWED_ORIGINS || '', process.env.APP_URL || 'http://localhost:3000,http://127.0.0.1:3000']
+    [
+      process.env.ALLOWED_ORIGINS || '',
+      PUBLIC_APP_URL,
+      process.env.APP_URL || '',
+      'http://localhost:3000,http://127.0.0.1:3000',
+    ]
       .flatMap((value) => value.split(','))
       .map((value) => value.trim())
       .filter(Boolean)
-      .map((value) => {
-        try {
-          return new URL(value).origin;
-        } catch {
-          return value;
-        }
-      })
+      .map(normalizeOriginValue)
   )
 );
 
@@ -1953,17 +1962,21 @@ async function startServer() {
     return pipelineMap[normalized] || 'NEW_LEAD';
   };
 
-  const getAppBaseUrl = (req: express.Request) =>
-    (process.env.APP_URL || `${req.protocol}://${req.get('host') || `localhost:${PORT}`}`).replace(/\/$/, '');
+  const getApiBaseUrl = (req: express.Request) =>
+    (API_URL || process.env.APP_URL || `${req.protocol}://${req.get('host') || `localhost:${PORT}`}`).replace(/\/$/, '');
+
+  const getPublicAppBaseUrl = (req: express.Request) =>
+    (PUBLIC_APP_URL || process.env.APP_URL || req.headers.origin || `${req.protocol}://${req.get('host') || `localhost:${PORT}`}`).replace(/\/$/, '');
 
   const getEmbeddedSignupCallbackUrl = (req: express.Request) =>
-    `${getAppBaseUrl(req)}/api/meta/embedded-signup/callback`;
+    `${getApiBaseUrl(req)}/api/meta/embedded-signup/callback`;
 
   const sendEmbeddedSignupCallbackPage = (res: express.Response, payload: EmbeddedSignupResultPayload) => {
     const message = JSON.stringify({
       type: 'meta-embedded-signup',
       payload,
     }).replace(/</g, '\\u003c');
+    const callbackTargetOrigin = normalizeOriginValue(PUBLIC_APP_URL || process.env.APP_URL || '');
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.status(200).send(`<!doctype html>
@@ -1982,17 +1995,18 @@ async function startServer() {
     <div class="card">
       <h1>Returning to WABA Hub</h1>
       <p>You can close this window if it does not close automatically.</p>
-    </div>
-    <script>
-      (function () {
-        var message = ${message};
-        try {
-          if (window.opener && !window.opener.closed) {
-            window.opener.postMessage(message, window.location.origin);
-          }
-        } catch (error) {}
-        window.setTimeout(function () { window.close(); }, 200);
-      })();
+      </div>
+      <script>
+        (function () {
+          var message = ${message};
+          var targetOrigin = ${JSON.stringify(callbackTargetOrigin || '')} || window.location.origin;
+          try {
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage(message, targetOrigin);
+            }
+          } catch (error) {}
+          window.setTimeout(function () { window.close(); }, 200);
+        })();
     </script>
   </body>
 </html>`);
@@ -2807,7 +2821,7 @@ async function startServer() {
         }
       });
 
-      const appBaseUrl = (process.env.APP_URL || req.headers.origin || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+      const appBaseUrl = getPublicAppBaseUrl(req);
       const resetUrl = `${appBaseUrl}/reset-password?token=${token}`;
       console.log(`[AUTH] Password reset requested for ${email} at ${new Date().toISOString()}`);
       // TODO: send resetUrl via email provider. Do not expose or log tokens in responses.
@@ -5092,12 +5106,14 @@ async function startServer() {
         limit,
         users: users.map((user) => ({
           ...user,
-          memberships: user.memberships.map((membership) => ({
-            id: membership.id,
-            role: membership.role,
-            status: membership.status,
-            workspace: membership.workspace,
-          }))
+          memberships: user.memberships
+            .filter((membership) => Boolean(membership.workspace))
+            .map((membership) => ({
+              id: membership.id,
+              role: membership.role,
+              status: membership.status,
+              workspace: membership.workspace,
+            }))
         }))
       });
     } catch (error) {
@@ -5108,6 +5124,7 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

@@ -302,6 +302,7 @@ export default function Superadmin() {
   useEffect(() => {
     const loadUsers = async () => {
       setUsersLoading(true);
+      setError(null);
       try {
         const response = await axios.get<SuperadminUsersResponse>('/api/superadmin/users', {
           params: {
@@ -313,6 +314,12 @@ export default function Superadmin() {
         setUsers(response.data);
       } catch (err: any) {
         setError(err?.response?.data?.error || 'Failed to load users.');
+        setUsers({
+          total: 0,
+          page: 1,
+          limit: 12,
+          users: [],
+        });
       } finally {
         setUsersLoading(false);
       }
@@ -363,7 +370,7 @@ export default function Superadmin() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f7f8fa]">
+    <div className="h-full overflow-y-auto bg-[#f7f8fa]">
       <div className="mx-auto max-w-[1600px] px-6 py-8 lg:px-10">
         <div className="mb-8 flex flex-col gap-5 rounded-[32px] bg-[linear-gradient(135deg,#111827_0%,#1f2937_55%,#0f172a_100%)] p-8 text-white shadow-[0_20px_60px_rgba(15,23,42,0.22)]">
           <div className="flex flex-wrap items-start justify-between gap-6">
@@ -687,8 +694,8 @@ export default function Superadmin() {
                               </td>
                               <td className="px-5 py-4">
                                 <div className="flex flex-wrap gap-2">
-                                  {platformUser.memberships.length > 0 ? (
-                                    platformUser.memberships.map((membership) => (
+                                  {platformUser.memberships.filter((membership) => membership.workspace).length > 0 ? (
+                                    platformUser.memberships.filter((membership) => membership.workspace).map((membership) => (
                                       <span
                                         key={`${platformUser.id}-${membership.workspace.id}`}
                                         className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600"

@@ -125,6 +125,7 @@ export default function Contacts() {
   const [bulkListNames, setBulkListNames] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
   const [showListModal, setShowListModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -158,19 +159,47 @@ export default function Contacts() {
   const [listName, setListName] = useState('');
 
   useEffect(() => {
-    if (activeWorkspace) {
-      Promise.all([fetchContacts(), fetchLists()]).finally(() => setIsLoading(false));
+    if (!activeWorkspace) {
+      setContacts([]);
+      setLists([]);
+      setSelectedContactIds([]);
+      setSelectedListId('ALL');
+      setIsLoading(false);
+      return;
     }
+
+    setIsLoading(true);
+    setError(null);
+    Promise.all([fetchContacts(), fetchLists()])
+      .catch((loadError: any) => {
+        const message =
+          loadError?.response?.data?.error ||
+          'Could not load contacts for this workspace right now.';
+        setError(message);
+      })
+      .finally(() => setIsLoading(false));
   }, [activeWorkspace]);
 
   const fetchContacts = async () => {
     const res = await axios.get(`/api/contacts?workspaceId=${activeWorkspace?.id}`);
-    setContacts(Array.isArray(res.data) ? res.data : []);
+    const nextContacts = (Array.isArray(res.data) ? res.data : []).map((contact: any) => ({
+      ...contact,
+      listMemberships: Array.isArray(contact?.listMemberships)
+        ? contact.listMemberships.filter((membership: any) => membership?.list?.id && membership?.list?.name)
+        : [],
+    }));
+    setContacts(nextContacts);
+    setSelectedContactIds((prev) => prev.filter((id) => nextContacts.some((contact: Contact) => contact.id === id)));
   };
 
   const fetchLists = async () => {
     const res = await axios.get(`/api/contact-lists?workspaceId=${activeWorkspace?.id}`);
-    setLists(Array.isArray(res.data) ? res.data : []);
+    setLists(
+      (Array.isArray(res.data) ? res.data : []).map((list: any) => ({
+        ...list,
+        members: Array.isArray(list?.members) ? list.members : [],
+      }))
+    );
   };
 
   const filteredContacts = useMemo(() => {
@@ -413,6 +442,22 @@ export default function Contacts() {
     );
   }
 
+  if (!activeWorkspace) {
+    return (
+      <div className="h-full flex items-center justify-center bg-[#F8F9FA] dark:bg-slate-950 transition-colors p-6">
+        <div className="max-w-md rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-slate-800">
+            <Users className="h-6 w-6" />
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">No workspace selected</h1>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            Pick a workspace from the account menu first, then open Contacts again.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-hidden bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
       <div className="flex h-full">
@@ -504,6 +549,27 @@ export default function Contacts() {
               {filteredContacts.length} records
             </div>
           </div>
+
+          {error && (
+            <div className="mb-4 flex items-center justify-between gap-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+              <span>{error}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLoading(true);
+                  setError(null);
+                  Promise.all([fetchContacts(), fetchLists()])
+                    .catch((loadError: any) => {
+                      setError(loadError?.response?.data?.error || 'Could not load contacts for this workspace right now.');
+                    })
+                    .finally(() => setIsLoading(false));
+                }}
+                className="rounded-xl border border-red-200 px-3 py-1 text-xs font-semibold transition-colors hover:bg-red-100 dark:border-red-900/40 dark:hover:bg-red-900/30"
+              >
+                Retry
+              </button>
+            </div>
+          )}
 
           {selectedContactIds.length > 0 && (
             <div className="mb-4 rounded-3xl border border-[#25D366]/15 bg-white p-4 shadow-sm dark:border-[#25D366]/20 dark:bg-slate-900">
