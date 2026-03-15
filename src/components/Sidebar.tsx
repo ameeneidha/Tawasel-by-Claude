@@ -46,7 +46,7 @@ const navItems = [
 
 export default function Sidebar() {
   const location = useLocation();
-  const { user, workspaces, activeWorkspace, setActiveWorkspace, setUser, hasFullAccess, isSuperadmin } = useApp();
+  const { user, workspaces, activeWorkspace, setActiveWorkspace, logout, hasFullAccess, isSuperadmin } = useApp();
   const { theme, toggleTheme } = useTheme();
   const displayName = getDisplayName(user?.name, user?.email);
   const visibleNavItems = isSuperadmin
@@ -218,7 +218,7 @@ export default function Sidebar() {
               <DropdownMenu.Separator className="h-px bg-gray-100 dark:bg-slate-800 my-1" />
 
               <DropdownMenu.Item 
-                onClick={() => setUser(null, null)}
+                onClick={logout}
                 className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 rounded-lg cursor-pointer outline-none hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 <LogOut className="w-4 h-4" />

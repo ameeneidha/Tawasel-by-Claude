@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'motion/react';
 import { LogIn, Mail, Lock, Loader2 } from 'lucide-react';
@@ -8,18 +8,20 @@ import { LogIn, Mail, Lock, Loader2 } from 'lucide-react';
 export default function Login() {
   const { user, setUser } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const isAddingAccount = searchParams.get('addAccount') === '1';
   const getPostLoginPath = (nextUser?: { email?: string | null }) =>
     (nextUser?.email || '').toLowerCase() === 'ameeneidha@gmail.com' ? '/app/superadmin' : '/app/dashboard';
 
   useEffect(() => {
-    if (user) {
+    if (user && !isAddingAccount) {
       navigate(getPostLoginPath(user));
     }
-  }, [user, navigate]);
+  }, [isAddingAccount, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,8 +49,12 @@ export default function Login() {
           <div className="w-12 h-12 bg-[#25D366]/10 rounded-xl flex items-center justify-center mx-auto mb-4">
             <LogIn className="w-6 h-6 text-[#25D366]" />
           </div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Welcome Back</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Sign in to your Tawasel App workspace</p>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            {isAddingAccount ? 'Add another account' : 'Welcome Back'}
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">
+            {isAddingAccount ? 'Sign in to another saved workspace on this device.' : 'Sign in to your Tawasel App workspace'}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
