@@ -2909,6 +2909,10 @@ async function startServer() {
       }
 
       const redirectUri = getEmbeddedSignupCallbackUrl(req);
+      const extras = JSON.stringify({
+        sessionInfoVersion: 3,
+        featureType: 'whatsapp_business_app_onboarding',
+      });
       const params = new URLSearchParams({
         client_id: config.appId,
         redirect_uri: redirectUri,
@@ -2916,6 +2920,7 @@ async function startServer() {
         response_type: 'code',
         config_id: config.configId,
         scope: 'business_management,whatsapp_business_management,whatsapp_business_messaging',
+        extras,
       });
 
       res.json({
