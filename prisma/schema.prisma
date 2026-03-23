@@ -501,22 +501,23 @@ model StaffService {
 }
 
 model Appointment {
-  id          String      @id @default(cuid())
-  startTime   DateTime
-  endTime     DateTime
-  status      String      @default("SCHEDULED") // SCHEDULED, CONFIRMED, COMPLETED, CANCELLED, NO_SHOW
-  notes       String?
-  contactId   String
-  serviceId   String
-  staffId     String
-  workspaceId String
-  createdById String?
-  contact     Contact     @relation(fields: [contactId], references: [id])
-  service     Service     @relation(fields: [serviceId], references: [id])
-  staff       StaffMember @relation(fields: [staffId], references: [id])
-  workspace   Workspace   @relation(fields: [workspaceId], references: [id])
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id              String      @id @default(cuid())
+  startTime       DateTime
+  endTime         DateTime
+  status          String      @default("SCHEDULED") // SCHEDULED, CONFIRMED, COMPLETED, CANCELLED, NO_SHOW
+  notes           String?
+  reminderSentAt  DateTime?
+  contactId       String
+  serviceId       String
+  staffId         String
+  workspaceId     String
+  createdById     String?
+  contact         Contact     @relation(fields: [contactId], references: [id])
+  service         Service     @relation(fields: [serviceId], references: [id])
+  staff           StaffMember @relation(fields: [staffId], references: [id])
+  workspace       Workspace   @relation(fields: [workspaceId], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   @@index([workspaceId, startTime])
   @@index([staffId, startTime])

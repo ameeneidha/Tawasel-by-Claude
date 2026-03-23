@@ -51,6 +51,7 @@ import {
 } from "./server/services/ai.js";
 
 import { getDashboardSections } from "./server/services/dashboard.js";
+import { startReminderScheduler, setReminderEmitter } from "./server/services/appointmentReminders.js";
 
 import {
   sendMetaMessage, uploadWhatsAppMedia, sendWhatsAppMediaMessage,
@@ -4908,6 +4909,15 @@ async function startServer() {
 
   httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+
+    // Wire up appointment reminder emitter with Socket.io
+    setReminderEmitter((workspaceId, message, conversationId) => {
+      io.to(workspaceId).emit("new-message", message);
+      io.to(workspaceId).emit("conversation-updated", conversationId);
+    });
+
+    // Start appointment reminder scheduler (checks every 30 min)
+    startReminderScheduler();
   });
 }
 
