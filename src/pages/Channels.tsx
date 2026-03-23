@@ -58,6 +58,8 @@ type EmbeddedSignupMessagePayload = {
 const META_EMBEDDED_SIGNUP_ORIGINS = [
   'https://www.facebook.com',
   'https://web.facebook.com',
+  'https://business.facebook.com',
+  'https://m.facebook.com',
 ];
 
 export default function Channels() {
