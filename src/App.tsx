@@ -21,6 +21,7 @@ import Chatbots from './pages/Chatbots';
 import Channels from './pages/Channels';
 import CRM from './pages/CRM';
 import Contacts from './pages/Contacts';
+import Appointments from './pages/Appointments';
 import Superadmin from './pages/Superadmin';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
@@ -67,6 +68,7 @@ export default function App() {
               <Route path="chatbots" element={<Chatbots />} />
               <Route path="crm" element={<CRM />} />
               <Route path="contacts" element={<Contacts />} />
+              <Route path="appointments" element={<Appointments />} />
               <Route path="superadmin" element={<Superadmin />} />
               <Route path="channels" element={<Channels />} />
               <Route path="team" element={<Team />} />

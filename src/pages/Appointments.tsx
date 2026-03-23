@@ -1,0 +1,1279 @@
+import React, { useEffect, useState, useMemo } from 'react';
+import axios from 'axios';
+import { useApp } from '../contexts/AppContext';
+import {
+  CalendarCheck,
+  Clock,
+  Loader2,
+  Plus,
+  Search,
+  Scissors,
+  User,
+  Trash2,
+  Edit3,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { cn } from '../lib/utils';
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+interface Service {
+  id: string;
+  name: string;
+  description?: string;
+  durationMin: number;
+  price: number;
+  currency: string;
+  color: string;
+  enabled: boolean;
+}
+
+interface StaffMember {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  avatar?: string;
+  workingHours: string;
+  enabled: boolean;
+  staffServices: { serviceId: string }[];
+}
+
+interface Contact {
+  id: string;
+  name?: string;
+  phoneNumber?: string;
+}
+
+interface Appointment {
+  id: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  notes?: string;
+  contactId: string;
+  serviceId: string;
+  staffId: string;
+  contact: { id: string; name?: string; phoneNumber?: string };
+  service: { id: string; name: string; color: string; durationMin: number };
+  staff: { id: string; name: string };
+  createdAt: string;
+}
+
+type Tab = 'appointments' | 'services' | 'staff';
+
+const STATUS_OPTIONS = ['SCHEDULED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const;
+
+const STATUS_COLORS: Record<string, string> = {
+  SCHEDULED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  CONFIRMED: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  COMPLETED: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
+  CANCELLED: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  NO_SHOW: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+};
+
+const DAY_LABELS = [
+  { key: 'sun', label: 'Sun' },
+  { key: 'mon', label: 'Mon' },
+  { key: 'tue', label: 'Tue' },
+  { key: 'wed', label: 'Wed' },
+  { key: 'thu', label: 'Thu' },
+  { key: 'fri', label: 'Fri' },
+  { key: 'sat', label: 'Sat' },
+];
+
+const DEFAULT_WORKING_HOURS: Record<string, { start: string; end: string } | null> = {
+  sun: { start: '09:00', end: '17:00' },
+  mon: { start: '09:00', end: '17:00' },
+  tue: { start: '09:00', end: '17:00' },
+  wed: { start: '09:00', end: '17:00' },
+  thu: { start: '09:00', end: '17:00' },
+  fri: null,
+  sat: null,
+};
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function toInputDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────
+
+export default function Appointments() {
+  const { activeWorkspace } = useApp();
+  const wsId = activeWorkspace?.id;
+
+  const [tab, setTab] = useState<Tab>('appointments');
+  const [loading, setLoading] = useState(true);
+
+  // Data
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+
+  // Filters
+  const [filterDate, setFilterDate] = useState(toInputDate(new Date()));
+  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [filterStaff, setFilterStaff] = useState<string>('ALL');
+  const [search, setSearch] = useState('');
+
+  // Modals
+  const [showBooking, setShowBooking] = useState(false);
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [showStaffModal, setShowStaffModal] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // ─── Fetch helpers ──────────────────────────────────────────────────────
+
+  const fetchAll = async () => {
+    if (!wsId) return;
+    setLoading(true);
+    try {
+      const [apptRes, svcRes, staffRes, contactRes] = await Promise.all([
+        axios.get(`/api/appointments?workspaceId=${wsId}`),
+        axios.get(`/api/services?workspaceId=${wsId}`),
+        axios.get(`/api/staff?workspaceId=${wsId}`),
+        axios.get(`/api/contacts?workspaceId=${wsId}`),
+      ]);
+      setAppointments(apptRes.data);
+      setServices(svcRes.data);
+      setStaff(staffRes.data);
+      setContacts(contactRes.data);
+    } catch {
+      toast.error('Failed to load appointments data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAll();
+  }, [wsId]);
+
+  // ─── Filtered appointments ─────────────────────────────────────────────
+
+  const filtered = useMemo(() => {
+    return appointments.filter((a) => {
+      const apptDate = new Date(a.startTime).toISOString().slice(0, 10);
+      if (filterDate && apptDate !== filterDate) return false;
+      if (filterStatus !== 'ALL' && a.status !== filterStatus) return false;
+      if (filterStaff !== 'ALL' && a.staffId !== filterStaff) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        if (
+          !(a.contact?.name || '').toLowerCase().includes(q) &&
+          !(a.contact?.phoneNumber || '').includes(q) &&
+          !(a.service?.name || '').toLowerCase().includes(q) &&
+          !(a.staff?.name || '').toLowerCase().includes(q)
+        ) return false;
+      }
+      return true;
+    }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }, [appointments, filterDate, filterStatus, filterStaff, search]);
+
+  // ─── Appointment actions ───────────────────────────────────────────────
+
+  const updateAppointmentStatus = async (id: string, status: string) => {
+    try {
+      await axios.patch(`/api/appointments/${id}`, { status });
+      setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
+      toast.success(`Appointment ${status.toLowerCase()}`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to update');
+    }
+  };
+
+  const deleteAppointment = async (id: string) => {
+    if (!confirm('Cancel this appointment?')) return;
+    try {
+      await axios.delete(`/api/appointments/${id}`);
+      setAppointments((prev) => prev.filter((a) => a.id !== id));
+      toast.success('Appointment deleted');
+    } catch {
+      toast.error('Failed to delete appointment');
+    }
+  };
+
+  // ─── Service CRUD ──────────────────────────────────────────────────────
+
+  const deleteService = async (id: string) => {
+    if (!confirm('Delete this service?')) return;
+    try {
+      await axios.delete(`/api/services/${id}`);
+      setServices((prev) => prev.filter((s) => s.id !== id));
+      toast.success('Service deleted');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to delete');
+    }
+  };
+
+  // ─── Staff CRUD ────────────────────────────────────────────────────────
+
+  const deleteStaffMember = async (id: string) => {
+    if (!confirm('Delete this staff member?')) return;
+    try {
+      await axios.delete(`/api/staff/${id}`);
+      setStaff((prev) => prev.filter((s) => s.id !== id));
+      toast.success('Staff member deleted');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to delete');
+    }
+  };
+
+  // ─── Navigation helpers ────────────────────────────────────────────────
+
+  const navigateDate = (delta: number) => {
+    const d = new Date(filterDate);
+    d.setDate(d.getDate() + delta);
+    setFilterDate(toInputDate(d));
+  };
+
+  // ─── Render ────────────────────────────────────────────────────────────
+
+  if (!wsId) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
+        Select a workspace to manage appointments
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-6 h-6 animate-spin text-[#25D366]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <CalendarCheck className="w-6 h-6 text-[#25D366]" />
+            Appointments
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Manage bookings, services, and staff
+          </p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 dark:border-gray-700">
+        {(['appointments', 'services', 'staff'] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={cn(
+              'px-4 py-2.5 text-sm font-medium capitalize transition-colors border-b-2 -mb-px',
+              tab === t
+                ? 'border-[#25D366] text-[#25D366]'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+            )}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* ═══════════════ APPOINTMENTS TAB ═══════════════ */}
+      {tab === 'appointments' && (
+        <div className="space-y-4">
+          {/* Toolbar */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1">
+              <button onClick={() => navigateDate(-1)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-800 dark:text-white"
+              />
+              <button onClick={() => navigateDate(1)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setFilterDate(toInputDate(new Date()))}
+                className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+              >
+                Today
+              </button>
+            </div>
+
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-800 dark:text-white"
+            >
+              <option value="ALL">All statuses</option>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s.replace('_', ' ')}</option>
+              ))}
+            </select>
+
+            <select
+              value={filterStaff}
+              onChange={(e) => setFilterStaff(e.target.value)}
+              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-800 dark:text-white"
+            >
+              <option value="ALL">All staff</option>
+              {staff.filter((s) => s.enabled).map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search appointments..."
+                className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+
+            <button
+              onClick={() => setShowBooking(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-medium transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Book Appointment
+            </button>
+          </div>
+
+          {/* Table */}
+          {filtered.length === 0 ? (
+            <div className="text-center py-16 text-gray-500 dark:text-gray-400">
+              <CalendarCheck className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No appointments found</p>
+              <p className="text-sm mt-1">Try adjusting your filters or book a new appointment</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium">Time</th>
+                    <th className="text-left px-4 py-3 font-medium">Customer</th>
+                    <th className="text-left px-4 py-3 font-medium">Service</th>
+                    <th className="text-left px-4 py-3 font-medium">Staff</th>
+                    <th className="text-left px-4 py-3 font-medium">Status</th>
+                    <th className="text-right px-4 py-3 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {filtered.map((appt) => (
+                    <tr key={appt.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="font-medium text-gray-900 dark:text-white">
+                          {formatTime(appt.startTime)} – {formatTime(appt.endTime)}
+                        </div>
+                        <div className="text-xs text-gray-500">{formatDate(appt.startTime)}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-gray-900 dark:text-white">{appt.contact?.name || 'Unknown'}</div>
+                        <div className="text-xs text-gray-500">{appt.contact?.phoneNumber}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: appt.service?.color }}
+                          />
+                          {appt.service?.name}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{appt.staff?.name}</td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={appt.status}
+                          onChange={(e) => updateAppointmentStatus(appt.id, e.target.value)}
+                          className={cn(
+                            'text-xs font-medium rounded-full px-2.5 py-1 border-0 cursor-pointer',
+                            STATUS_COLORS[appt.status] || 'bg-gray-100 text-gray-600'
+                          )}
+                        >
+                          {STATUS_OPTIONS.map((s) => (
+                            <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => deleteAppointment(appt.id)}
+                          className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════ SERVICES TAB ═══════════════ */}
+      {tab === 'services' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500 dark:text-gray-400">{services.length} service(s)</p>
+            <button
+              onClick={() => { setEditingService(null); setShowServiceModal(true); }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Add Service
+            </button>
+          </div>
+
+          {services.length === 0 ? (
+            <div className="text-center py-16 text-gray-500 dark:text-gray-400">
+              <Scissors className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No services yet</p>
+              <p className="text-sm mt-1">Add your first service to start booking</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {services.map((svc) => (
+                <div
+                  key={svc.id}
+                  className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-white dark:bg-gray-900 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: svc.color }} />
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{svc.name}</h3>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => { setEditingService(svc); setShowServiceModal(true); }}
+                        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => deleteService(svc.id)}
+                        className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  {svc.description && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{svc.description}</p>
+                  )}
+                  <div className="flex items-center gap-3 mt-3 text-xs text-gray-600 dark:text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {svc.durationMin} min
+                    </span>
+                    <span className="font-medium">
+                      {svc.price > 0 ? `${svc.price} ${svc.currency}` : 'Free'}
+                    </span>
+                    {!svc.enabled && (
+                      <span className="text-yellow-600 dark:text-yellow-400 font-medium">Disabled</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════ STAFF TAB ═══════════════ */}
+      {tab === 'staff' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500 dark:text-gray-400">{staff.length} staff member(s)</p>
+            <button
+              onClick={() => { setEditingStaff(null); setShowStaffModal(true); }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Add Staff
+            </button>
+          </div>
+
+          {staff.length === 0 ? (
+            <div className="text-center py-16 text-gray-500 dark:text-gray-400">
+              <User className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No staff members yet</p>
+              <p className="text-sm mt-1">Add staff to assign appointments</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {staff.map((member) => {
+                const hours = JSON.parse(member.workingHours || '{}');
+                const assignedServices = services.filter((s) =>
+                  member.staffServices?.some((ss) => ss.serviceId === s.id)
+                );
+                return (
+                  <div
+                    key={member.id}
+                    className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-white dark:bg-gray-900 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#25D366]/10 text-[#25D366] flex items-center justify-center font-semibold text-sm">
+                          {member.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900 dark:text-white">{member.name}</h3>
+                          {member.phone && (
+                            <p className="text-xs text-gray-500">{member.phone}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => { setEditingStaff(member); setShowStaffModal(true); }}
+                          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => deleteStaffMember(member.id)}
+                          className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Working days */}
+                    <div className="flex gap-1 mt-3">
+                      {DAY_LABELS.map(({ key, label }) => (
+                        <span
+                          key={key}
+                          className={cn(
+                            'w-8 h-6 rounded text-[10px] font-medium flex items-center justify-center',
+                            hours[key]
+                              ? 'bg-[#25D366]/10 text-[#25D366]'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+                          )}
+                        >
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Assigned services */}
+                    {assignedServices.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {assignedServices.map((s) => (
+                          <span
+                            key={s.id}
+                            className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                          >
+                            {s.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {!member.enabled && (
+                      <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 font-medium">Disabled</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════ BOOKING MODAL ═══════════════ */}
+      {showBooking && (
+        <BookingModal
+          wsId={wsId}
+          contacts={contacts}
+          services={services.filter((s) => s.enabled)}
+          staff={staff.filter((s) => s.enabled)}
+          onClose={() => setShowBooking(false)}
+          onBooked={(appt) => {
+            setAppointments((prev) => [appt, ...prev]);
+            setShowBooking(false);
+          }}
+        />
+      )}
+
+      {/* ═══════════════ SERVICE MODAL ═══════════════ */}
+      {showServiceModal && (
+        <ServiceModal
+          wsId={wsId}
+          service={editingService}
+          onClose={() => setShowServiceModal(false)}
+          onSaved={(svc) => {
+            if (editingService) {
+              setServices((prev) => prev.map((s) => (s.id === svc.id ? svc : s)));
+            } else {
+              setServices((prev) => [...prev, svc]);
+            }
+            setShowServiceModal(false);
+          }}
+        />
+      )}
+
+      {/* ═══════════════ STAFF MODAL ═══════════════ */}
+      {showStaffModal && (
+        <StaffModal
+          wsId={wsId}
+          member={editingStaff}
+          services={services}
+          onClose={() => setShowStaffModal(false)}
+          onSaved={(m) => {
+            if (editingStaff) {
+              setStaff((prev) => prev.map((s) => (s.id === m.id ? m : s)));
+            } else {
+              setStaff((prev) => [...prev, m]);
+            }
+            setShowStaffModal(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BOOKING MODAL
+// ═══════════════════════════════════════════════════════════════════════════
+
+function BookingModal({
+  wsId,
+  contacts,
+  services,
+  staff,
+  onClose,
+  onBooked,
+}: {
+  wsId: string;
+  contacts: Contact[];
+  services: Service[];
+  staff: StaffMember[];
+  onClose: () => void;
+  onBooked: (appt: Appointment) => void;
+}) {
+  const [contactId, setContactId] = useState('');
+  const [serviceId, setServiceId] = useState('');
+  const [staffId, setStaffId] = useState('');
+  const [date, setDate] = useState(toInputDate(new Date()));
+  const [slot, setSlot] = useState('');
+  const [notes, setNotes] = useState('');
+  const [slots, setSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
+
+  // Filter staff by selected service — show all if staff has no service assignments
+  const eligibleStaff = useMemo(() => {
+    if (!serviceId) return staff;
+    return staff.filter(
+      (s) =>
+        !s.staffServices ||
+        s.staffServices.length === 0 ||
+        s.staffServices.some((ss) => ss.serviceId === serviceId)
+    );
+  }, [staff, serviceId]);
+
+  // Fetch available slots
+  useEffect(() => {
+    if (!staffId || !serviceId || !date) {
+      setSlots([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchSlots = async () => {
+      setLoadingSlots(true);
+      try {
+        const res = await axios.get(
+          `/api/appointments/availability?workspaceId=${wsId}&staffId=${staffId}&serviceId=${serviceId}&date=${date}`
+        );
+        if (!cancelled) setSlots(res.data.slots || []);
+      } catch {
+        if (!cancelled) setSlots([]);
+      } finally {
+        if (!cancelled) setLoadingSlots(false);
+      }
+    };
+    fetchSlots();
+    return () => { cancelled = true; };
+  }, [staffId, serviceId, date, wsId]);
+
+  const filteredContacts = useMemo(() => {
+    if (!contactSearch) return contacts.slice(0, 50);
+    const q = contactSearch.toLowerCase();
+    return contacts.filter(
+      (c) =>
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.phoneNumber || '').includes(q)
+    ).slice(0, 50);
+  }, [contacts, contactSearch]);
+
+  const handleSubmit = async () => {
+    if (!contactId || !serviceId || !staffId || !slot) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await axios.post('/api/appointments', {
+        workspaceId: wsId,
+        contactId,
+        serviceId,
+        staffId,
+        startTime: slot,
+        notes: notes.trim() || undefined,
+      });
+      toast.success('Appointment booked!');
+      onBooked(res.data);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to book appointment');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Book Appointment</h2>
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {/* Contact */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer *</label>
+            <input
+              type="text"
+              value={contactSearch}
+              onChange={(e) => setContactSearch(e.target.value)}
+              placeholder="Search contacts..."
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white mb-2"
+            />
+            <select
+              value={contactId}
+              onChange={(e) => setContactId(e.target.value)}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+            >
+              <option value="">Select a contact</option>
+              {filteredContacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name || c.phoneNumber || c.id}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Service */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Service *</label>
+            <select
+              value={serviceId}
+              onChange={(e) => { setServiceId(e.target.value); setStaffId(''); setSlot(''); }}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+            >
+              <option value="">Select a service</option>
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.durationMin}min – {s.price > 0 ? `${s.price} ${s.currency}` : 'Free'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Staff */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Staff *</label>
+            <select
+              value={staffId}
+              onChange={(e) => { setStaffId(e.target.value); setSlot(''); }}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+            >
+              <option value="">Select staff</option>
+              {eligibleStaff.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date *</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => { setDate(e.target.value); setSlot(''); }}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+
+          {/* Time Slots */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Time Slot *</label>
+            {loadingSlots ? (
+              <div className="flex items-center gap-2 text-sm text-gray-500 py-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading slots...
+              </div>
+            ) : !staffId || !serviceId ? (
+              <p className="text-xs text-gray-400 py-2">Select a service, staff, and date first</p>
+            ) : slots.length === 0 ? (
+              <p className="text-xs text-gray-500 py-2">No available slots for this date</p>
+            ) : (
+              <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+                {slots.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSlot(s)}
+                    className={cn(
+                      'px-2 py-1.5 text-xs rounded-lg border transition-colors',
+                      slot === s
+                        ? 'border-[#25D366] bg-[#25D366]/10 text-[#25D366] font-medium'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-[#25D366] text-gray-700 dark:text-gray-300'
+                    )}
+                  >
+                    {new Date(s).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Optional notes..."
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving || !contactId || !serviceId || !staffId || !slot}
+            className="px-4 py-2 text-sm rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white font-medium disabled:opacity-50 flex items-center gap-2"
+          >
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            Book Appointment
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SERVICE MODAL
+// ═══════════════════════════════════════════════════════════════════════════
+
+function ServiceModal({
+  wsId,
+  service,
+  onClose,
+  onSaved,
+}: {
+  wsId: string;
+  service: Service | null;
+  onClose: () => void;
+  onSaved: (svc: Service) => void;
+}) {
+  const [name, setName] = useState(service?.name || '');
+  const [description, setDescription] = useState(service?.description || '');
+  const [durationMin, setDurationMin] = useState(service?.durationMin || 30);
+  const [price, setPrice] = useState(service?.price || 0);
+  const [currency, setCurrency] = useState(service?.currency || 'AED');
+  const [color, setColor] = useState(service?.color || '#25D366');
+  const [enabled, setEnabled] = useState(service?.enabled ?? true);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!name.trim()) { toast.error('Service name is required'); return; }
+    setSaving(true);
+    try {
+      const payload = { workspaceId: wsId, name: name.trim(), description: description.trim() || undefined, durationMin, price, currency, color, enabled };
+      let res;
+      if (service) {
+        res = await axios.patch(`/api/services/${service.id}`, payload);
+      } else {
+        res = await axios.post('/api/services', payload);
+      }
+      toast.success(service ? 'Service updated' : 'Service created');
+      onSaved(res.data);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to save service');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {service ? 'Edit Service' : 'Add Service'}
+          </h2>
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Haircut, Consultation"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Brief description"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Duration (min)</label>
+              <input
+                type="number"
+                min={5}
+                step={5}
+                value={durationMin}
+                onChange={(e) => setDurationMin(Number(e.target.value))}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={price}
+                  onChange={(e) => setPrice(Number(e.target.value))}
+                  className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+                />
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="AED">AED</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="SAR">SAR</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label>
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="w-full h-9 rounded-lg cursor-pointer border border-gray-300 dark:border-gray-600"
+              />
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enabled}
+                  onChange={(e) => setEnabled(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-[#25D366] focus:ring-[#25D366]"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Enabled</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 text-sm rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white font-medium disabled:opacity-50 flex items-center gap-2"
+          >
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {service ? 'Update' : 'Create'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STAFF MODAL
+// ═══════════════════════════════════════════════════════════════════════════
+
+function StaffModal({
+  wsId,
+  member,
+  services,
+  onClose,
+  onSaved,
+}: {
+  wsId: string;
+  member: StaffMember | null;
+  services: Service[];
+  onClose: () => void;
+  onSaved: (m: StaffMember) => void;
+}) {
+  const [name, setName] = useState(member?.name || '');
+  const [phone, setPhone] = useState(member?.phone || '');
+  const [email, setEmail] = useState(member?.email || '');
+  const [enabled, setEnabled] = useState(member?.enabled ?? true);
+  const [workingHours, setWorkingHours] = useState<Record<string, { start: string; end: string } | null>>(() => {
+    if (member?.workingHours) {
+      try { return JSON.parse(member.workingHours); } catch { /* fallback */ }
+    }
+    return { ...DEFAULT_WORKING_HOURS };
+  });
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(
+    member?.staffServices?.map((ss) => ss.serviceId) || []
+  );
+  const [saving, setSaving] = useState(false);
+
+  const toggleDay = (key: string) => {
+    setWorkingHours((prev) => ({
+      ...prev,
+      [key]: prev[key] ? null : { start: '09:00', end: '17:00' },
+    }));
+  };
+
+  const updateHour = (key: string, field: 'start' | 'end', value: string) => {
+    setWorkingHours((prev) => ({
+      ...prev,
+      [key]: prev[key] ? { ...prev[key]!, [field]: value } : { start: '09:00', end: '17:00', [field]: value },
+    }));
+  };
+
+  const toggleService = (id: string) => {
+    setSelectedServiceIds((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) { toast.error('Name is required'); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        workspaceId: wsId,
+        name: name.trim(),
+        phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
+        enabled,
+        workingHours: JSON.stringify(workingHours),
+        serviceIds: selectedServiceIds,
+      };
+      let res;
+      if (member) {
+        res = await axios.patch(`/api/staff/${member.id}`, payload);
+      } else {
+        res = await axios.post('/api/staff', payload);
+      }
+      toast.success(member ? 'Staff updated' : 'Staff member added');
+      onSaved(res.data);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to save staff');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {member ? 'Edit Staff' : 'Add Staff Member'}
+          </h2>
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Staff member name"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+971..."
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@example.com"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+          </div>
+
+          {/* Working Hours */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Working Hours</label>
+            <div className="space-y-2">
+              {DAY_LABELS.map(({ key, label }) => (
+                <div key={key} className="flex items-center gap-3">
+                  <button
+                    onClick={() => toggleDay(key)}
+                    className={cn(
+                      'w-12 text-xs font-medium py-1 rounded-lg transition-colors',
+                      workingHours[key]
+                        ? 'bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/30'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400 border border-transparent'
+                    )}
+                  >
+                    {label}
+                  </button>
+                  {workingHours[key] ? (
+                    <div className="flex items-center gap-2 text-sm">
+                      <input
+                        type="time"
+                        value={workingHours[key]!.start}
+                        onChange={(e) => updateHour(key, 'start', e.target.value)}
+                        className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-800 dark:text-white"
+                      />
+                      <span className="text-gray-400">–</span>
+                      <input
+                        type="time"
+                        value={workingHours[key]!.end}
+                        onChange={(e) => updateHour(key, 'end', e.target.value)}
+                        className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-800 dark:text-white"
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">Off</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Assigned Services */}
+          {services.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Assigned Services
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {services.map((svc) => (
+                  <button
+                    key={svc.id}
+                    onClick={() => toggleService(svc.id)}
+                    className={cn(
+                      'text-xs px-3 py-1.5 rounded-full border transition-colors',
+                      selectedServiceIds.includes(svc.id)
+                        ? 'border-[#25D366] bg-[#25D366]/10 text-[#25D366]'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'
+                    )}
+                  >
+                    {svc.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-[#25D366] focus:ring-[#25D366]"
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300">Enabled</span>
+          </label>
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 text-sm rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white font-medium disabled:opacity-50 flex items-center gap-2"
+          >
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {member ? 'Update' : 'Add Staff'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

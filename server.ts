@@ -39,7 +39,7 @@ import {
   requireSubscribedWorkspaceById, requireSubscribedWorkspaceFromBody,
   requireSubscribedWorkspaceManagerById, requireSubscribedWorkspaceManagerFromBody,
   requireSubscribedConversation, requireSubscribedContact, requireSubscribedTask,
-  enforceWorkspacePlanLimit, verifyMetaSignature,
+  enforceWorkspacePlanLimit, enforceMonthlyAppointmentLimit, verifyMetaSignature,
   businessRateLimiter,
 } from "./server/middleware/index.js";
 
@@ -1040,7 +1040,21 @@ async function startServer() {
         });
       }
 
-      const responseText = await getAIResponse(chatbot, message);
+      // Get contactId from conversation if available
+      let contactId: string | undefined;
+      if (conversationId) {
+        const conv = await prisma.conversation.findUnique({
+          where: { id: conversationId },
+          select: { contactId: true },
+        });
+        contactId = conv?.contactId || undefined;
+      }
+
+      const responseText = await getAIResponse(chatbot, message, {
+        workspaceId: chatbot.workspaceId,
+        contactId,
+        conversationId,
+      });
 
       if (!responseText) {
         return res.status(500).json({ error: "No AI provider configured or AI failed" });
@@ -1351,7 +1365,11 @@ async function startServer() {
               }
             });
             if (chatbot && chatbot.enabled) {
-              const aiResponse = await getAIResponse(chatbot, incomingPayload.aiInput);
+              const aiResponse = await getAIResponse(chatbot, incomingPayload.aiInput, {
+                workspaceId: number.workspaceId,
+                contactId: contact.id,
+                conversationId: conversation.id,
+              });
               if (aiResponse) {
                 const whatsAppConfig = getWhatsAppChannelConfig(number);
                 try {
@@ -1502,7 +1520,11 @@ async function startServer() {
               }
             });
             if (chatbot && chatbot.enabled) {
-              const aiResponse = await getAIResponse(chatbot, text);
+              const aiResponse = await getAIResponse(chatbot, text, {
+                workspaceId: account.workspaceId,
+                contactId: contact.id,
+                conversationId: conversation.id,
+              });
               if (aiResponse) {
                 try {
                   // Send back to Instagram
@@ -4446,6 +4468,426 @@ async function startServer() {
     } catch (error) {
       console.error('[superadmin:users]', error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ── Appointment Booking: Services ────────────────────────────────
+
+  app.get("/api/services", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
+    try {
+      const services = await prisma.service.findMany({
+        where: { workspaceId: req.query.workspaceId as string },
+        include: { staffServices: { include: { staff: true } } },
+        orderBy: { name: "asc" },
+      });
+      res.json(services);
+    } catch (error) {
+      console.error("[services:list]", error);
+      res.status(500).json({ error: "Failed to load services" });
+    }
+  });
+
+  app.post("/api/services", requireAuth, requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+    const { workspaceId, name, description, durationMin, price, currency, color } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: "Service name is required" });
+    if (!(await enforceWorkspacePlanLimit(res, workspaceId, "services"))) return;
+
+    try {
+      const service = await prisma.service.create({
+        data: {
+          workspaceId,
+          name: name.trim(),
+          description: description?.trim() || null,
+          durationMin: Number(durationMin) || 30,
+          price: Number(price) || 0,
+          currency: currency?.trim() || "AED",
+          color: color?.trim() || "#25D366",
+        },
+      });
+      res.json(service);
+    } catch (error) {
+      console.error("[services:create]", error);
+      res.status(500).json({ error: "Failed to create service" });
+    }
+  });
+
+  app.patch("/api/services/:id", requireAuth, async (req: any, res) => {
+    try {
+      const service = await prisma.service.findUnique({ where: { id: req.params.id } });
+      if (!service) return res.status(404).json({ error: "Service not found" });
+      await requireSubscribedWorkspaceById(req, res, async () => {
+        const { name, description, durationMin, price, currency, color, enabled } = req.body;
+        const updated = await prisma.service.update({
+          where: { id: req.params.id },
+          data: {
+            name: name?.trim() || undefined,
+            description: description !== undefined ? description?.trim() || null : undefined,
+            durationMin: durationMin !== undefined ? Number(durationMin) || 30 : undefined,
+            price: price !== undefined ? Number(price) || 0 : undefined,
+            currency: currency !== undefined ? currency?.trim() || "AED" : undefined,
+            color: color !== undefined ? color?.trim() || "#25D366" : undefined,
+            enabled: enabled !== undefined ? Boolean(enabled) : undefined,
+          },
+        });
+        res.json(updated);
+      }, service.workspaceId);
+    } catch (error) {
+      console.error("[services:update]", error);
+      res.status(500).json({ error: "Failed to update service" });
+    }
+  });
+
+  app.delete("/api/services/:id", requireAuth, async (req: any, res) => {
+    try {
+      const service = await prisma.service.findUnique({ where: { id: req.params.id } });
+      if (!service) return res.status(404).json({ error: "Service not found" });
+      await requireSubscribedWorkspaceById(req, res, async () => {
+        await prisma.staffService.deleteMany({ where: { serviceId: req.params.id } });
+        await prisma.service.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      }, service.workspaceId);
+    } catch (error) {
+      console.error("[services:delete]", error);
+      res.status(500).json({ error: "Failed to delete service" });
+    }
+  });
+
+  // ── Appointment Booking: Staff ─────────────────────────────────
+
+  app.get("/api/staff", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
+    try {
+      const staff = await prisma.staffMember.findMany({
+        where: { workspaceId: req.query.workspaceId as string },
+        include: { staffServices: { include: { service: true } } },
+        orderBy: { name: "asc" },
+      });
+      res.json(staff);
+    } catch (error) {
+      console.error("[staff:list]", error);
+      res.status(500).json({ error: "Failed to load staff" });
+    }
+  });
+
+  app.post("/api/staff", requireAuth, requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+    const { workspaceId, name, phone, email, workingHours, serviceIds } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: "Staff name is required" });
+    if (!(await enforceWorkspacePlanLimit(res, workspaceId, "staffMembers"))) return;
+
+    try {
+      const staff = await prisma.staffMember.create({
+        data: {
+          workspaceId,
+          name: name.trim(),
+          phone: phone?.trim() || null,
+          email: email?.trim() || null,
+          workingHours: workingHours || JSON.stringify({
+            sun: { start: "09:00", end: "17:00" },
+            mon: { start: "09:00", end: "17:00" },
+            tue: { start: "09:00", end: "17:00" },
+            wed: { start: "09:00", end: "17:00" },
+            thu: { start: "09:00", end: "17:00" },
+            fri: null,
+            sat: null,
+          }),
+          staffServices: Array.isArray(serviceIds) && serviceIds.length > 0
+            ? { create: serviceIds.map((serviceId: string) => ({ serviceId })) }
+            : undefined,
+        },
+        include: { staffServices: { include: { service: true } } },
+      });
+      res.json(staff);
+    } catch (error) {
+      console.error("[staff:create]", error);
+      res.status(500).json({ error: "Failed to create staff member" });
+    }
+  });
+
+  app.patch("/api/staff/:id", requireAuth, async (req: any, res) => {
+    try {
+      const staff = await prisma.staffMember.findUnique({ where: { id: req.params.id } });
+      if (!staff) return res.status(404).json({ error: "Staff member not found" });
+      await requireSubscribedWorkspaceById(req, res, async () => {
+        const { name, phone, email, workingHours, enabled, serviceIds } = req.body;
+
+        if (Array.isArray(serviceIds)) {
+          await prisma.staffService.deleteMany({ where: { staffId: req.params.id } });
+          if (serviceIds.length > 0) {
+            await prisma.staffService.createMany({
+              data: serviceIds.map((serviceId: string) => ({ staffId: req.params.id, serviceId })),
+            });
+          }
+        }
+
+        const updated = await prisma.staffMember.update({
+          where: { id: req.params.id },
+          data: {
+            name: name?.trim() || undefined,
+            phone: phone !== undefined ? phone?.trim() || null : undefined,
+            email: email !== undefined ? email?.trim() || null : undefined,
+            workingHours: workingHours || undefined,
+            enabled: enabled !== undefined ? Boolean(enabled) : undefined,
+          },
+          include: { staffServices: { include: { service: true } } },
+        });
+        res.json(updated);
+      }, staff.workspaceId);
+    } catch (error) {
+      console.error("[staff:update]", error);
+      res.status(500).json({ error: "Failed to update staff member" });
+    }
+  });
+
+  app.delete("/api/staff/:id", requireAuth, async (req: any, res) => {
+    try {
+      const staff = await prisma.staffMember.findUnique({ where: { id: req.params.id } });
+      if (!staff) return res.status(404).json({ error: "Staff member not found" });
+      await requireSubscribedWorkspaceById(req, res, async () => {
+        await prisma.staffService.deleteMany({ where: { staffId: req.params.id } });
+        await prisma.staffMember.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      }, staff.workspaceId);
+    } catch (error) {
+      console.error("[staff:delete]", error);
+      res.status(500).json({ error: "Failed to delete staff member" });
+    }
+  });
+
+  // ── Appointment Booking: Appointments ──────────────────────────
+
+  app.get("/api/appointments", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
+    try {
+      const { workspaceId, date, staffId, status, contactId } = req.query;
+      const where: any = { workspaceId: workspaceId as string };
+
+      if (date) {
+        const d = new Date(date as string);
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+        where.startTime = { gte: dayStart, lt: dayEnd };
+      }
+      if (staffId) where.staffId = staffId as string;
+      if (contactId) where.contactId = contactId as string;
+      if (status && status !== "ALL") where.status = status as string;
+
+      const appointments = await prisma.appointment.findMany({
+        where,
+        include: { contact: true, service: true, staff: true },
+        orderBy: { startTime: "asc" },
+      });
+      res.json(appointments);
+    } catch (error) {
+      console.error("[appointments:list]", error);
+      res.status(500).json({ error: "Failed to load appointments" });
+    }
+  });
+
+  app.post("/api/appointments", requireAuth, requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+    const { workspaceId, contactId, serviceId, staffId, startTime, notes } = req.body;
+
+    if (!contactId || !serviceId || !staffId || !startTime) {
+      return res.status(400).json({ error: "Contact, service, staff, and start time are required" });
+    }
+
+    if (!(await enforceMonthlyAppointmentLimit(res, workspaceId))) return;
+
+    try {
+      const service = await prisma.service.findUnique({ where: { id: serviceId } });
+      if (!service) return res.status(404).json({ error: "Service not found" });
+
+      const start = new Date(startTime);
+      const end = new Date(start.getTime() + service.durationMin * 60 * 1000);
+
+      // Check for overlapping appointments
+      const overlap = await prisma.appointment.findFirst({
+        where: {
+          staffId,
+          status: { not: "CANCELLED" },
+          startTime: { lt: end },
+          endTime: { gt: start },
+        },
+      });
+
+      if (overlap) {
+        return res.status(409).json({ error: "This time slot conflicts with an existing appointment" });
+      }
+
+      const appointment = await prisma.appointment.create({
+        data: {
+          workspaceId,
+          contactId,
+          serviceId,
+          staffId,
+          startTime: start,
+          endTime: end,
+          notes: notes?.trim() || null,
+          createdById: req.user.userId,
+        },
+        include: { contact: true, service: true, staff: true },
+      });
+
+      await prisma.activityLog.create({
+        data: {
+          type: "APPOINTMENT_CREATED",
+          content: `Appointment booked: ${service.name} with ${appointment.staff.name}`,
+          contactId,
+          workspaceId,
+        },
+      });
+
+      io.to(workspaceId).emit("appointment-created", appointment);
+      res.json(appointment);
+    } catch (error) {
+      console.error("[appointments:create]", error);
+      res.status(500).json({ error: "Failed to create appointment" });
+    }
+  });
+
+  app.patch("/api/appointments/:id", requireAuth, async (req: any, res) => {
+    try {
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: req.params.id },
+        include: { service: true },
+      });
+      if (!appointment) return res.status(404).json({ error: "Appointment not found" });
+
+      await requireSubscribedWorkspaceById(req, res, async () => {
+        const { startTime, staffId, status, notes } = req.body;
+        const data: any = {};
+
+        if (notes !== undefined) data.notes = notes?.trim() || null;
+        if (status) data.status = status;
+
+        if (startTime || staffId) {
+          const newStart = startTime ? new Date(startTime) : appointment.startTime;
+          const newEnd = new Date(newStart.getTime() + appointment.service.durationMin * 60 * 1000);
+          const newStaffId = staffId || appointment.staffId;
+
+          const overlap = await prisma.appointment.findFirst({
+            where: {
+              id: { not: req.params.id },
+              staffId: newStaffId,
+              status: { not: "CANCELLED" },
+              startTime: { lt: newEnd },
+              endTime: { gt: newStart },
+            },
+          });
+
+          if (overlap) {
+            return res.status(409).json({ error: "This time slot conflicts with an existing appointment" });
+          }
+
+          data.startTime = newStart;
+          data.endTime = newEnd;
+          if (staffId) data.staffId = staffId;
+        }
+
+        const updated = await prisma.appointment.update({
+          where: { id: req.params.id },
+          data,
+          include: { contact: true, service: true, staff: true },
+        });
+
+        io.to(appointment.workspaceId).emit("appointment-updated", updated);
+        res.json(updated);
+      }, appointment.workspaceId);
+    } catch (error) {
+      console.error("[appointments:update]", error);
+      res.status(500).json({ error: "Failed to update appointment" });
+    }
+  });
+
+  app.delete("/api/appointments/:id", requireAuth, async (req: any, res) => {
+    try {
+      const appointment = await prisma.appointment.findUnique({ where: { id: req.params.id } });
+      if (!appointment) return res.status(404).json({ error: "Appointment not found" });
+
+      await requireSubscribedWorkspaceById(req, res, async () => {
+        await prisma.appointment.delete({ where: { id: req.params.id } });
+        io.to(appointment.workspaceId).emit("appointment-deleted", req.params.id);
+        res.json({ success: true });
+      }, appointment.workspaceId);
+    } catch (error) {
+      console.error("[appointments:delete]", error);
+      res.status(500).json({ error: "Failed to delete appointment" });
+    }
+  });
+
+  // ── Appointment Booking: Availability ──────────────────────────
+
+  app.get("/api/appointments/availability", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
+    try {
+      const { workspaceId, date, serviceId, staffId } = req.query;
+      if (!date || !serviceId) {
+        return res.status(400).json({ error: "Date and service are required" });
+      }
+
+      const service = await prisma.service.findUnique({ where: { id: serviceId as string } });
+      if (!service) return res.status(404).json({ error: "Service not found" });
+
+      const staffWhere: any = { workspaceId: workspaceId as string, enabled: true };
+      if (staffId) {
+        staffWhere.id = staffId as string;
+      } else {
+        staffWhere.staffServices = { some: { serviceId: serviceId as string } };
+      }
+
+      const staffList = await prisma.staffMember.findMany({ where: staffWhere });
+
+      const d = new Date(date as string);
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+      const dayName = dayNames[d.getDay()];
+
+      const existingAppointments = await prisma.appointment.findMany({
+        where: {
+          workspaceId: workspaceId as string,
+          staffId: { in: staffList.map((s) => s.id) },
+          status: { not: "CANCELLED" },
+          startTime: { gte: dayStart, lt: dayEnd },
+        },
+      });
+
+      const result = staffList.map((staff) => {
+        let hours: any = null;
+        try {
+          const parsed = JSON.parse(staff.workingHours || "{}");
+          hours = parsed[dayName];
+        } catch {}
+
+        if (!hours || !hours.start || !hours.end) {
+          return { staffId: staff.id, staffName: staff.name, slots: [] };
+        }
+
+        const staffAppointments = existingAppointments.filter((a) => a.staffId === staff.id);
+        const slots: string[] = [];
+
+        const [startH, startM] = hours.start.split(":").map(Number);
+        const [endH, endM] = hours.end.split(":").map(Number);
+        const workStart = new Date(dayStart.getTime() + startH * 3600000 + startM * 60000);
+        const workEnd = new Date(dayStart.getTime() + endH * 3600000 + endM * 60000);
+
+        let cursor = new Date(workStart);
+        while (cursor.getTime() + service.durationMin * 60000 <= workEnd.getTime()) {
+          const slotEnd = new Date(cursor.getTime() + service.durationMin * 60000);
+          const hasConflict = staffAppointments.some(
+            (a) => a.startTime < slotEnd && a.endTime > cursor
+          );
+          if (!hasConflict) {
+            slots.push(
+              `${String(cursor.getHours()).padStart(2, "0")}:${String(cursor.getMinutes()).padStart(2, "0")}`
+            );
+          }
+          cursor = new Date(cursor.getTime() + 30 * 60000);
+        }
+
+        return { staffId: staff.id, staffName: staff.name, slots };
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("[appointments:availability]", error);
+      res.status(500).json({ error: "Failed to check availability" });
     }
   });
 

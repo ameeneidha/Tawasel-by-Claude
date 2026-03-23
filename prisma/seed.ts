@@ -168,37 +168,14 @@ const demoAccounts: DemoAccount[] = [
 ];
 
 async function resetDatabase() {
-  await prisma.message.deleteMany();
-  await prisma.conversationNote.deleteMany();
-  await prisma.activityLog.deleteMany();
-  await prisma.task.deleteMany();
-  await prisma.conversation.deleteMany();
-  await prisma.contactCustomAttributeValue.deleteMany();
-  await prisma.customAttributeDefinition.deleteMany();
-  await prisma.contactListMember.deleteMany();
-  await prisma.contactList.deleteMany();
-  await prisma.contact.deleteMany();
-  await prisma.chatbotTool.deleteMany();
-  await prisma.whatsAppNumber.deleteMany();
-  await prisma.instagramAccount.deleteMany();
-  await prisma.chatbot.deleteMany();
-  await prisma.whatsAppTemplate.deleteMany();
-  await prisma.sessionTemplate.deleteMany();
-  await prisma.broadcastRecipient.deleteMany();
-  await prisma.broadcastCampaign.deleteMany();
-  await prisma.automationRule.deleteMany();
-  await prisma.billingLedgerEntry.deleteMany();
-  await prisma.usageLog.deleteMany();
-  await prisma.apiKey.deleteMany();
-  await prisma.workspaceMembership.deleteMany();
-  await prisma.workspaceInvite.deleteMany();
-  await prisma.businessSetting.deleteMany();
-  await prisma.personalSetting.deleteMany();
-  await prisma.widgetSetting.deleteMany();
-  await prisma.featureRequest.deleteMany();
-  await prisma.issueReport.deleteMany();
-  await prisma.workspace.deleteMany();
-  await prisma.user.deleteMany();
+  // Get all table names and delete in safe order using PRAGMA
+  const tables: Array<{ name: string }> = await prisma.$queryRaw`SELECT name FROM sqlite_master WHERE type='table' AND name != '_prisma_migrations' AND name != 'sqlite_sequence'`;
+  // Disable FK checks, truncate all, re-enable
+  await prisma.$executeRawUnsafe('PRAGMA foreign_keys = OFF');
+  for (const { name } of tables) {
+    await prisma.$executeRawUnsafe(`DELETE FROM "${name}"`);
+  }
+  await prisma.$executeRawUnsafe('PRAGMA foreign_keys = ON');
 }
 
 async function createSuperadminUser(hashedPassword: string) {

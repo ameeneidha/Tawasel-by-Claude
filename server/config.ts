@@ -61,6 +61,9 @@ export type PlanLimits = {
   broadcasts: number;
   automations: number;
   aiMessagesPerMonth: number;
+  services: number;
+  staffMembers: number;
+  appointmentsPerMonth: number;
 };
 
 export const WORKSPACE_PLAN_LIMITS: Record<string, PlanLimits> = {
@@ -73,6 +76,9 @@ export const WORKSPACE_PLAN_LIMITS: Record<string, PlanLimits> = {
     broadcasts: 500,
     automations: 3,
     aiMessagesPerMonth: 1000,
+    services: 5,
+    staffMembers: 1,
+    appointmentsPerMonth: 100,
   },
   GROWTH: {
     users: 5,
@@ -83,6 +89,9 @@ export const WORKSPACE_PLAN_LIMITS: Record<string, PlanLimits> = {
     broadcasts: 3000,
     automations: 15,
     aiMessagesPerMonth: 5000,
+    services: 20,
+    staffMembers: 5,
+    appointmentsPerMonth: 500,
   },
   PRO: {
     users: 10,
@@ -93,6 +102,9 @@ export const WORKSPACE_PLAN_LIMITS: Record<string, PlanLimits> = {
     broadcasts: 10000,
     automations: 999999,
     aiMessagesPerMonth: 25000,
+    services: 999999,
+    staffMembers: 10,
+    appointmentsPerMonth: 999999,
   },
 };
 

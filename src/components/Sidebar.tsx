@@ -22,7 +22,8 @@ import {
   Lock,
   Sun,
   Moon,
-  ContactRound
+  ContactRound,
+  CalendarCheck
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -36,6 +37,7 @@ const navItems = [
   { icon: MessageSquare, label: 'Inbox', path: '/app/inbox' },
   { icon: LayoutGrid, label: 'CRM Pipeline', path: '/app/crm' },
   { icon: ContactRound, label: 'Contacts', path: '/app/contacts' },
+  { icon: CalendarCheck, label: 'Appointments', path: '/app/appointments' },
   { icon: Send, label: 'Compose', path: '/app/compose' },
   { icon: Radio, label: 'Broadcast', path: '/app/broadcast' },
   { icon: FileText, label: 'Templates', path: '/app/templates' },

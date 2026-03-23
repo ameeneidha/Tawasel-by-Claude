@@ -17,6 +17,7 @@ export {
   requireSubscribedContact,
   requireSubscribedTask,
   enforceWorkspacePlanLimit,
+  enforceMonthlyAppointmentLimit,
   verifyMetaSignature,
 } from "./auth.js";
 

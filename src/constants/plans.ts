@@ -22,6 +22,9 @@ export interface PlanConfig {
   broadcastLimit: number;
   automationLimit: number;
   aiMessagesPerMonth: number;
+  serviceLimit: number;
+  staffLimit: number;
+  appointmentLimit: number;
   historyMonths: number;
   pipelineLimit: number;
   pipelineStageLimit: number;
@@ -81,6 +84,9 @@ export const PLANS: Record<PlanType, PlanConfig> = {
     broadcastLimit: 500,
     automationLimit: 3,
     aiMessagesPerMonth: 1000,
+    serviceLimit: 5,
+    staffLimit: 1,
+    appointmentLimit: 100,
     historyMonths: 6,
     pipelineLimit: 1,
     pipelineStageLimit: 5,
@@ -94,7 +100,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
       'Up to 1,000 WhatsApp CRM contacts',
       '500 WhatsApp broadcast messages per month',
       '1 AI assistant with 1,000 AI messages per month',
-      'Basic sales pipeline and 6 months of WhatsApp conversation history',
+      'Appointment booking with 5 services and 100 bookings per month',
     ],
     billingHighlights: [
       '1 user',
@@ -146,6 +152,9 @@ export const PLANS: Record<PlanType, PlanConfig> = {
     broadcastLimit: 3000,
     automationLimit: 15,
     aiMessagesPerMonth: 5000,
+    serviceLimit: 20,
+    staffLimit: 5,
+    appointmentLimit: 500,
     historyMonths: 12,
     pipelineLimit: 1,
     pipelineStageLimit: 999,
@@ -160,7 +169,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
       '5,000 WhatsApp CRM contacts',
       '3,000 WhatsApp broadcast messages per month',
       '3 AI assistants with 5,000 AI messages per month',
-      'Workflow automations, reminders, and stronger lead tracking',
+      'Appointment booking with 20 services, 5 staff, and 500 bookings per month',
     ],
     billingHighlights: [
       'Up to 5 users',
@@ -212,6 +221,9 @@ export const PLANS: Record<PlanType, PlanConfig> = {
     broadcastLimit: 10000,
     automationLimit: 999999,
     aiMessagesPerMonth: 25000,
+    serviceLimit: 999999,
+    staffLimit: 10,
+    appointmentLimit: 999999,
     historyMonths: 24,
     pipelineLimit: 3,
     pipelineStageLimit: 999,
@@ -225,7 +237,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
       '25,000 WhatsApp CRM contacts',
       '10,000 WhatsApp broadcast messages per month',
       '10 AI assistants with 25,000 AI messages per month',
-      'Unlimited automations, API access, advanced analytics, and longer history',
+      'Unlimited appointment booking with 10 staff members',
     ],
     billingHighlights: [
       'Up to 10 users',
@@ -424,6 +436,23 @@ export const PRICING_COMPARISON_GROUPS: ComparisonGroup[] = [
       {
         label: 'White-label widget',
         values: { STARTER: false, GROWTH: false, PRO: 'Add-on' },
+      },
+    ],
+  },
+  {
+    title: 'Appointment Booking',
+    rows: [
+      {
+        label: 'Services',
+        values: { STARTER: 5, GROWTH: 20, PRO: 'Unlimited' },
+      },
+      {
+        label: 'Staff members',
+        values: { STARTER: 1, GROWTH: 5, PRO: 10 },
+      },
+      {
+        label: 'Appointments per month',
+        values: { STARTER: 100, GROWTH: 500, PRO: 'Unlimited' },
       },
     ],
   },

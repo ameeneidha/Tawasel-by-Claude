@@ -320,7 +320,9 @@ export const enforceWorkspacePlanLimit = async (
     | "chatbots"
     | "contacts"
     | "broadcasts"
-    | "automations",
+    | "automations"
+    | "services"
+    | "staffMembers",
   pendingAdds = 1
 ) => {
   if (pendingAdds <= 0) {
@@ -338,36 +340,67 @@ export const enforceWorkspacePlanLimit = async (
   }
 
   const limits = getWorkspacePlanLimits(workspace.plan);
-  const currentCount =
-    resource === "whatsapp"
-      ? await prisma.whatsAppNumber.count({ where: { workspaceId } })
-      : resource === "instagram"
-        ? await prisma.instagramAccount.count({ where: { workspaceId } })
-        : resource === "chatbots"
-          ? await prisma.chatbot.count({ where: { workspaceId } })
-          : resource === "broadcasts"
-            ? await prisma.broadcastCampaign.count({ where: { workspaceId } })
-            : resource === "automations"
-              ? await prisma.automationRule.count({ where: { workspaceId } })
-              : await prisma.contact.count({ where: { workspaceId } });
 
+  const countMap: Record<string, () => Promise<number>> = {
+    whatsapp: () => prisma.whatsAppNumber.count({ where: { workspaceId } }),
+    instagram: () => prisma.instagramAccount.count({ where: { workspaceId } }),
+    chatbots: () => prisma.chatbot.count({ where: { workspaceId } }),
+    broadcasts: () => prisma.broadcastCampaign.count({ where: { workspaceId } }),
+    automations: () => prisma.automationRule.count({ where: { workspaceId } }),
+    contacts: () => prisma.contact.count({ where: { workspaceId } }),
+    services: () => prisma.service.count({ where: { workspaceId } }),
+    staffMembers: () => prisma.staffMember.count({ where: { workspaceId } }),
+  };
+
+  const labelMap: Record<string, string> = {
+    whatsapp: "WhatsApp numbers",
+    instagram: "Instagram accounts",
+    chatbots: "AI chatbots",
+    broadcasts: "broadcasts",
+    automations: "automation rules",
+    contacts: "contacts",
+    services: "services",
+    staffMembers: "staff members",
+  };
+
+  const currentCount = await countMap[resource]();
   const limit = limits[resource];
-  if (currentCount + pendingAdds > limit) {
-    const resourceLabel =
-      resource === "whatsapp"
-        ? "WhatsApp numbers"
-        : resource === "instagram"
-          ? "Instagram accounts"
-          : resource === "chatbots"
-            ? "AI chatbots"
-            : resource === "broadcasts"
-              ? "broadcasts"
-              : resource === "automations"
-                ? "automation rules"
-                : "contacts";
 
+  if (currentCount + pendingAdds > limit) {
     res.status(403).json({
-      error: `Plan limit reached: ${limit} ${resourceLabel} allowed on ${workspace.plan} plan`,
+      error: `Plan limit reached: ${limit} ${labelMap[resource]} allowed on ${workspace.plan} plan`,
+    });
+    return false;
+  }
+
+  return true;
+};
+
+export const enforceMonthlyAppointmentLimit = async (
+  res: any,
+  workspaceId: string
+) => {
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { id: true, plan: true },
+  });
+
+  if (!workspace) {
+    res.status(404).json({ error: "Workspace not found" });
+    return false;
+  }
+
+  const limits = getWorkspacePlanLimits(workspace.plan);
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const count = await prisma.appointment.count({
+    where: { workspaceId, createdAt: { gte: startOfMonth } },
+  });
+
+  if (count + 1 > limits.appointmentsPerMonth) {
+    res.status(403).json({
+      error: `Plan limit reached: ${limits.appointmentsPerMonth} appointments per month allowed on ${workspace.plan} plan`,
     });
     return false;
   }
