@@ -32,6 +32,34 @@ type EmbeddedSignupConfig = {
   missingKeys?: string[];
 };
 
+type MetaEmbeddedSignupSessionHints = {
+  businessId?: string | null;
+  wabaId?: string | null;
+  phoneNumberId?: string | null;
+  displayPhoneNumber?: string | null;
+};
+
+type EmbeddedSignupMessagePayload = {
+  success: boolean;
+  error?: string;
+  workspaceId?: string | null;
+  businessId?: string | null;
+  accessToken?: string | null;
+  tokenExpiresAt?: string | null;
+  phoneNumbers?: Array<{
+    wabaId?: string | null;
+    phoneNumberId: string;
+    displayPhoneNumber: string;
+    verifiedName?: string | null;
+    businessName?: string | null;
+  }>;
+};
+
+const META_EMBEDDED_SIGNUP_ORIGINS = [
+  'https://www.facebook.com',
+  'https://web.facebook.com',
+];
+
 export default function Channels() {
   const { activeWorkspace } = useApp();
   const [numbers, setNumbers] = useState<any[]>([]);
@@ -40,6 +68,7 @@ export default function Channels() {
   const [isFinalizingWhatsApp, setIsFinalizingWhatsApp] = useState(false);
   const [embeddedSignupConfig, setEmbeddedSignupConfig] = useState<EmbeddedSignupConfig | null>(null);
   const [isLoadingEmbeddedSignupConfig, setIsLoadingEmbeddedSignupConfig] = useState(false);
+  const [embeddedSignupSessionHints, setEmbeddedSignupSessionHints] = useState<MetaEmbeddedSignupSessionHints | null>(null);
 
   const currentPlan = activeWorkspace?.plan || 'NONE';
   const planInfo = getPlanConfig(currentPlan) || PLANS.STARTER;
@@ -58,19 +87,13 @@ export default function Channels() {
   }, [activeWorkspace]);
 
   useEffect(() => {
-    const handleEmbeddedSignupMessage = async (event: MessageEvent) => {
-      const allowedOrigins = getAllowedMessageOrigins();
-      if (!allowedOrigins.has(event.origin)) return;
-      if (event.data?.type !== 'meta-embedded-signup') return;
+    const finalizeConnectedPhone = async (
+      payload: EmbeddedSignupMessagePayload,
+      phoneNumbersInput?: EmbeddedSignupMessagePayload['phoneNumbers']
+    ) => {
       if (!activeWorkspace?.id) return;
 
-      const payload = event.data.payload;
-      if (!payload?.success) {
-        toast.error(payload?.error || 'WhatsApp Embedded Signup was not completed');
-        return;
-      }
-
-      const phoneNumbers = Array.isArray(payload.phoneNumbers) ? payload.phoneNumbers : [];
+      const phoneNumbers = Array.isArray(phoneNumbersInput) ? phoneNumbersInput : [];
       const selectedPhone = phoneNumbers[0];
 
       if (!selectedPhone?.phoneNumberId || !selectedPhone?.displayPhoneNumber || !payload?.accessToken) {
@@ -89,8 +112,8 @@ export default function Channels() {
           workspaceId: activeWorkspace.id,
           phoneNumberId: selectedPhone.phoneNumberId,
           displayPhoneNumber: selectedPhone.displayPhoneNumber,
-          wabaId: selectedPhone.wabaId,
-          businessId: payload.businessId,
+          wabaId: selectedPhone.wabaId || embeddedSignupSessionHints?.wabaId || null,
+          businessId: payload.businessId || embeddedSignupSessionHints?.businessId || null,
           accessToken: payload.accessToken,
           tokenExpiresAt: payload.tokenExpiresAt,
           verifiedName: selectedPhone.verifiedName,
@@ -99,6 +122,7 @@ export default function Channels() {
         });
 
         await fetchChannels();
+        setEmbeddedSignupSessionHints(null);
         toast.success(`Connected ${selectedPhone.displayPhoneNumber}`);
 
         if (phoneNumbers.length > 1) {
@@ -115,9 +139,74 @@ export default function Channels() {
       }
     };
 
+    const handleEmbeddedSignupMessage = async (event: MessageEvent) => {
+      let rawData = event.data;
+      if (typeof rawData === 'string') {
+        try {
+          rawData = JSON.parse(rawData);
+        } catch {
+          rawData = event.data;
+        }
+      }
+
+      if (
+        META_EMBEDDED_SIGNUP_ORIGINS.includes(event.origin) &&
+        rawData &&
+        typeof rawData === 'object' &&
+        rawData.type === 'WA_EMBEDDED_SIGNUP' &&
+        rawData.event === 'FINISH'
+      ) {
+        setEmbeddedSignupSessionHints({
+          businessId: rawData.data?.business_id || null,
+          wabaId: rawData.data?.waba_id || null,
+          phoneNumberId: rawData.data?.phone_number_id || null,
+          displayPhoneNumber: rawData.data?.display_phone_number || null,
+        });
+        return;
+      }
+
+      const allowedOrigins = getAllowedMessageOrigins();
+      if (!allowedOrigins.has(event.origin)) return;
+      if (rawData?.type !== 'meta-embedded-signup') return;
+      if (!activeWorkspace?.id) return;
+
+      const payload = rawData.payload as EmbeddedSignupMessagePayload;
+      if (!payload?.success) {
+        const canRetryLookup =
+          Boolean(payload?.accessToken) &&
+          Boolean(embeddedSignupSessionHints?.businessId || embeddedSignupSessionHints?.wabaId);
+
+        if (canRetryLookup) {
+          try {
+            const response = await axios.post('/api/meta/embedded-signup/resolve-assets', {
+              accessToken: payload.accessToken,
+              businessId: embeddedSignupSessionHints?.businessId || undefined,
+              wabaId: embeddedSignupSessionHints?.wabaId || undefined,
+            });
+
+            const resolvedPhoneNumbers = Array.isArray(response.data?.phoneNumbers)
+              ? response.data.phoneNumbers
+              : [];
+
+            if (resolvedPhoneNumbers.length > 0) {
+              await finalizeConnectedPhone(payload, resolvedPhoneNumbers);
+              return;
+            }
+          } catch (error) {
+            console.error('Failed to resolve embedded signup phone assets', error);
+          }
+        }
+
+        toast.error(payload?.error || 'WhatsApp Embedded Signup was not completed');
+        return;
+      }
+
+      await finalizeConnectedPhone(payload, payload.phoneNumbers);
+    };
+
     window.addEventListener('message', handleEmbeddedSignupMessage);
     return () => window.removeEventListener('message', handleEmbeddedSignupMessage);
-  }, [activeWorkspace?.id]);
+  }, [activeWorkspace?.id, embeddedSignupSessionHints]);
 
   const fetchChannels = async () => {
     setIsLoading(true);
@@ -164,6 +253,7 @@ export default function Channels() {
     }
 
     setIsConnectingWhatsApp(true);
+    setEmbeddedSignupSessionHints(null);
     const popup = window.open(
       '',
       'meta-whatsapp-embedded-signup',

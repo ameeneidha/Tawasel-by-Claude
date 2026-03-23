@@ -2993,6 +2993,11 @@ async function startServer() {
           success: false,
           error: "Meta connected successfully, but no WhatsApp phone number details were returned",
           workspaceId: state?.workspaceId || null,
+          businessId: businessId || null,
+          accessToken: tokenResponse.access_token,
+          tokenExpiresAt: tokenResponse.expires_in
+            ? new Date(Date.now() + tokenResponse.expires_in * 1000).toISOString()
+            : null,
         });
       }
 
@@ -3011,6 +3016,32 @@ async function startServer() {
         success: false,
         error: callbackError?.response?.data?.error?.message || callbackError?.message || "Could not finish WhatsApp Embedded Signup",
         workspaceId: state?.workspaceId || null,
+      });
+    }
+  });
+
+  app.post("/api/meta/embedded-signup/resolve-assets", requireAuth, async (req, res) => {
+    const accessToken = String(req.body.accessToken || '').trim();
+    const businessId = String(req.body.businessId || '').trim();
+    const wabaId = String(req.body.wabaId || '').trim();
+
+    if (!accessToken) {
+      return res.status(400).json({ error: "Meta access token is required" });
+    }
+
+    try {
+      const phoneNumbers = await fetchEmbeddedSignupPhoneAssets(accessToken, {
+        businessId: businessId || null,
+        wabaId: wabaId || null,
+      });
+
+      return res.json({
+        success: true,
+        phoneNumbers,
+      });
+    } catch (error: any) {
+      return res.status(400).json({
+        error: error?.response?.data?.error?.message || error?.message || "Could not resolve WhatsApp phone assets",
       });
     }
   });
