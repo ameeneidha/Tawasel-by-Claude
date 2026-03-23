@@ -151,7 +151,7 @@ export default function Home() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const trustedTeamMarkers = ['MK', 'SA', 'LR', 'NH'];
   const getPostLoginPath = (nextUser?: { email?: string | null }) =>
-    (nextUser?.email || '').toLowerCase() === 'ameeneidha@gmail.com' ? '/app/superadmin' : '/app/dashboard';
+    (nextUser?.email || '').toLowerCase() === (process.env.SUPERADMIN_EMAIL || '').toLowerCase() ? '/app/superadmin' : '/app/dashboard';
 
   const handlePlanSelect = (planId: string) => {
     sessionStorage.setItem('pendingPlan', planId);

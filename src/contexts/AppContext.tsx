@@ -58,7 +58,7 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
-const SUPERADMIN_EMAIL = 'ameeneidha@gmail.com';
+const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || '').trim().toLowerCase();
 const CONNECTED_ACCOUNTS_STORAGE_KEY = 'connectedAccounts';
 const isSuperadminUser = (user: User | null) => (user?.email || '').toLowerCase() === SUPERADMIN_EMAIL;
 

@@ -15,7 +15,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const isAddingAccount = searchParams.get('addAccount') === '1';
   const getPostLoginPath = (nextUser?: { email?: string | null }) =>
-    (nextUser?.email || '').toLowerCase() === 'ameeneidha@gmail.com' ? '/app/superadmin' : '/app/dashboard';
+    (nextUser?.email || '').toLowerCase() === (process.env.SUPERADMIN_EMAIL || '').toLowerCase() ? '/app/superadmin' : '/app/dashboard';
 
   useEffect(() => {
     if (user && !isAddingAccount) {

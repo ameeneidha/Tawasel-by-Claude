@@ -21,6 +21,7 @@ export interface PlanConfig {
   contactsLimit: number;
   broadcastLimit: number;
   automationLimit: number;
+  aiMessagesPerMonth: number;
   historyMonths: number;
   pipelineLimit: number;
   pipelineStageLimit: number;
@@ -79,6 +80,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
     contactsLimit: 1000,
     broadcastLimit: 500,
     automationLimit: 3,
+    aiMessagesPerMonth: 1000,
     historyMonths: 6,
     pipelineLimit: 1,
     pipelineStageLimit: 5,
@@ -91,7 +93,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
       'Shared WhatsApp team inbox',
       'Up to 1,000 WhatsApp CRM contacts',
       '500 WhatsApp broadcast messages per month',
-      '1 AI assistant for after-hours replies',
+      '1 AI assistant with 1,000 AI messages per month',
       'Basic sales pipeline and 6 months of WhatsApp conversation history',
     ],
     billingHighlights: [
@@ -143,6 +145,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
     contactsLimit: 5000,
     broadcastLimit: 3000,
     automationLimit: 15,
+    aiMessagesPerMonth: 5000,
     historyMonths: 12,
     pipelineLimit: 1,
     pipelineStageLimit: 999,
@@ -156,7 +159,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
       'Shared WhatsApp inbox for up to 5 users',
       '5,000 WhatsApp CRM contacts',
       '3,000 WhatsApp broadcast messages per month',
-      '3 AI assistants for sales, support, and after-hours',
+      '3 AI assistants with 5,000 AI messages per month',
       'Workflow automations, reminders, and stronger lead tracking',
     ],
     billingHighlights: [
@@ -208,6 +211,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
     contactsLimit: 25000,
     broadcastLimit: 10000,
     automationLimit: 999999,
+    aiMessagesPerMonth: 25000,
     historyMonths: 24,
     pipelineLimit: 3,
     pipelineStageLimit: 999,
@@ -220,7 +224,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
       'Multi-team and branch-ready operations',
       '25,000 WhatsApp CRM contacts',
       '10,000 WhatsApp broadcast messages per month',
-      '10 AI assistants with advanced routing',
+      '10 AI assistants with 25,000 AI messages per month',
       'Unlimited automations, API access, advanced analytics, and longer history',
     ],
     billingHighlights: [
@@ -376,6 +380,10 @@ export const PRICING_COMPARISON_GROUPS: ComparisonGroup[] = [
       {
         label: 'AI assistants',
         values: { STARTER: 1, GROWTH: 3, PRO: 10 },
+      },
+      {
+        label: 'AI messages per month',
+        values: { STARTER: '1,000', GROWTH: '5,000', PRO: '25,000' },
       },
       {
         label: 'Workflow automations',
