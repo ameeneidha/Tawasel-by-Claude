@@ -217,6 +217,7 @@ model Message {
   senderType    String    @default("USER") // USER, AI_BOT, SYSTEM
   senderName    String?
   status        String    @default("SENT") // SENT, DELIVERED, READ, FAILED
+  metaMessageId String?   // WhatsApp/Instagram message ID for delivery tracking
   isInternal    Boolean   @default(false)
   readAt        DateTime?
   createdAt     DateTime  @default(now())

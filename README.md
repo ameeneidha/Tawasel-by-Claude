@@ -28,6 +28,15 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### March 24, 2026 (Update 2)
+
+- WhatsApp message delivery tracking in Inbox:
+  - Outgoing messages now store Meta message ID for webhook matching
+  - Status webhook updates inbox messages (not just broadcast recipients)
+  - Real-time status updates via Socket.io (SENT → DELIVERED → READ)
+  - Visual indicators: single gray ✓ (sent), double gray ✓✓ (delivered), double blue ✓✓ (read), red "Failed" text
+  - AI bot replies also tracked with delivery status
+
 ### March 24, 2026
 
 - Added appointment booking system:

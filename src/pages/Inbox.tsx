@@ -388,9 +388,19 @@ export default function Inbox() {
         }
       });
 
+      // Real-time delivery status updates (SENT → DELIVERED → READ)
+      socket.on('message-status-updated', (data: { messageId: string; conversationId: string; status: string }) => {
+        if (selectedConv && data.conversationId === selectedConv.id) {
+          setMessages(prev => prev.map(msg =>
+            msg.id === data.messageId ? { ...msg, status: data.status } : msg
+          ));
+        }
+      });
+
       return () => {
         socket.off('new-message');
         socket.off('conversation-updated');
+        socket.off('message-status-updated');
         socket.disconnect();
       };
     } else {
@@ -1361,7 +1371,15 @@ export default function Inbox() {
                       ) : ''}
                     </span>
                     {msg.direction === 'OUTGOING' && !msg.isInternal && (
-                      <CheckCheck className="w-3 h-3 text-[#25D366]" />
+                      msg.status === 'FAILED' ? (
+                        <span className="text-[10px] text-red-500 font-medium">Failed</span>
+                      ) : msg.status === 'READ' ? (
+                        <CheckCheck className="w-3 h-3 text-blue-500" />
+                      ) : msg.status === 'DELIVERED' ? (
+                        <CheckCheck className="w-3 h-3 text-gray-400" />
+                      ) : (
+                        <Check className="w-3 h-3 text-gray-400" />
+                      )
                     )}
                   </div>
                 </div>

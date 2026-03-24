@@ -1233,6 +1233,52 @@ async function startServer() {
         await refreshBroadcastCampaignStats(recipient.campaignId);
       }
 
+      // ── Update inbox message delivery status ──────────────────────
+      for (const receipt of statuses) {
+        const metaMsgId = receipt?.id;
+        if (!metaMsgId) continue;
+
+        const nextMsgStatus =
+          receipt.status === 'read'
+            ? 'READ'
+            : receipt.status === 'delivered'
+              ? 'DELIVERED'
+              : receipt.status === 'failed'
+                ? 'FAILED'
+                : receipt.status === 'sent'
+                  ? 'SENT'
+                  : null;
+
+        if (!nextMsgStatus) continue;
+
+        // Find message by metaMessageId
+        const inboxMsg = await prisma.message.findFirst({
+          where: { metaMessageId: metaMsgId },
+          include: { conversation: true }
+        });
+
+        if (inboxMsg) {
+          // Only upgrade status (SENT → DELIVERED → READ), never downgrade
+          const statusOrder: Record<string, number> = { SENT: 1, DELIVERED: 2, READ: 3, FAILED: 0 };
+          const currentOrder = statusOrder[inboxMsg.status] || 0;
+          const newOrder = statusOrder[nextMsgStatus] || 0;
+
+          if (newOrder > currentOrder || nextMsgStatus === 'FAILED') {
+            await prisma.message.update({
+              where: { id: inboxMsg.id },
+              data: { status: nextMsgStatus }
+            });
+
+            // Emit status update to frontend via Socket.io
+            io.to(inboxMsg.conversation.workspaceId).emit("message-status-updated", {
+              messageId: inboxMsg.id,
+              conversationId: inboxMsg.conversationId,
+              status: nextMsgStatus
+            });
+          }
+        }
+      }
+
       if (message) {
         const incomingPayload = buildIncomingWhatsAppMessagePayload(message);
         if (!incomingPayload) {
@@ -1375,12 +1421,12 @@ async function startServer() {
                 const whatsAppConfig = getWhatsAppChannelConfig(number);
                 try {
                   // Send back to WhatsApp
-                  await sendMetaMessage(from, aiResponse, 'whatsapp', {
+                  const aiMetaMsgId = await sendMetaMessage(from, aiResponse, 'whatsapp', {
                     accessToken: whatsAppConfig.accessToken,
                     phoneNumberId: whatsAppConfig.phoneNumberId || phoneNumberId
                   });
 
-                  // Save AI message
+                  // Save AI message with Meta message ID for delivery tracking
                   const aiMsg = await prisma.message.create({
                     data: {
                       conversationId: conversation.id,
@@ -1388,6 +1434,7 @@ async function startServer() {
                       direction: 'OUTGOING',
                       senderType: 'AI_BOT',
                       senderName: chatbot.name,
+                      metaMessageId: aiMetaMsgId || null,
                       status: 'SENT'
                     }
                   });
@@ -2391,23 +2438,50 @@ async function startServer() {
           }
 
           if (content?.trim() && attachments.length === 0) {
-            await sendMetaMessage(to, content, 'whatsapp', {
+            const whatsappMsgId = await sendMetaMessage(to, content, 'whatsapp', {
               accessToken: whatsAppConfig.accessToken,
               phoneNumberId
             });
+
+            createdMessages.push(await prisma.message.create({
+              data: {
+                conversationId,
+                content,
+                direction: 'OUTGOING',
+                senderType: 'USER',
+                senderName,
+                isInternal: isInternalMessage,
+                metaMessageId: whatsappMsgId || null,
+                status: 'SENT'
+              }
+            }));
           }
         } else if (conversation.channelType === 'INSTAGRAM' && conversation.contact.instagramId) {
           if (attachments.length > 0) {
             return res.status(400).json({ error: "Instagram attachments are not connected yet. Send text only for now." });
           }
-          await sendMetaMessage(conversation.contact.instagramId, content, 'instagram', {
-        accessToken: conversation.instagramAccount?.accessToken || process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || "",
-        instagramId: conversation.instagramAccount?.instagramId
-      });
+          const igMsgId = await sendMetaMessage(conversation.contact.instagramId, content, 'instagram', {
+            accessToken: conversation.instagramAccount?.accessToken || process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || "",
+            instagramId: conversation.instagramAccount?.instagramId
+          });
+
+          createdMessages.push(await prisma.message.create({
+            data: {
+              conversationId,
+              content,
+              direction: 'OUTGOING',
+              senderType: 'USER',
+              senderName,
+              isInternal: isInternalMessage,
+              metaMessageId: igMsgId || null,
+              status: 'SENT'
+            }
+          }));
         }
       }
 
-      if (content?.trim() || attachments.length === 0) {
+      // Internal notes or fallback (no Meta send)
+      if (createdMessages.length === 0 && (content?.trim() || attachments.length === 0)) {
         createdMessages.push(await prisma.message.create({
           data: {
             conversationId,
