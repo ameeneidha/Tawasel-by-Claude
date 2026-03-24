@@ -13,6 +13,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const isAddingAccount = searchParams.get('addAccount') === '1';
   const getPostLoginPath = (nextUser?: { email?: string | null }) =>
     (nextUser?.email || '').toLowerCase() === (process.env.SUPERADMIN_EMAIL || '').toLowerCase() ? '/app/superadmin' : '/app/dashboard';
@@ -29,7 +30,7 @@ export default function Login() {
     setError('');
     try {
       const res = await axios.post('/api/auth/login', { email, password });
-      setUser(res.data.user, res.data.token);
+      setUser(res.data.user, res.data.token, rememberMe);
       navigate(getPostLoginPath(res.data.user));
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
@@ -91,6 +92,19 @@ export default function Login() {
                 required
               />
             </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-[#25D366] focus:ring-[#25D366]/20 bg-gray-50 dark:bg-slate-800 cursor-pointer"
+            />
+            <label htmlFor="rememberMe" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+              Remember me
+            </label>
           </div>
 
           {error && (

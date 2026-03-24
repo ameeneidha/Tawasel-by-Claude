@@ -47,7 +47,7 @@ interface AppContextType {
   hasVerifiedEmail: boolean;
   hasActiveSubscription: boolean;
   hasFullAccess: boolean;
-  setUser: (user: User | null, token: string | null) => void;
+  setUser: (user: User | null, token: string | null, rememberMe?: boolean) => void;
   setActiveWorkspace: (workspace: Workspace | null) => void;
   switchAccount: (accountId: string) => Promise<void>;
   logout: () => void;
@@ -177,8 +177,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    const savedToken = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
+    const savedToken = localStorage.getItem('token') || sessionStorage.getItem('token');
     
     if (savedUser && savedToken) {
       const parsedUser = JSON.parse(savedUser);
@@ -251,12 +251,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleSetUser = (u: User | null, t: string | null) => {
+  const handleSetUser = (u: User | null, t: string | null, rememberMe: boolean = true) => {
     setUser(u);
     setToken(t);
     if (u && t) {
-      localStorage.setItem('user', JSON.stringify(u));
-      localStorage.setItem('token', t);
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem('user', JSON.stringify(u));
+      storage.setItem('token', t);
+      if (!rememberMe) {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
       axios.defaults.headers.common['Authorization'] = `Bearer ${t}`;
       upsertConnectedAccount(u, t, localStorage.getItem('activeWorkspaceId'));
       if (isSuperadminUser(u)) {
