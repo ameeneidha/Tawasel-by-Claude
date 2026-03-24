@@ -51,6 +51,12 @@ The repo also includes an App Platform spec:
   - Uses localStorage when checked (persists across sessions)
   - Uses sessionStorage when unchecked (expires on browser close)
 - Added CLAUDE.md for efficient Claude Code session continuity
+- Fixed broadcast campaign template picker:
+  - Step 2 now fetches only APPROVED templates from Meta (synced via Templates page)
+  - Removed hardcoded demo templates from dropdown
+  - Preview shows real template content
+- Removed demo WhatsApp templates from seed data (only real synced templates shown)
+- Added Remember me checkbox to login page
 
 ### March 15, 2026
 

@@ -463,7 +463,20 @@ function BroadcastBuilder({
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [sendMode, setSendMode] = useState<'NOW' | 'SCHEDULE'>('NOW');
   const [campaignName, setCampaignName] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState('welcome_message');
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [waTemplates, setWaTemplates] = useState<Array<{ id: string; name: string; content: string; category: string; language: string; status: string }>>([]);
+
+  useEffect(() => {
+    axios.get(`/api/templates/whatsapp?workspaceId=${workspaceId}`)
+      .then(res => {
+        const approved = (Array.isArray(res.data) ? res.data : []).filter((t: any) => t.status === 'APPROVED');
+        setWaTemplates(approved);
+        if (approved.length > 0 && !selectedTemplate) {
+          setSelectedTemplate(approved[0].name);
+        }
+      })
+      .catch(() => {});
+  }, [workspaceId]);
   const [testPhoneNumber, setTestPhoneNumber] = useState('');
   const activeNumbers = numbers.filter((number) => number.status === 'CONNECTED');
   const phoneContacts = contacts.filter((contact) => Boolean(contact.phoneNumber));
@@ -495,10 +508,8 @@ function BroadcastBuilder({
   const totalRecipients = selectedAudience?.count || 0;
   const estimatedCredits = totalRecipients;
   const canContinueFromSetup = Boolean(campaignName.trim() && senderId && audienceSelection);
-  const previewMessage =
-    selectedTemplate === 'payment_options'
-      ? 'Hello Ahmed Hassan, here are our available payment options. Let us know which one works best for you.'
-      : 'Hello Ahmed Hassan, Welcome to our service! How can we help you today?';
+  const selectedTemplateObj = waTemplates.find(t => t.name === selectedTemplate);
+  const previewMessage = selectedTemplateObj?.content || 'Select a template to see the preview';
   const reviewItems = [
     { label: 'Campaign Name', value: campaignName.trim() || 'Not set' },
     {
@@ -733,8 +744,14 @@ function BroadcastBuilder({
                   onChange={(e) => setSelectedTemplate(e.target.value)}
                   className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg outline-none text-gray-900 dark:text-white transition-colors"
                 >
-                  <option value="welcome_message">welcome_message</option>
-                  <option value="payment_options">payment_options</option>
+                  {waTemplates.length === 0 && (
+                    <option value="">No approved templates — sync from Templates page</option>
+                  )}
+                  {waTemplates.map(t => (
+                    <option key={t.id} value={t.name}>
+                      {t.name} ({t.language})
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-3">

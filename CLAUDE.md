@@ -61,6 +61,10 @@ npx vite build       # Production build
 - AI chatbot appointment booking via OpenAI function calling
 - 24-hour WhatsApp appointment reminders (background scheduler)
 - WhatsApp Embedded Signup (already implemented, needs Meta env vars)
+- WhatsApp template sync from Meta Graph API (POST /api/templates/whatsapp/sync)
+- Broadcast template picker uses real approved Meta templates (no more hardcoded options)
+- Remember me checkbox on login (localStorage vs sessionStorage)
+- Removed demo WhatsApp templates from seed — only real synced templates shown
 
 ## Potential Next Features
 - Calendar view with drag-to-reschedule (react-big-calendar)

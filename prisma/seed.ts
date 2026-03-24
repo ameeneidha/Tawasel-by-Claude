@@ -57,10 +57,7 @@ const demoAccounts: DemoAccount[] = [
         responseMessage: 'Absolutely. I can walk you through the Starter package and what is included.',
       },
     ],
-    templates: [
-      { name: 'starter_welcome', content: 'Welcome to our Starter support desk. How can we help?', category: 'UTILITY' },
-      { name: 'starter_payment', content: 'Starter package payments can be completed securely online.', category: 'UTILITY' },
-    ],
+    templates: [],
     sessionTemplates: [
       { name: 'Starter Greeting', content: 'Hello! Thanks for contacting our Starter team. How can we help?' },
       { name: 'Starter Follow-Up', content: 'Just following up on your Starter package inquiry. Let me know if you have questions.' },
@@ -98,10 +95,7 @@ const demoAccounts: DemoAccount[] = [
         responseMessage: 'Growth supports campaigns, automation, and shared team workflows for that.',
       },
     ],
-    templates: [
-      { name: 'growth_onboarding', content: 'Welcome to the Growth workspace. Let us help you scale your team inbox.', category: 'UTILITY' },
-      { name: 'growth_demo_booking', content: 'Here is your Growth demo booking confirmation and next steps.', category: 'UTILITY' },
-    ],
+    templates: [],
     sessionTemplates: [
       { name: 'Growth Intro', content: 'Hi! You are speaking with our Growth team. What are you trying to improve in your workflow?' },
       { name: 'Growth Quote', content: 'I can prepare a Growth plan recommendation based on your channels and team size.' },
@@ -153,11 +147,7 @@ const demoAccounts: DemoAccount[] = [
         responseMessage: 'Glad you liked it! How can we help?',
       },
     ],
-    templates: [
-      { name: 'pro_welcome', content: 'Welcome to our Pro operations desk. How can we assist today?', category: 'UTILITY' },
-      { name: 'pro_payment_options', content: 'We accept Credit Card, Bank Transfer, and Apple Pay.', category: 'UTILITY' },
-      { name: 'pro_location_info', content: 'Our office is located in Business Bay, Dubai.', category: 'UTILITY' },
-    ],
+    templates: [],
     sessionTemplates: [
       { name: 'Quick Greeting', content: 'Hi there! How can I help you today?' },
       { name: 'Closing Statement', content: 'Thank you for contacting us. Have a great day!' },
