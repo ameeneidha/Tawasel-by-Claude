@@ -1352,6 +1352,16 @@ async function startServer() {
             });
           }
 
+          // Handle quote reply context from WhatsApp
+          let incomingReplyToId: string | null = null;
+          const quotedMetaId = message?.context?.id;
+          if (quotedMetaId) {
+            const quotedMsg = await prisma.message.findFirst({
+              where: { metaMessageId: quotedMetaId, conversationId: conversation.id }
+            });
+            if (quotedMsg) incomingReplyToId = quotedMsg.id;
+          }
+
           const newMsg = await prisma.message.create({
             data: {
               conversationId: conversation.id,
@@ -1362,6 +1372,8 @@ async function startServer() {
               mediaFilename: incomingPayload.type === 'TEXT' ? null : incomingPayload.mediaFilename,
               direction: 'INCOMING',
               senderType: 'USER',
+              metaMessageId: message?.id || null,
+              replyToId: incomingReplyToId,
               status: 'READ',
               readAt: null,
             }
@@ -2377,7 +2389,7 @@ async function startServer() {
 
   // Socket.io Broadcast for manual messages
   app.post("/api/messages/send", requireAuth, businessRateLimiter('messages'), upload.array('attachments', 5), requireSubscribedConversation, async (req, res) => {
-    const { conversationId, content, senderId, senderName, isInternal } = req.body;
+    const { conversationId, content, senderId, senderName, isInternal, replyToMetaMessageId, replyToId } = req.body;
     const attachments = (req.files as Express.Multer.File[] | undefined) || [];
     const isInternalMessage = isInternal === true || isInternal === 'true';
     const createdMessages = [];
@@ -2440,7 +2452,8 @@ async function startServer() {
           if (content?.trim() && attachments.length === 0) {
             const whatsappMsgId = await sendMetaMessage(to, content, 'whatsapp', {
               accessToken: whatsAppConfig.accessToken,
-              phoneNumberId
+              phoneNumberId,
+              replyToMetaMessageId: replyToMetaMessageId || undefined
             });
 
             createdMessages.push(await prisma.message.create({
@@ -2452,6 +2465,7 @@ async function startServer() {
                 senderName,
                 isInternal: isInternalMessage,
                 metaMessageId: whatsappMsgId || null,
+                replyToId: replyToId || null,
                 status: 'SENT'
               }
             }));
@@ -2684,13 +2698,32 @@ async function startServer() {
           }
         };
 
-        // If template has variables, map recipientName as {{1}}
-        if (recipientName) {
+        // Look up the template from DB to check how many variables it has
+        const dbTemplate = await prisma.whatsAppTemplate.findFirst({
+          where: { workspaceId, name: templateName }
+        });
+        const templateContent = dbTemplate?.content || '';
+        // Count variable placeholders like {{1}}, {{2}}, etc.
+        const varMatches = templateContent.match(/\{\{\d+\}\}/g);
+        const varCount = varMatches ? new Set(varMatches).size : 0;
+
+        if (varCount > 0) {
+          // Build parameters array matching the number of variables in the template
+          const parameters: { type: string; text: string }[] = [];
+          for (let i = 0; i < varCount; i++) {
+            // Use recipientName for {{1}}, fallback to empty string for others
+            if (i === 0 && recipientName) {
+              parameters.push({ type: 'text', text: recipientName });
+            } else {
+              parameters.push({ type: 'text', text: recipientName || '' });
+            }
+          }
           templatePayload.template.components = [{
             type: 'body',
-            parameters: [{ type: 'text', text: recipientName }]
+            parameters
           }];
         }
+        // If template has 0 variables, don't include components at all
 
         const metaRes = await axios.post(
           `https://graph.facebook.com/${graphVersion}/${config.phoneNumberId}/messages`,

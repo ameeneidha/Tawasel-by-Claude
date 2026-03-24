@@ -494,17 +494,25 @@ export async function sendMetaMessage(
     accessToken: string;
     phoneNumberId?: string;
     instagramId?: string;
+    replyToMetaMessageId?: string; // For quote replies
   }
 ) {
   try {
     if (type === "whatsapp") {
+      const payload: any = {
+        messaging_product: "whatsapp",
+        to: to,
+        text: { body: text },
+      };
+
+      // Add context for quote reply
+      if (config.replyToMetaMessageId) {
+        payload.context = { message_id: config.replyToMetaMessageId };
+      }
+
       const response = await axios.post(
         `https://graph.facebook.com/v17.0/${config.phoneNumberId}/messages`,
-        {
-          messaging_product: "whatsapp",
-          to: to,
-          text: { body: text },
-        },
+        payload,
         {
           headers: {
             Authorization: `Bearer ${config.accessToken}`,

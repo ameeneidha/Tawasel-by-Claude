@@ -28,6 +28,18 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### March 24, 2026 (Update 4)
+
+- Quote reply feature in Inbox (like WhatsApp app):
+  - Hover over any message to see reply button
+  - Click reply to show quoted message preview above input
+  - Sends with WhatsApp context.message_id so customer sees quote on their phone
+  - Incoming quote replies from customers also show the quoted message in inbox
+  - Click on quoted message to scroll to the original message
+- Fixed compose message template parameters:
+  - Only sends body parameters if the template actually has variables
+  - Templates with no variables (like hello_world) now work correctly
+
 ### March 24, 2026 (Update 3)
 
 - Broadcast messages now appear in Inbox conversations:

@@ -218,6 +218,7 @@ model Message {
   senderName    String?
   status        String    @default("SENT") // SENT, DELIVERED, READ, FAILED
   metaMessageId String?   // WhatsApp/Instagram message ID for delivery tracking
+  replyToId     String?   // ID of the message being replied to (quote reply)
   isInternal    Boolean   @default(false)
   readAt        DateTime?
   createdAt     DateTime  @default(now())

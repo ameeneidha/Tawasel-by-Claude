@@ -24,7 +24,9 @@ import {
   Plus,
   ShieldAlert,
   Bot,
-  BotOff
+  BotOff,
+  Reply,
+  X
 } from 'lucide-react';
 import { cn, getDisplayName } from '../lib/utils';
 import { format } from 'date-fns';
@@ -52,6 +54,8 @@ interface Message {
   senderType: 'USER' | 'AI_BOT' | 'SYSTEM';
   senderName?: string;
   status: string;
+  metaMessageId?: string | null;
+  replyToId?: string | null;
   isInternal?: boolean;
   createdAt: string;
   conversationId: string;
@@ -304,6 +308,7 @@ export default function Inbox() {
   const [templatePickerSearch, setTemplatePickerSearch] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -672,6 +677,10 @@ export default function Inbox() {
         formData.append('senderId', user?.id || '');
         formData.append('senderName', currentUserDisplayName);
         formData.append('isInternal', String(isInternalMode));
+        if (replyToMessage?.metaMessageId) {
+          formData.append('replyToMetaMessageId', replyToMessage.metaMessageId);
+          formData.append('replyToId', replyToMessage.id);
+        }
         pendingAttachments.forEach((attachment) => {
           formData.append('attachments', attachment.file, attachment.file.name);
         });
@@ -685,6 +694,7 @@ export default function Inbox() {
       setPendingAttachments([]);
       setShowEmojiPicker(false);
       setShowTemplatePicker(false);
+      setReplyToMessage(null);
       loadConversationDetails(selectedConv.id);
       fetchConversations(selectedConv.id);
       fetchSuggestions(selectedConv.id);
@@ -1317,42 +1327,73 @@ export default function Inbox() {
               ref={scrollRef}
               className="flex-1 overflow-y-auto p-6 space-y-6"
             >
-              {messages.map((msg) => (
-                <div 
+              {messages.map((msg) => {
+                const quotedMsg = msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null;
+                return (
+                <div
                   key={msg.id}
+                  id={`msg-${msg.id}`}
                   className={cn(
-                    "flex flex-col",
+                    "flex flex-col group/msg transition-all duration-300",
                     msg.isInternal ? "items-center w-full" : (msg.direction === 'OUTGOING' ? "ml-auto items-end max-w-[70%]" : "mr-auto items-start max-w-[70%]")
                   )}
                 >
-                  <div 
-                    className={cn(
-                      "px-4 py-2.5 rounded-2xl text-sm shadow-sm transition-colors",
-                      msg.isInternal 
-                        ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-900/30 text-yellow-800 dark:text-yellow-200 w-full max-w-2xl italic"
-                        : (msg.direction === 'OUTGOING' 
-                          ? "bg-[#DCF8C6] dark:bg-[#25D366]/20 text-gray-800 dark:text-gray-100 rounded-tr-none" 
-                          : "bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 rounded-tl-none")
-                    )}
-                  >
-                    {!msg.isInternal && msg.direction === 'OUTGOING' && (
-                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        {msg.senderType === 'AI_BOT'
-                          ? getDisplayName(msg.senderName) || 'AI Bot'
-                          : getDisplayName(msg.senderName) || 'Agent'}
-                      </div>
-                    )}
-                    {msg.isInternal && (
-                      <div className="flex items-center gap-2 mb-1 not-italic">
-                        <Edit2 className="w-3 h-3" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">Internal Note</span>
-                        {msg.senderName && <span className="text-[10px] opacity-60">• {msg.senderName}</span>}
-                      </div>
-                    )}
-                    {msg.type === 'TEXT' || msg.isInternal ? (
-                      <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-                    ) : (
-                      <MessageMedia message={msg} />
+                  <div className={cn("flex items-center gap-1", msg.direction === 'OUTGOING' ? "flex-row-reverse" : "flex-row")}>
+                    <div
+                      className={cn(
+                        "px-4 py-2.5 rounded-2xl text-sm shadow-sm transition-colors",
+                        msg.isInternal
+                          ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-900/30 text-yellow-800 dark:text-yellow-200 w-full max-w-2xl italic"
+                          : (msg.direction === 'OUTGOING'
+                            ? "bg-[#DCF8C6] dark:bg-[#25D366]/20 text-gray-800 dark:text-gray-100 rounded-tr-none"
+                            : "bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 rounded-tl-none")
+                      )}
+                    >
+                      {quotedMsg && (
+                        <div className="mb-2 px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10 border-l-4 border-[#25D366] text-xs cursor-pointer hover:bg-black/10 dark:hover:bg-white/15"
+                          onClick={() => {
+                            const el = document.getElementById(`msg-${quotedMsg.id}`);
+                            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            el?.classList.add('ring-2', 'ring-[#25D366]', 'ring-opacity-50');
+                            setTimeout(() => el?.classList.remove('ring-2', 'ring-[#25D366]', 'ring-opacity-50'), 2000);
+                          }}
+                        >
+                          <div className="font-semibold text-[#25D366] mb-0.5">
+                            {quotedMsg.direction === 'INCOMING' ? (selectedConv?.contact?.name || 'Customer') : (quotedMsg.senderName || 'You')}
+                          </div>
+                          <div className="text-gray-600 dark:text-gray-300 line-clamp-2">
+                            {quotedMsg.type !== 'TEXT' ? `[${quotedMsg.type}]` : quotedMsg.content}
+                          </div>
+                        </div>
+                      )}
+                      {!msg.isInternal && msg.direction === 'OUTGOING' && (
+                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                          {msg.senderType === 'AI_BOT'
+                            ? getDisplayName(msg.senderName) || 'AI Bot'
+                            : getDisplayName(msg.senderName) || 'Agent'}
+                        </div>
+                      )}
+                      {msg.isInternal && (
+                        <div className="flex items-center gap-2 mb-1 not-italic">
+                          <Edit2 className="w-3 h-3" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider">Internal Note</span>
+                          {msg.senderName && <span className="text-[10px] opacity-60">• {msg.senderName}</span>}
+                        </div>
+                      )}
+                      {msg.type === 'TEXT' || msg.isInternal ? (
+                        <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                      ) : (
+                        <MessageMedia message={msg} />
+                      )}
+                    </div>
+                    {!msg.isInternal && (
+                      <button
+                        onClick={() => setReplyToMessage(msg)}
+                        className="opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        title="Reply"
+                      >
+                        <Reply className="w-4 h-4" />
+                      </button>
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 mt-1.5 px-1">
@@ -1383,8 +1424,29 @@ export default function Inbox() {
                     )}
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
+
+            {/* Quote reply preview bar */}
+            {replyToMessage && (
+              <div className="px-4 py-2 bg-gray-50 dark:bg-slate-800 border-t border-gray-100 dark:border-slate-700 flex items-center gap-3">
+                <div className="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-700 border-l-4 border-[#25D366] text-sm">
+                  <div className="font-semibold text-[#25D366] text-xs mb-0.5">
+                    {replyToMessage.direction === 'INCOMING' ? (selectedConv?.contact?.name || 'Customer') : (replyToMessage.senderName || 'You')}
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-300 text-xs line-clamp-1">
+                    {replyToMessage.type !== 'TEXT' ? `[${replyToMessage.type}]` : replyToMessage.content}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setReplyToMessage(null)}
+                  className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             <div className="p-4 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 shrink-0 transition-colors">
               <div className="flex items-center gap-4 mb-3 px-1">
