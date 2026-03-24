@@ -28,6 +28,14 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### March 24, 2026 (Update 5)
+
+- Conversation actions menu (three-dot button in chat header):
+  - Resolve / Reopen conversation
+  - Clear all messages (with confirmation)
+  - Delete conversation permanently (with confirmation)
+  - Real-time sync: deleted conversations removed from other users' lists via Socket.io
+
 ### March 24, 2026 (Update 4)
 
 - Quote reply feature in Inbox (like WhatsApp app):

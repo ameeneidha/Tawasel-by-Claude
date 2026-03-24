@@ -26,7 +26,8 @@ import {
   Bot,
   BotOff,
   Reply,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { cn, getDisplayName } from '../lib/utils';
 import { format } from 'date-fns';
@@ -335,6 +336,7 @@ export default function Inbox() {
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [sendError, setSendError] = useState<string | null>(null);
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+  const [showConvMenu, setShowConvMenu] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -419,6 +421,14 @@ export default function Inbox() {
         }
       });
 
+      socket.on('conversation-deleted', (convId: string) => {
+        setConversations(prev => prev.filter(c => c.id !== convId));
+        if (selectedConv?.id === convId) {
+          setSelectedConv(null);
+          setMessages([]);
+        }
+      });
+
       // Real-time delivery status updates (SENT → DELIVERED → READ)
       socket.on('message-status-updated', (data: { messageId: string; conversationId: string; status: string }) => {
         if (selectedConv && data.conversationId === selectedConv.id) {
@@ -431,6 +441,7 @@ export default function Inbox() {
       return () => {
         socket.off('new-message');
         socket.off('conversation-updated');
+        socket.off('conversation-deleted');
         socket.off('message-status-updated');
         socket.disconnect();
       };
@@ -1341,11 +1352,76 @@ export default function Inbox() {
                       : selectedConv.contact.phoneNumber || selectedConv.number?.phoneNumber || 'No customer number'}
                     </span>
                   </div>
-                <AppTooltip content="Conversation actions" side="bottom">
-                  <button className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
-                </AppTooltip>
+                <div className="relative">
+                  <AppTooltip content="Conversation actions" side="bottom">
+                    <button
+                      onClick={() => setShowConvMenu(prev => !prev)}
+                      className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+                  </AppTooltip>
+                  {showConvMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowConvMenu(false)} />
+                      <div className="absolute right-0 top-full mt-1 z-50 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 py-1 text-sm">
+                        <button
+                          onClick={async () => {
+                            setShowConvMenu(false);
+                            if (!selectedConv) return;
+                            try {
+                              await axios.patch(`/api/conversations/${selectedConv.id}`, {
+                                internalStatus: selectedConv.internalStatus === 'RESOLVED' ? 'OPEN' : 'RESOLVED',
+                                resolvedAt: selectedConv.internalStatus === 'RESOLVED' ? null : new Date().toISOString()
+                              });
+                              toast.success(selectedConv.internalStatus === 'RESOLVED' ? 'Conversation reopened' : 'Conversation resolved');
+                              fetchConversations(selectedConv.id);
+                              loadConversationDetails(selectedConv.id);
+                            } catch { toast.error('Failed to update conversation'); }
+                          }}
+                          className="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-3"
+                        >
+                          <Check className="w-4 h-4 text-green-500" />
+                          {selectedConv?.internalStatus === 'RESOLVED' ? 'Reopen Conversation' : 'Resolve Conversation'}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setShowConvMenu(false);
+                            if (!selectedConv || !confirm('Clear all messages in this conversation? This cannot be undone.')) return;
+                            try {
+                              await axios.delete(`/api/conversations/${selectedConv.id}/messages`);
+                              setMessages([]);
+                              toast.success('Messages cleared');
+                              fetchConversations(selectedConv.id);
+                            } catch { toast.error('Failed to clear messages'); }
+                          }}
+                          className="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-3"
+                        >
+                          <Trash2 className="w-4 h-4 text-orange-500" />
+                          Clear Messages
+                        </button>
+                        <div className="border-t border-gray-100 dark:border-slate-700 my-1" />
+                        <button
+                          onClick={async () => {
+                            setShowConvMenu(false);
+                            if (!selectedConv || !confirm('Delete this conversation permanently? This cannot be undone.')) return;
+                            try {
+                              await axios.delete(`/api/conversations/${selectedConv.id}`);
+                              setSelectedConv(null);
+                              setMessages([]);
+                              toast.success('Conversation deleted');
+                              fetchConversations();
+                            } catch { toast.error('Failed to delete conversation'); }
+                          }}
+                          className="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-3 text-red-500"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete Conversation
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 

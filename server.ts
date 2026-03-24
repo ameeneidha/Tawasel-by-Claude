@@ -2273,6 +2273,33 @@ async function startServer() {
     res.json(conversation);
   });
 
+  // Clear all messages in a conversation
+  app.delete("/api/conversations/:id/messages", requireAuth, requireSubscribedConversation, async (req, res) => {
+    const conversation = await prisma.conversation.findUnique({ where: { id: req.params.id } });
+    if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+
+    await prisma.message.deleteMany({ where: { conversationId: req.params.id } });
+
+    io.to(conversation.workspaceId).emit("conversation-updated", conversation.id);
+    res.json({ success: true });
+  });
+
+  // Delete a conversation and all its messages
+  app.delete("/api/conversations/:id", requireAuth, requireSubscribedConversation, async (req, res) => {
+    const conversation = await prisma.conversation.findUnique({ where: { id: req.params.id } });
+    if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+
+    // Delete related records first
+    await prisma.message.deleteMany({ where: { conversationId: req.params.id } });
+    await prisma.conversationNote.deleteMany({ where: { conversationId: req.params.id } });
+    await prisma.activityLog.deleteMany({ where: { conversationId: req.params.id } });
+    await prisma.task.deleteMany({ where: { conversationId: req.params.id } });
+    await prisma.conversation.delete({ where: { id: req.params.id } });
+
+    io.to(conversation.workspaceId).emit("conversation-deleted", conversation.id);
+    res.json({ success: true });
+  });
+
   app.post("/api/messages", requireAuth, businessRateLimiter('messages'), requireSubscribedConversation, async (req, res) => {
     const { conversationId, content, direction, senderType, isInternal, senderName } = req.body;
     
