@@ -280,6 +280,32 @@ function MessageMedia({ message }: { message: Message }) {
   );
 }
 
+function QuoteThumbnail({ message }: { message: Message }) {
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!message.mediaId) return;
+    let objectUrl: string | null = null;
+    axios
+      .get(`/api/messages/${message.id}/media`, { responseType: 'blob' })
+      .then((res) => {
+        objectUrl = URL.createObjectURL(res.data);
+        setThumbUrl(objectUrl);
+      })
+      .catch(() => {});
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [message.id, message.mediaId]);
+
+  if (!thumbUrl) return null;
+  return (
+    <img
+      src={thumbUrl}
+      alt="Quote"
+      className="w-10 h-10 rounded object-cover flex-shrink-0"
+    />
+  );
+}
+
 export default function Inbox() {
   const { activeWorkspace, workspaces, setActiveWorkspace, user, hasFullAccess, hasVerifiedEmail } = useApp();
   const currentUserDisplayName = getDisplayName(user?.name, user?.email);
@@ -1350,7 +1376,7 @@ export default function Inbox() {
                       )}
                     >
                       {quotedMsg && (
-                        <div className="mb-2 px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10 border-l-4 border-[#25D366] text-xs cursor-pointer hover:bg-black/10 dark:hover:bg-white/15"
+                        <div className="mb-2 px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10 border-l-4 border-[#25D366] text-xs cursor-pointer hover:bg-black/10 dark:hover:bg-white/15 flex items-center gap-2"
                           onClick={() => {
                             const el = document.getElementById(`msg-${quotedMsg.id}`);
                             el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1358,12 +1384,17 @@ export default function Inbox() {
                             setTimeout(() => el?.classList.remove('ring-2', 'ring-[#25D366]', 'ring-opacity-50'), 2000);
                           }}
                         >
-                          <div className="font-semibold text-[#25D366] mb-0.5">
-                            {quotedMsg.direction === 'INCOMING' ? (selectedConv?.contact?.name || 'Customer') : (quotedMsg.senderName || 'You')}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-[#25D366] mb-0.5">
+                              {quotedMsg.direction === 'INCOMING' ? (selectedConv?.contact?.name || 'Customer') : (quotedMsg.senderName || 'You')}
+                            </div>
+                            <div className="text-gray-600 dark:text-gray-300 line-clamp-2">
+                              {quotedMsg.type === 'IMAGE' ? '📷 Photo' : quotedMsg.type === 'AUDIO' ? '🎵 Audio' : quotedMsg.type === 'DOCUMENT' ? `📄 ${quotedMsg.mediaFilename || 'Document'}` : quotedMsg.content}
+                            </div>
                           </div>
-                          <div className="text-gray-600 dark:text-gray-300 line-clamp-2">
-                            {quotedMsg.type !== 'TEXT' ? `[${quotedMsg.type}]` : quotedMsg.content}
-                          </div>
+                          {quotedMsg.type === 'IMAGE' && quotedMsg.mediaId && (
+                            <QuoteThumbnail message={quotedMsg} />
+                          )}
                         </div>
                       )}
                       {!msg.isInternal && msg.direction === 'OUTGOING' && (
@@ -1431,13 +1462,18 @@ export default function Inbox() {
             {/* Quote reply preview bar */}
             {replyToMessage && (
               <div className="px-4 py-2 bg-gray-50 dark:bg-slate-800 border-t border-gray-100 dark:border-slate-700 flex items-center gap-3">
-                <div className="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-700 border-l-4 border-[#25D366] text-sm">
-                  <div className="font-semibold text-[#25D366] text-xs mb-0.5">
-                    {replyToMessage.direction === 'INCOMING' ? (selectedConv?.contact?.name || 'Customer') : (replyToMessage.senderName || 'You')}
+                <div className="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-700 border-l-4 border-[#25D366] text-sm flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-[#25D366] text-xs mb-0.5">
+                      {replyToMessage.direction === 'INCOMING' ? (selectedConv?.contact?.name || 'Customer') : (replyToMessage.senderName || 'You')}
+                    </div>
+                    <div className="text-gray-600 dark:text-gray-300 text-xs line-clamp-1">
+                      {replyToMessage.type === 'IMAGE' ? '📷 Photo' : replyToMessage.type === 'AUDIO' ? '🎵 Audio' : replyToMessage.type === 'DOCUMENT' ? `📄 ${replyToMessage.mediaFilename || 'Document'}` : replyToMessage.content}
+                    </div>
                   </div>
-                  <div className="text-gray-600 dark:text-gray-300 text-xs line-clamp-1">
-                    {replyToMessage.type !== 'TEXT' ? `[${replyToMessage.type}]` : replyToMessage.content}
-                  </div>
+                  {replyToMessage.type === 'IMAGE' && replyToMessage.mediaId && (
+                    <QuoteThumbnail message={replyToMessage} />
+                  )}
                 </div>
                 <button
                   onClick={() => setReplyToMessage(null)}
