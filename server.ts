@@ -2560,6 +2560,138 @@ async function startServer() {
     }
   });
 
+  // ── Compose (outbound template message) ────────────────────────────
+  app.post("/api/compose/send", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
+    const workspaceId = String(req.body.workspaceId || '').trim();
+    const numberId = String(req.body.numberId || '').trim();
+    const recipientPhone = String(req.body.recipientPhone || '').trim();
+    const recipientName = String(req.body.recipientName || '').trim();
+    const templateName = String(req.body.templateName || '').trim();
+    const templateLanguage = String(req.body.templateLanguage || 'en').trim();
+    const message = String(req.body.message || '').trim();
+
+    if (!workspaceId || !numberId || !recipientPhone) {
+      return res.status(400).json({ error: "Workspace, sender number, and recipient phone are required" });
+    }
+    if (!templateName && !message) {
+      return res.status(400).json({ error: "Template or message is required" });
+    }
+
+    const waNumber = await prisma.whatsAppNumber.findFirst({
+      where: { id: numberId, workspaceId }
+    });
+    if (!waNumber) {
+      return res.status(404).json({ error: "Sender number not found" });
+    }
+
+    const config = getWhatsAppChannelConfig(waNumber);
+    if (!config.accessToken || !config.phoneNumberId) {
+      return res.status(400).json({ error: "WhatsApp channel is not fully configured" });
+    }
+
+    const to = normalizePhone(recipientPhone);
+    if (!to) {
+      return res.status(400).json({ error: "Invalid phone number" });
+    }
+
+    try {
+      const graphVersion = process.env.META_GRAPH_VERSION || 'v22.0';
+      let metaMessageId: string | undefined;
+
+      if (templateName) {
+        // Send as template message (works outside 24-hour window)
+        const templatePayload: any = {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'template',
+          template: {
+            name: templateName,
+            language: { code: templateLanguage },
+          }
+        };
+
+        // If template has variables, map recipientName as {{1}}
+        if (recipientName) {
+          templatePayload.template.components = [{
+            type: 'body',
+            parameters: [{ type: 'text', text: recipientName }]
+          }];
+        }
+
+        const metaRes = await axios.post(
+          `https://graph.facebook.com/${graphVersion}/${config.phoneNumberId}/messages`,
+          templatePayload,
+          { headers: { Authorization: `Bearer ${config.accessToken}` } }
+        );
+        metaMessageId = metaRes.data?.messages?.[0]?.id;
+      } else {
+        // Send as regular text (only works within 24-hour window)
+        metaMessageId = await sendMetaMessage(to, message, 'whatsapp', {
+          accessToken: config.accessToken,
+          phoneNumberId: config.phoneNumberId
+        });
+      }
+
+      // Find or create contact
+      let contact = await prisma.contact.findFirst({
+        where: { workspaceId, phoneNumber: to }
+      });
+      if (!contact) {
+        contact = await prisma.contact.create({
+          data: {
+            workspaceId,
+            name: recipientName || to,
+            phoneNumber: to,
+            lastActivityAt: new Date(),
+          }
+        });
+      }
+
+      // Find or create conversation
+      let conversation = await prisma.conversation.findFirst({
+        where: { workspaceId, contactId: contact.id, channelType: 'WHATSAPP' }
+      });
+      if (!conversation) {
+        conversation = await prisma.conversation.create({
+          data: {
+            workspaceId,
+            contactId: contact.id,
+            numberId: waNumber.id,
+            channelType: 'WHATSAPP',
+            status: 'ACTIVE',
+            lastMessageAt: new Date(),
+          }
+        });
+      }
+
+      // Save message
+      const savedMessage = await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          content: message || `[Template: ${templateName}]`,
+          direction: 'OUTGOING',
+          senderType: 'USER',
+          senderName: (req as any).user?.name || 'System',
+          status: 'SENT',
+        }
+      });
+
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { lastMessageAt: new Date() }
+      });
+
+      io.to(workspaceId).emit('new-message', savedMessage);
+      io.to(workspaceId).emit('conversation-updated', conversation.id);
+
+      res.json({ success: true, messageId: metaMessageId, conversationId: conversation.id });
+    } catch (err: any) {
+      console.error('[compose] send error:', err.response?.data || err.message);
+      const metaError = err.response?.data?.error?.message || 'Failed to send message';
+      return res.status(502).json({ error: metaError });
+    }
+  });
+
   app.get("/api/templates/session", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
     const { workspaceId } = req.query;
     const templates = await prisma.sessionTemplate.findMany({

@@ -57,6 +57,12 @@ The repo also includes an App Platform spec:
   - Preview shows real template content
 - Removed demo WhatsApp templates from seed data (only real synced templates shown)
 - Added Remember me checkbox to login page
+- Fixed Compose Message page:
+  - Now actually sends messages via Meta WhatsApp API (was previously mock)
+  - Supports sending template messages (works outside 24-hour window)
+  - Supports sending regular text messages (within 24-hour window)
+  - Auto-creates contact and conversation in inbox
+  - Only shows APPROVED templates from Meta
 
 ### March 15, 2026
 

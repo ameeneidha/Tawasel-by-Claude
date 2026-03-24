@@ -65,6 +65,8 @@ npx vite build       # Production build
 - Broadcast template picker uses real approved Meta templates (no more hardcoded options)
 - Remember me checkbox on login (localStorage vs sessionStorage)
 - Removed demo WhatsApp templates from seed — only real synced templates shown
+- Compose Message page now sends real messages via Meta API (POST /api/compose/send)
+- Compose and Broadcast pages only show APPROVED templates from Meta
 
 ## Potential Next Features
 - Calendar view with drag-to-reschedule (react-big-calendar)

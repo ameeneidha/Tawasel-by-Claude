@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
-import { Send, User, Phone, FileText, Loader2, CheckCircle2 } from 'lucide-react';
+import { Send, User, Phone, FileText, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 
@@ -31,7 +31,8 @@ export default function Compose() {
         axios.get(`/api/templates/whatsapp?workspaceId=${activeWorkspace?.id}`)
       ]);
       setNumbers(numsRes.data);
-      setTemplates(tempsRes.data);
+      const approved = (Array.isArray(tempsRes.data) ? tempsRes.data : []).filter((t: any) => t.status === 'APPROVED');
+      setTemplates(approved);
       if (numsRes.data.length > 0) {
         setFormData(prev => ({ ...prev, fromNumber: numsRes.data[0].id }));
       }
@@ -42,19 +43,29 @@ export default function Compose() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activeWorkspace) return;
     setIsLoading(true);
     try {
-      // Mock sending
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const selectedTemplate = templates.find(t => t.id === formData.templateId);
+      await axios.post('/api/compose/send', {
+        workspaceId: activeWorkspace.id,
+        numberId: formData.fromNumber,
+        recipientPhone: formData.recipientPhone,
+        recipientName: formData.recipientName,
+        templateName: selectedTemplate?.name || '',
+        templateLanguage: selectedTemplate?.language || 'en',
+        message: formData.message,
+      });
       toast.success('Message sent successfully');
-      setFormData({
-        ...formData,
+      setFormData(prev => ({
+        ...prev,
         recipientName: '',
         recipientPhone: '',
+        templateId: '',
         message: ''
-      });
-    } catch (error) {
-      toast.error('Failed to send message');
+      }));
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to send message');
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +79,7 @@ export default function Compose() {
           <p className="text-gray-500 dark:text-gray-400 mt-1">Send a one-to-one outbound message to a contact.</p>
         </div>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-8 transition-colors"
@@ -119,7 +130,7 @@ export default function Compose() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Template (Optional)</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Template</label>
               <div className="relative">
                 <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <select
@@ -131,21 +142,24 @@ export default function Compose() {
                   className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none transition-colors"
                 >
                   <option value="">Select a template...</option>
+                  {templates.length === 0 && (
+                    <option value="" disabled>No approved templates — sync from Templates page</option>
+                  )}
                   {templates.map(temp => (
-                    <option key={temp.id} value={temp.id}>{temp.name}</option>
+                    <option key={temp.id} value={temp.id}>{temp.name} ({temp.language})</option>
                   ))}
                 </select>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Message</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Message Preview</label>
               <textarea
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 rows={5}
                 className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none resize-none transition-colors"
-                placeholder="Type your message here..."
+                placeholder="Select a template or type your message here..."
                 required
               />
             </div>
