@@ -2489,6 +2489,77 @@ async function startServer() {
     res.json(templates);
   });
 
+  app.post("/api/templates/whatsapp/sync", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
+    const workspaceId = String(req.body.workspaceId || '').trim();
+    if (!workspaceId) {
+      return res.status(400).json({ error: "Workspace is required" });
+    }
+
+    // Find the workspace's WhatsApp number to get WABA ID and access token
+    const waNumber = await prisma.whatsAppNumber.findFirst({
+      where: { workspaceId }
+    });
+
+    const accessToken = waNumber?.metaAccessToken?.trim() || process.env.META_ACCESS_TOKEN || '';
+    const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || '';
+
+    if (!accessToken || !wabaId) {
+      return res.status(400).json({ error: "WhatsApp Business Account not configured. Please connect a WhatsApp number first." });
+    }
+
+    try {
+      const graphVersion = process.env.META_GRAPH_VERSION || 'v22.0';
+      const metaRes = await axios.get(
+        `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
+        {
+          params: { access_token: accessToken, limit: 250 },
+          timeout: 15000,
+        }
+      );
+
+      const metaTemplates = metaRes.data?.data || [];
+
+      // Upsert each template
+      let synced = 0;
+      for (const t of metaTemplates) {
+        const bodyComponent = t.components?.find((c: any) => c.type === 'BODY');
+        const content = bodyComponent?.text || '';
+
+        await prisma.whatsAppTemplate.upsert({
+          where: {
+            id: await prisma.whatsAppTemplate.findFirst({
+              where: { workspaceId, name: t.name, language: t.language },
+              select: { id: true }
+            }).then(r => r?.id || 'nonexistent')
+          },
+          update: {
+            content,
+            category: t.category || 'UTILITY',
+            status: t.status || 'APPROVED',
+          },
+          create: {
+            workspaceId,
+            name: t.name,
+            content,
+            category: t.category || 'UTILITY',
+            language: t.language || 'en',
+            status: t.status || 'APPROVED',
+          }
+        });
+        synced++;
+      }
+
+      // Return updated templates
+      const templates = await prisma.whatsAppTemplate.findMany({
+        where: { workspaceId }
+      });
+      res.json({ synced, templates });
+    } catch (err: any) {
+      console.error('[template-sync] Meta API error:', err.response?.data || err.message);
+      return res.status(502).json({ error: "Failed to fetch templates from WhatsApp. Check your WABA configuration." });
+    }
+  });
+
   app.get("/api/templates/session", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
     const { workspaceId } = req.query;
     const templates = await prisma.sessionTemplate.findMany({

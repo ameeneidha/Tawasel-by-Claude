@@ -78,13 +78,24 @@ export default function Templates() {
     }
 
     try {
-      const [waResponse, sessionResponse] = await Promise.all([
-        axios.get(`/api/templates/whatsapp?workspaceId=${activeWorkspace.id}`),
-        axios.get(`/api/templates/session?workspaceId=${activeWorkspace.id}`),
-      ]);
-
-      setWaTemplates(Array.isArray(waResponse.data) ? waResponse.data : []);
-      setSessionTemplates(Array.isArray(sessionResponse.data) ? sessionResponse.data : []);
+      if (mode === 'refresh') {
+        // Sync from Meta API first, then load both
+        const [syncResponse, sessionResponse] = await Promise.all([
+          axios.post('/api/templates/whatsapp/sync', { workspaceId: activeWorkspace.id }),
+          axios.get(`/api/templates/session?workspaceId=${activeWorkspace.id}`),
+        ]);
+        const synced = syncResponse.data.synced || 0;
+        setWaTemplates(Array.isArray(syncResponse.data.templates) ? syncResponse.data.templates : []);
+        setSessionTemplates(Array.isArray(sessionResponse.data) ? sessionResponse.data : []);
+        toast.success(`Synced ${synced} template${synced !== 1 ? 's' : ''} from WhatsApp`);
+      } else {
+        const [waResponse, sessionResponse] = await Promise.all([
+          axios.get(`/api/templates/whatsapp?workspaceId=${activeWorkspace.id}`),
+          axios.get(`/api/templates/session?workspaceId=${activeWorkspace.id}`),
+        ]);
+        setWaTemplates(Array.isArray(waResponse.data) ? waResponse.data : []);
+        setSessionTemplates(Array.isArray(sessionResponse.data) ? sessionResponse.data : []);
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Could not load templates');
     } finally {
