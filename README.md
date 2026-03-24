@@ -28,6 +28,30 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### March 24, 2026
+
+- Added appointment booking system:
+  - Services, Staff, and Appointments CRUD with full frontend (tabs, modals, filters)
+  - Staff working hours grid with per-day toggle and time ranges
+  - Booking modal with step-by-step flow (contact → service → staff → date → time slot → notes)
+  - Plan limits enforced for services, staff members, and monthly appointments
+- AI chatbot appointment booking via OpenAI function calling:
+  - 4 tools: list_services, list_staff, check_availability, book_appointment
+  - Tool call loop (max 5 iterations) with automatic availability checking and overlap detection
+  - Conditionally enabled when workspace has services configured
+- 24-hour WhatsApp appointment reminders:
+  - Background scheduler checks every 30 minutes for upcoming appointments
+  - Sends formatted WhatsApp reminder with service, staff, date, time, and price
+  - Prevents duplicate reminders via reminderSentAt tracking
+  - Saves reminder as inbox message with real-time Socket.io updates
+- WhatsApp template sync from Meta API:
+  - Sync button now fetches message templates from Meta Graph API via WABA ID
+  - Upserts templates into local database for offline access
+- Remember me checkbox on login page:
+  - Uses localStorage when checked (persists across sessions)
+  - Uses sessionStorage when unchecked (expires on browser close)
+- Added CLAUDE.md for efficient Claude Code session continuity
+
 ### March 15, 2026
 
 - Repositioned the product for a WhatsApp-only launch:
