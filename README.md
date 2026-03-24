@@ -28,6 +28,18 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### March 24, 2026 (Update 3)
+
+- Broadcast messages now appear in Inbox conversations:
+  - Each broadcast recipient gets a message saved in their inbox conversation
+  - Conversations are auto-created if they don't exist
+  - Real-time Socket.io updates when broadcasts are sent
+- Broadcasts now send as proper WhatsApp template messages:
+  - Uses approved Meta templates instead of plain text (works outside 24-hour window)
+  - Customers can see and reply to template messages properly
+  - Fallback to regular text if no template selected
+- Broadcast delivery status tracked in inbox (SENT → DELIVERED → READ)
+
 ### March 24, 2026 (Update 2)
 
 - WhatsApp message delivery tracking in Inbox:

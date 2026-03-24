@@ -4294,13 +4294,50 @@ async function startServer() {
       return res.status(400).json({ error: "WhatsApp broadcast sending is not fully configured" });
     }
 
+    // Load template details if templateId is provided
+    let template: any = null;
+    if (templateId?.trim()) {
+      template = await prisma.whatsAppTemplate.findFirst({
+        where: { id: templateId.trim(), workspaceId }
+      });
+    }
+
+    const graphVersion = process.env.META_GRAPH_VERSION || 'v22.0';
     let sentCount = 0;
 
     for (const recipient of campaign.recipients) {
       try {
         let messageId: string | undefined;
 
-        if (headerImage) {
+        if (template) {
+          // Send as template message (works outside 24-hour window)
+          const templatePayload: any = {
+            messaging_product: 'whatsapp',
+            to: normalizePhone(recipient.phoneNumber),
+            type: 'template',
+            template: {
+              name: template.name,
+              language: { code: template.language || 'en' },
+            }
+          };
+
+          // Add header image as component if provided
+          if (headerImage) {
+            const mediaId = await uploadWhatsAppMedia(headerImage, { accessToken, phoneNumberId });
+            templatePayload.template.components = templatePayload.template.components || [];
+            templatePayload.template.components.unshift({
+              type: 'header',
+              parameters: [{ type: 'image', image: { id: mediaId } }]
+            });
+          }
+
+          const metaRes = await axios.post(
+            `https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`,
+            templatePayload,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          messageId = metaRes.data?.messages?.[0]?.id;
+        } else if (headerImage) {
           const sentMedia = await sendWhatsAppMediaMessage(
             recipient.phoneNumber,
             headerImage,
@@ -4309,7 +4346,7 @@ async function startServer() {
           );
           messageId = sentMedia.messageId;
         } else {
-          messageId = await sendMetaMessage(recipient.phoneNumber, messageBody.trim(), 'whatsapp', {
+          messageId = await sendMetaMessage(normalizePhone(recipient.phoneNumber), messageBody.trim(), 'whatsapp', {
             accessToken,
             phoneNumberId
           });
@@ -4323,6 +4360,60 @@ async function startServer() {
             metaMessageId: messageId || null
           }
         });
+
+        // Also save the broadcast message in the inbox conversation
+        try {
+          const recipientPhone = normalizePhone(recipient.phoneNumber);
+          const contact = await prisma.contact.findFirst({
+            where: { workspaceId, phoneNumber: recipientPhone }
+          }) || await prisma.contact.findFirst({
+            where: { workspaceId, phoneNumber: recipient.phoneNumber }
+          });
+
+          if (contact) {
+            let conversation = await prisma.conversation.findFirst({
+              where: { workspaceId, contactId: contact.id, channelType: 'WHATSAPP' }
+            });
+
+            if (!conversation) {
+              conversation = await prisma.conversation.create({
+                data: {
+                  workspaceId,
+                  contactId: contact.id,
+                  numberId: number.id,
+                  channelType: 'WHATSAPP',
+                  status: 'ACTIVE',
+                  lastMessageAt: new Date()
+                }
+              });
+            }
+
+            const broadcastContent = template
+              ? `[Template: ${template.name}] ${template.content || messageBody?.trim() || ''}`
+              : messageBody?.trim() || `[Broadcast: ${name.trim()}]`;
+            const inboxMsg = await prisma.message.create({
+              data: {
+                conversationId: conversation.id,
+                content: broadcastContent,
+                direction: 'OUTGOING',
+                senderType: 'SYSTEM',
+                senderName: `Broadcast: ${name.trim()}`,
+                metaMessageId: messageId || null,
+                status: 'SENT'
+              }
+            });
+
+            await prisma.conversation.update({
+              where: { id: conversation.id },
+              data: { lastMessageAt: new Date() }
+            });
+
+            io.to(workspaceId).emit("new-message", inboxMsg);
+            io.to(workspaceId).emit("conversation-updated", conversation.id);
+          }
+        } catch (inboxError) {
+          console.error(`Failed to save broadcast to inbox for ${recipient.phoneNumber}:`, inboxError);
+        }
       } catch (error) {
         console.error(`Error sending broadcast recipient ${recipient.phoneNumber}:`, error);
         await prisma.broadcastRecipient.update({
