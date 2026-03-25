@@ -57,7 +57,7 @@ export default function AppLayout() {
   return (
     <div className="flex h-screen bg-[#F8F9FA] dark:bg-slate-950 overflow-hidden transition-colors">
       <Sidebar />
-      <main className="flex-1 overflow-hidden relative flex flex-col">
+      <main className="flex-1 min-h-0 overflow-hidden relative flex flex-col">
         {!isSuperadmin && !hasVerifiedEmail && (
           <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-900/30 px-4 py-2 flex items-center justify-between">
             <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 text-sm font-medium">
@@ -89,7 +89,7 @@ export default function AppLayout() {
             </button>
           </div>
         )}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-auto relative min-h-0">
           <Outlet />
         </div>
       </main>
