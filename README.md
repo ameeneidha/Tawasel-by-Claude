@@ -4,7 +4,57 @@
 
 # Tawasel App
 
-Tawasel App is a full-stack WhatsApp CRM and automation platform built with React, Express, Prisma, Stripe, and Meta integrations.
+Tawasel App is a full-stack WhatsApp CRM and automation platform built with React, Express, Prisma, Stripe, and Meta integrations. Designed for UAE businesses that rely on WhatsApp as their primary sales and support channel.
+
+## Why Tawasel?
+
+Most businesses in the UAE run Facebook and Instagram ads that drive customers to WhatsApp. The problem is that leads get lost, replies are slow, and there's no way to track what's working. Tawasel solves this by turning WhatsApp into a structured sales and support system.
+
+## Features & How They Help
+
+### Shared Team Inbox
+Your entire team sees every WhatsApp conversation in one place. No more passing phones around or missing messages. Agents can reply, add internal notes, and hand off conversations — customers only see one seamless thread.
+
+### AI Chatbot Auto-Replies
+When a customer messages at 11 PM or during Friday prayers, the AI chatbot responds instantly. It answers common questions, collects information, and can even book appointments — so you never lose a lead to slow response time.
+
+### Click-to-WhatsApp Ad Lead Tracking
+When you run Facebook or Instagram ads with a "Message on WhatsApp" button, Tawasel automatically tags each lead with the ad campaign that brought them in. You can see exactly which ad is generating leads and which ones are wasting your budget.
+
+### Auto-Assign Rules
+Stop manually distributing leads among your team. Set up rules to automatically route conversations:
+- **Round Robin**: Distribute leads equally across your sales team
+- **By Ad Campaign**: Send leads from your luxury car ads to your premium sales agent, and service ads to your support team
+- **By Keyword**: Route conversations mentioning "pricing" to sales and "complaint" to support
+
+### Follow-up Sequences
+Most leads don't convert on the first message. Tawasel automatically sends follow-up WhatsApp messages when a lead goes quiet:
+- Day 1: "Thanks for your interest! Here's more info about our services"
+- Day 3: "Just checking in — do you have any questions?"
+- Day 7: "We have a special offer this week"
+
+The sequence stops automatically when the customer replies, so they never feel spammed.
+
+### Appointment Booking
+Customers can book appointments directly through WhatsApp chat with the AI bot. The system checks staff availability, prevents double-bookings, and sends a WhatsApp reminder 24 hours before the appointment. No more no-shows.
+
+### Broadcast Campaigns
+Send approved WhatsApp template messages to your customer lists for promotions, updates, or re-engagement. Track delivery, read rates, and replies in real-time. Every broadcast message appears in the customer's inbox conversation, so when they reply, your team has the full context.
+
+### CRM Pipeline
+Track every lead from first contact to closed deal. See your conversion funnel, pipeline value, and win rate on the dashboard. Move leads through stages (New Lead, Contacted, Qualified, Won, Lost) and never forget to follow up.
+
+### Ad Performance Dashboard
+See the numbers that matter: how many leads came from ads, your conversion rate at each pipeline stage, average response time by lead source, and which campaigns are actually generating revenue — not just clicks.
+
+### Compose Messages
+Start conversations with new or existing contacts using approved WhatsApp templates. Works outside the 24-hour messaging window, so you can reach out to leads proactively.
+
+### Multi-Workspace & Team Management
+Each business gets its own workspace with role-based access (Owner, Admin, User). Invite team members, control permissions, and manage multiple business accounts from one login.
+
+### Plan-Based Pricing
+Three tiers (Starter, Growth, Pro) with usage limits that scale with your business. Stripe-powered subscriptions with automatic billing.
 
 ## Local Development
 
