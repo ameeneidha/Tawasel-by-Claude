@@ -28,6 +28,16 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### March 25, 2026
+
+- Ad-driven CRM features for businesses running Facebook/Instagram/Google ads:
+  - **Lead Source Auto-Tagging**: Incoming messages from Click-to-WhatsApp ads automatically tag the contact with campaign name, ad headline, and source ID from Meta's referral data
+  - **Auto-Assign Rules** (`/app/auto-assign`): Create rules to automatically route incoming conversations to team members using three strategies — Round Robin, Lead Source matching, or Keyword matching — with configurable priorities
+  - **Follow-up Sequences** (`/app/follow-ups`): Build automated multi-step follow-up flows that send WhatsApp template messages when leads don't reply. Supports delay configuration per step, auto-cancellation when the lead replies, and three trigger types (New Lead, Ad Lead, Manual)
+  - **Follow-up Scheduler**: Background service checks every 5 minutes for due follow-up steps and sends template messages automatically
+  - **Ad Performance Analytics**: New dashboard section showing ad lead count, conversion funnel (New → Contacted → Qualified → Won), leads by ad campaign, and average response time by lead source
+- Schema additions: AssignmentRule, FollowUpSequence, FollowUpStep, FollowUpEnrollment models
+
 ### March 24, 2026 (Update 5)
 
 - Conversation actions menu (three-dot button in chat header):
