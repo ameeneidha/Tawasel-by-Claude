@@ -31,6 +31,7 @@ import ReportIssue from './pages/ReportIssue';
 import WebChatWidget from './pages/WebChatWidget';
 import Integrations from './pages/Integrations';
 import AutoAssign from './pages/AutoAssign';
+import Campaigns from './pages/Campaigns';
 import FollowUps from './pages/FollowUps';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
@@ -74,6 +75,7 @@ export default function App() {
               <Route path="superadmin" element={<Superadmin />} />
               <Route path="channels" element={<Channels />} />
               <Route path="team" element={<Team />} />
+              <Route path="campaigns" element={<Campaigns />} />
               <Route path="auto-assign" element={<AutoAssign />} />
               <Route path="follow-ups" element={<FollowUps />} />
               <Route path="integrations" element={<Integrations />} />

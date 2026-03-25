@@ -25,7 +25,8 @@ import {
   ContactRound,
   CalendarCheck,
   Route,
-  RefreshCw
+  RefreshCw,
+  Link2
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -44,6 +45,7 @@ const navItems = [
   { icon: Radio, label: 'Broadcast', path: '/app/broadcast' },
   { icon: FileText, label: 'Templates', path: '/app/templates' },
   { icon: Bot, label: 'AI Chatbots', path: '/app/chatbots' },
+  { icon: Link2, label: 'Campaigns', path: '/app/campaigns' },
   { icon: Route, label: 'Auto-Assign', path: '/app/auto-assign' },
   { icon: RefreshCw, label: 'Follow-ups', path: '/app/follow-ups' },
   { icon: Zap, label: 'Integrations', path: '/app/integrations' },

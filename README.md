@@ -18,8 +18,16 @@ Your entire team sees every WhatsApp conversation in one place. No more passing 
 ### AI Chatbot Auto-Replies
 When a customer messages at 11 PM or during Friday prayers, the AI chatbot responds instantly. It answers common questions, collects information, and can even book appointments — so you never lose a lead to slow response time.
 
-### Click-to-WhatsApp Ad Lead Tracking
-When you run Facebook or Instagram ads with a "Message on WhatsApp" button, Tawasel automatically tags each lead with the ad campaign that brought them in. You can see exactly which ad is generating leads and which ones are wasting your budget.
+### Campaign Link Generator & Ad Tracking
+Run ads on **any platform** — Snapchat, Google, TikTok, Instagram, Facebook, YouTube, LinkedIn, or even QR codes — and track exactly which ad brought each lead. Tawasel's Campaign Link Generator creates unique WhatsApp links with tracking codes for each ad campaign. When a customer clicks your ad and messages you, Tawasel automatically detects the campaign code and tags the lead with the platform and campaign name. No more guessing which ads are working.
+
+**How it works:**
+1. Pick your ad platform (Snapchat, Google, TikTok, etc.)
+2. Name your campaign (e.g., "SUMMER-SALE")
+3. Tawasel generates a trackable `wa.me` link with a unique code (e.g., `SC-SUMMER-SALE`)
+4. Paste the link in your ad → customer clicks → WhatsApp opens → lead is auto-tagged
+
+For Facebook and Instagram Click-to-WhatsApp ads, Tawasel also reads Meta's native referral data automatically — no campaign code needed.
 
 ### Auto-Assign Rules
 Stop manually distributing leads among your team. Set up rules to automatically route conversations:
@@ -77,6 +85,18 @@ The repo also includes an App Platform spec:
 - [`.do/app.yaml`](C:\Users\Khaled\Desktop\SaaS%20Whatsapp\SaaS-Whatsapp-CRM-main\SaaS-Whatsapp-CRM-main\.do\app.yaml)
 
 ## Update Log
+
+### March 25, 2026 (Update 2)
+
+- **Campaign Link Generator** (`/app/campaigns`): Create trackable WhatsApp links for ads on any platform — Snapchat, Google, TikTok, Instagram, Facebook, YouTube, LinkedIn, Email, Website, QR Code, and Referral
+  - Pick platform → name campaign → get a unique `wa.me` link with embedded tracking code
+  - Platform-specific step-by-step guides showing exactly where to paste the link in each ad platform's UI
+  - WhatsApp message preview showing what the customer will see
+  - Saved campaigns list with one-click copy
+  - "How It Works" explainer with campaign code reference table
+- **Campaign Code Detection**: Webhook automatically detects campaign codes (e.g., `SC-SUMMER-SALE`, `GG-CARSERVICE`) in incoming messages and auto-tags leads with platform name and campaign
+  - Supports 12 platform prefixes: SC (Snapchat), GG (Google), TT (TikTok), FB (Facebook), IG (Instagram), TW (Twitter), YT (YouTube), LI (LinkedIn), EM (Email), WB (Website), QR (QR Code), RF (Referral)
+  - Works alongside Meta's native Click-to-WhatsApp ad referral detection
 
 ### March 25, 2026
 

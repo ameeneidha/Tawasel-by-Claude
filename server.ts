@@ -1311,10 +1311,22 @@ async function startServer() {
             }
           });
 
-          // Build lead source from Click-to-WhatsApp ad referral
+          // Build lead source from Click-to-WhatsApp ad referral OR campaign code in message
+          const CAMPAIGN_PREFIXES: Record<string, string> = {
+            'SC': 'Snapchat', 'GG': 'Google', 'TT': 'TikTok',
+            'FB': 'Facebook', 'IG': 'Instagram', 'TW': 'Twitter',
+            'YT': 'YouTube', 'LI': 'LinkedIn', 'EM': 'Email',
+            'WB': 'Website', 'QR': 'QR Code', 'RF': 'Referral',
+          };
+          const campaignCodeMatch = incomingPayload.content?.match(/\b([A-Z]{2})-([A-Z0-9_-]{2,30})\b/);
+          const campaignPlatform = campaignCodeMatch ? CAMPAIGN_PREFIXES[campaignCodeMatch[1]] : null;
+          const campaignCode = campaignCodeMatch ? campaignCodeMatch[0] : null;
+
           const adLeadSource = referral
             ? `Ad: ${referral.headline || referral.body || referral.source_type || 'Click-to-WhatsApp'}`
-            : null;
+            : campaignPlatform
+              ? `${campaignPlatform}: ${campaignCodeMatch![2]}`
+              : null;
 
           if (!contact) {
             contact = await prisma.contact.create({
@@ -1325,8 +1337,8 @@ async function startServer() {
                 lastActivityAt: new Date(),
                 ...(adLeadSource && {
                   leadSource: adLeadSource,
-                  tags: `ad-lead`,
-                  lastCampaignId: referral?.source_id || null,
+                  tags: campaignCode ? `campaign,${campaignCode}` : `ad-lead`,
+                  lastCampaignId: referral?.source_id || campaignCode || null,
                 }),
               }
             });
@@ -1335,7 +1347,9 @@ async function startServer() {
               await prisma.activityLog.create({
                 data: {
                   type: 'LEAD_SOURCE',
-                  content: `Lead from ad: ${adLeadSource}`,
+                  content: campaignCode
+                    ? `Lead from campaign: ${campaignPlatform} (${campaignCode})`
+                    : `Lead from ad: ${adLeadSource}`,
                   contactId: contact.id,
                   workspaceId: number.workspaceId,
                 }
@@ -1346,10 +1360,10 @@ async function startServer() {
               where: { id: contact.id },
               data: {
                 lastActivityAt: new Date(),
-                // Update lead source if not already set and this is from an ad
+                // Update lead source if not already set and this is from an ad/campaign
                 ...(adLeadSource && !contact.leadSource && {
                   leadSource: adLeadSource,
-                  lastCampaignId: referral?.source_id || null,
+                  lastCampaignId: referral?.source_id || campaignCode || null,
                 }),
               },
             });

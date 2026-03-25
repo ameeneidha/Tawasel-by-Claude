@@ -10,7 +10,7 @@
 
 ## Project Structure
 - `src/` — React frontend (Vite)
-- `src/pages/` — Page components (Inbox, Contacts, Appointments, etc.)
+- `src/pages/` — Page components (Inbox, Contacts, Appointments, Campaigns, etc.)
 - `src/components/` — Shared components (Sidebar, Topbar, etc.)
 - `src/constants/plans.ts` — Plan tier config (STARTER/GROWTH/PRO)
 - `server.ts` — Express API + Socket.io + all route handlers
@@ -57,6 +57,9 @@ npx vite build       # Production build
 - INSTAGRAM_ACCESS_TOKEN
 
 ## Recently Completed Features
+- Campaign Link Generator (/app/campaigns) — create trackable wa.me links for any ad platform
+- Campaign code detection in webhook — auto-tags leads from Snapchat, Google, TikTok, etc.
+- 12 platform prefixes: SC, GG, TT, FB, IG, TW, YT, LI, EM, WB, QR, RF
 - Appointment booking system (Services, Staff, Appointments CRUD)
 - AI chatbot appointment booking via OpenAI function calling
 - 24-hour WhatsApp appointment reminders (background scheduler)
