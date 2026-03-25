@@ -1,15 +1,15 @@
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  MessageSquare, 
-  Send, 
-  Radio, 
-  FileText, 
-  Bot, 
-  Zap, 
-  Hash, 
+import {
+  MessageSquare,
+  Send,
+  Radio,
+  FileText,
+  Bot,
+  Zap,
+  Hash,
   LayoutGrid,
   BarChart3,
-  Users, 
+  Users,
   Settings,
   LogOut,
   ChevronRight,
@@ -23,7 +23,9 @@ import {
   Sun,
   Moon,
   ContactRound,
-  CalendarCheck
+  CalendarCheck,
+  Route,
+  RefreshCw
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -42,6 +44,8 @@ const navItems = [
   { icon: Radio, label: 'Broadcast', path: '/app/broadcast' },
   { icon: FileText, label: 'Templates', path: '/app/templates' },
   { icon: Bot, label: 'AI Chatbots', path: '/app/chatbots' },
+  { icon: Route, label: 'Auto-Assign', path: '/app/auto-assign' },
+  { icon: RefreshCw, label: 'Follow-ups', path: '/app/follow-ups' },
   { icon: Zap, label: 'Integrations', path: '/app/integrations' },
   { icon: Hash, label: 'Channels', path: '/app/channels' },
 ];

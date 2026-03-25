@@ -30,6 +30,8 @@ import FeatureRequest from './pages/FeatureRequest';
 import ReportIssue from './pages/ReportIssue';
 import WebChatWidget from './pages/WebChatWidget';
 import Integrations from './pages/Integrations';
+import AutoAssign from './pages/AutoAssign';
+import FollowUps from './pages/FollowUps';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import DataDeletion from './pages/DataDeletion';
@@ -72,6 +74,8 @@ export default function App() {
               <Route path="superadmin" element={<Superadmin />} />
               <Route path="channels" element={<Channels />} />
               <Route path="team" element={<Team />} />
+              <Route path="auto-assign" element={<AutoAssign />} />
+              <Route path="follow-ups" element={<FollowUps />} />
               <Route path="integrations" element={<Integrations />} />
               <Route path="switch-account" element={<SwitchAccount />} />
               <Route path="feature-request" element={<FeatureRequest />} />

@@ -61,6 +61,8 @@ model Workspace {
   tasks           Task[]
   activities      ActivityLog[]
   automationRules AutomationRule[]
+  assignmentRules AssignmentRule[]
+  followUpSequences FollowUpSequence[]
   pipelineStages  WorkspacePipelineStage[]
   services        Service[]
   staffMembers    StaffMember[]
@@ -454,6 +456,66 @@ model IssueReport {
   workspaceId   String
   workspace     Workspace @relation(fields: [workspaceId], references: [id])
   createdAt     DateTime  @default(now())
+}
+
+// ── Assignment Rules ──────────────────────────────────────────────
+
+model AssignmentRule {
+  id            String    @id @default(cuid())
+  name          String
+  strategy      String    // ROUND_ROBIN, LEAD_SOURCE, KEYWORD
+  conditions    String    @default("{}") // JSON: { leadSourcePrefix?: string, keyword?: string }
+  agentIds      String    // JSON array of user IDs
+  currentIndex  Int       @default(0) // For round-robin tracking
+  priority      Int       @default(0) // Higher = evaluated first
+  enabled       Boolean   @default(true)
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ── Follow-up Sequences ──────────────────────────────────────────
+
+model FollowUpSequence {
+  id            String    @id @default(cuid())
+  name          String
+  triggerType   String    @default("NEW_LEAD") // NEW_LEAD, AD_LEAD, MANUAL
+  enabled       Boolean   @default(true)
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  steps         FollowUpStep[]
+  enrollments   FollowUpEnrollment[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model FollowUpStep {
+  id            String    @id @default(cuid())
+  sequenceId    String
+  sequence      FollowUpSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  position      Int
+  delayHours    Int       // Wait X hours since enrollment or previous step
+  templateName  String    // WhatsApp template name to send
+  templateLanguage String @default("en")
+  createdAt     DateTime  @default(now())
+}
+
+model FollowUpEnrollment {
+  id              String    @id @default(cuid())
+  sequenceId      String
+  sequence        FollowUpSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  contactId       String
+  conversationId  String
+  workspaceId     String
+  currentStep     Int       @default(0) // Which step to execute next
+  status          String    @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+  lastStepSentAt  DateTime?
+  nextStepDueAt   DateTime?
+  enrolledAt      DateTime  @default(now())
+
+  @@unique([sequenceId, contactId])
+  @@index([status, nextStepDueAt])
 }
 
 // ── Appointment Booking ───────────────────────────────────────────

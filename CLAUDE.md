@@ -67,9 +67,17 @@ npx vite build       # Production build
 - Removed demo WhatsApp templates from seed — only real synced templates shown
 - Compose Message page now sends real messages via Meta API (POST /api/compose/send)
 - Compose and Broadcast pages only show APPROVED templates from Meta
+- Lead source auto-tagging from Click-to-WhatsApp ads (Meta referral data)
+- Auto-assign rules engine (round-robin, lead source, keyword-based routing)
+- Follow-up sequences (auto-send templates when leads don't reply)
+- Ad performance analytics + conversion funnel on dashboard
 
 ## Potential Next Features
 - Calendar view with drag-to-reschedule (react-big-calendar)
 - 1-hour before reminder option
 - Customer self-service booking link
 - Recurring appointments
+- Instagram DM inbox (code exists, needs re-enabling)
+- Telegram channel integration
+- Website live chat widget → inbox
+- Email inbox via Resend

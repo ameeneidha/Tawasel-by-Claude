@@ -102,6 +102,20 @@ type DashboardSummary = {
     botHandledRate: number;
     handoffRate: number;
   };
+  adPerformance: {
+    totalAdLeads: number;
+    adSourceBreakdown: Array<{ source: string; count: number }>;
+    conversionFunnel: {
+      newLeads: number;
+      contacted: number;
+      contactedRate: number;
+      qualified: number;
+      qualifiedRate: number;
+      won: number;
+      wonRate: number;
+    };
+    responseTimeBySource: Array<{ source: string; avgMinutes: number }>;
+  };
   channels: {
     whatsappConnected: number;
     whatsappDisconnected: number;
@@ -460,6 +474,81 @@ export default function Dashboard() {
                   </div>
                 </SectionCard>
               </div>
+
+              {/* Ad Performance & Conversion Funnel */}
+              <SectionCard>
+                <SectionHeader title="Ad Performance & Conversion" description="Track leads from ads and measure your conversion funnel." />
+                <div className="grid sm:grid-cols-4 gap-3 mb-5">
+                  <StatPill label="Ad Leads" value={summary.adPerformance?.totalAdLeads ?? 0} />
+                  <StatPill label="Contacted" value={summary.adPerformance?.conversionFunnel?.contacted ?? 0} />
+                  <StatPill label="Qualified" value={summary.adPerformance?.conversionFunnel?.qualified ?? 0} />
+                  <StatPill label="Won" value={summary.adPerformance?.conversionFunnel?.won ?? 0} />
+                </div>
+
+                {/* Conversion Funnel */}
+                {summary.adPerformance?.conversionFunnel && summary.adPerformance.conversionFunnel.newLeads > 0 && (
+                  <div className="mb-5">
+                    <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Conversion Funnel</h4>
+                    <div className="space-y-2">
+                      {[
+                        { label: 'New Leads', count: summary.adPerformance.conversionFunnel.newLeads, rate: 100 },
+                        { label: 'Contacted', count: summary.adPerformance.conversionFunnel.contacted, rate: summary.adPerformance.conversionFunnel.contactedRate },
+                        { label: 'Qualified', count: summary.adPerformance.conversionFunnel.qualified, rate: summary.adPerformance.conversionFunnel.qualifiedRate },
+                        { label: 'Won', count: summary.adPerformance.conversionFunnel.won, rate: summary.adPerformance.conversionFunnel.wonRate },
+                      ].map((step) => (
+                        <div key={step.label} className="flex items-center gap-3">
+                          <span className="text-xs w-20 text-gray-500 dark:text-gray-400">{step.label}</span>
+                          <div className="flex-1 h-6 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-[#25D366] rounded-full transition-all flex items-center justify-end pr-2"
+                              style={{ width: `${Math.max(step.rate, 2)}%` }}
+                            >
+                              {step.rate >= 15 && (
+                                <span className="text-[10px] text-white font-medium">{step.count}</span>
+                              )}
+                            </div>
+                          </div>
+                          <span className="text-xs w-10 text-right text-gray-500 dark:text-gray-400">{step.rate}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Ad Source Breakdown */}
+                {summary.adPerformance?.adSourceBreakdown?.length > 0 && (
+                  <div className="mb-5">
+                    <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Leads by Ad Campaign</h4>
+                    <div className="space-y-2">
+                      {summary.adPerformance.adSourceBreakdown.map((item) => (
+                        <div key={item.source} className="flex items-center justify-between">
+                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate flex-1">{item.source}</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-white ml-2">{item.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Response Time by Source */}
+                {summary.adPerformance?.responseTimeBySource?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Avg Response Time by Source</h4>
+                    <div className="space-y-2">
+                      {summary.adPerformance.responseTimeBySource.slice(0, 5).map((item) => (
+                        <div key={item.source} className="flex items-center justify-between">
+                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate flex-1">{item.source}</span>
+                          <span className={`text-sm font-medium ml-2 ${
+                            (item.avgMinutes ?? 0) <= 5 ? 'text-green-600' : (item.avgMinutes ?? 0) <= 30 ? 'text-amber-600' : 'text-red-600'
+                          }`}>
+                            {item.avgMinutes != null ? `${Math.round(item.avgMinutes)}min` : '—'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </SectionCard>
 
               <SectionCard>
                 <SectionHeader title="Broadcast & Campaigns" description="See which campaigns landed, got read, and generated replies." />

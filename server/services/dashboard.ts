@@ -703,6 +703,61 @@ export async function getDashboardSections(
         aiTouchedConversations.length
       ),
     },
+    adPerformance: {
+      totalAdLeads: contactsCreatedInRange.filter(c => c.leadSource?.startsWith('Ad:')).length,
+      adSourceBreakdown: (() => {
+        const adMap = new Map<string, number>();
+        for (const c of contactsCreatedInRange) {
+          if (c.leadSource?.startsWith('Ad:')) {
+            const key = c.leadSource;
+            adMap.set(key, (adMap.get(key) || 0) + 1);
+          }
+        }
+        return Array.from(adMap.entries())
+          .map(([source, count]) => ({ source, count }))
+          .sort((a, b) => b.count - a.count);
+      })(),
+      conversionFunnel: (() => {
+        const total = contactsCreatedInRange.length;
+        const contacted = contactsCreatedInRange.filter(c => {
+          const key = normalizePipelineStageKey(c.pipelineStage);
+          return key !== 'new_lead';
+        }).length;
+        const qualified = contactsCreatedInRange.filter(c => {
+          const key = normalizePipelineStageKey(c.pipelineStage);
+          return ['qualified', 'quote_sent', 'won'].includes(key);
+        }).length;
+        const won = contactsCreatedInRange.filter(c =>
+          wonStageKeys.has(normalizePipelineStageKey(c.pipelineStage))
+        ).length;
+        return {
+          newLeads: total,
+          contacted,
+          contactedRate: toPercent(contacted, total),
+          qualified,
+          qualifiedRate: toPercent(qualified, total),
+          won,
+          wonRate: toPercent(won, total),
+        };
+      })(),
+      responseTimeBySource: (() => {
+        const sourceTimesMap = new Map<string, number[]>();
+        for (const conv of conversationsInRange) {
+          const contact = contacts.find(c => c.id === conv.contactId);
+          const source = contact?.leadSource?.trim() || 'Unknown';
+          const firstIncoming = conv.messages.find(m => m.direction === 'INCOMING' && !m.isInternal);
+          const replyTime = differenceInMinutesSafe(conv.firstResponseAt, firstIncoming?.createdAt);
+          if (typeof replyTime === 'number') {
+            const arr = sourceTimesMap.get(source) || [];
+            arr.push(replyTime);
+            sourceTimesMap.set(source, arr);
+          }
+        }
+        return Array.from(sourceTimesMap.entries())
+          .map(([source, times]) => ({ source, avgMinutes: average(times) }))
+          .sort((a, b) => (a.avgMinutes ?? 999) - (b.avgMinutes ?? 999));
+      })(),
+    },
     channels: {
       whatsappConnected: connectedWhatsApp,
       whatsappDisconnected:

@@ -52,6 +52,7 @@ import {
 
 import { getDashboardSections } from "./server/services/dashboard.js";
 import { startReminderScheduler, setReminderEmitter } from "./server/services/appointmentReminders.js";
+import { startFollowUpScheduler, setFollowUpEmitter } from "./server/services/followUpScheduler.js";
 
 import {
   sendMetaMessage, uploadWhatsAppMedia, sendWhatsAppMediaMessage,
@@ -1285,6 +1286,9 @@ async function startServer() {
           return res.sendStatus(200);
         }
 
+        // Extract Click-to-WhatsApp ad referral data
+        const referral = message?.referral || (value as any)?.referral;
+
         const from = message.from;
         const phoneNumberId = metadata?.phone_number_id;
         const displayPhoneNumber = metadata?.display_phone_number;
@@ -1307,6 +1311,11 @@ async function startServer() {
             }
           });
 
+          // Build lead source from Click-to-WhatsApp ad referral
+          const adLeadSource = referral
+            ? `Ad: ${referral.headline || referral.body || referral.source_type || 'Click-to-WhatsApp'}`
+            : null;
+
           if (!contact) {
             contact = await prisma.contact.create({
               data: {
@@ -1314,13 +1323,34 @@ async function startServer() {
                 phoneNumber: from,
                 workspaceId: number.workspaceId,
                 lastActivityAt: new Date(),
+                ...(adLeadSource && {
+                  leadSource: adLeadSource,
+                  tags: `ad-lead`,
+                  lastCampaignId: referral?.source_id || null,
+                }),
               }
             });
+
+            if (adLeadSource) {
+              await prisma.activityLog.create({
+                data: {
+                  type: 'LEAD_SOURCE',
+                  content: `Lead from ad: ${adLeadSource}`,
+                  contactId: contact.id,
+                  workspaceId: number.workspaceId,
+                }
+              });
+            }
           } else {
             contact = await prisma.contact.update({
               where: { id: contact.id },
               data: {
                 lastActivityAt: new Date(),
+                // Update lead source if not already set and this is from an ad
+                ...(adLeadSource && !contact.leadSource && {
+                  leadSource: adLeadSource,
+                  lastCampaignId: referral?.source_id || null,
+                }),
               },
             });
           }
@@ -1350,6 +1380,90 @@ async function startServer() {
               where: { id: conversation.id },
               data: { lastMessageAt: new Date() }
             });
+          }
+
+          // Auto-assign via assignment rules (only for new/unassigned conversations)
+          if (!conversation.assignedToId) {
+            try {
+              const assignmentRules = await prisma.assignmentRule.findMany({
+                where: { workspaceId: number.workspaceId, enabled: true },
+                orderBy: { priority: 'desc' }
+              });
+
+              for (const rule of assignmentRules) {
+                const conditions = JSON.parse(rule.conditions || '{}');
+                const agentIds: string[] = JSON.parse(rule.agentIds || '[]');
+                if (agentIds.length === 0) continue;
+
+                let matches = false;
+
+                if (rule.strategy === 'ROUND_ROBIN') {
+                  matches = true;
+                } else if (rule.strategy === 'LEAD_SOURCE' && contact.leadSource) {
+                  const prefix = conditions.leadSourcePrefix || '';
+                  matches = prefix && contact.leadSource.toLowerCase().includes(prefix.toLowerCase());
+                } else if (rule.strategy === 'KEYWORD' && incomingPayload.content) {
+                  const kw = conditions.keyword || '';
+                  matches = kw && incomingPayload.content.toLowerCase().includes(kw.toLowerCase());
+                }
+
+                if (matches) {
+                  const assignToId = agentIds[rule.currentIndex % agentIds.length];
+                  await prisma.assignmentRule.update({
+                    where: { id: rule.id },
+                    data: { currentIndex: (rule.currentIndex + 1) % agentIds.length }
+                  });
+                  conversation = await prisma.conversation.update({
+                    where: { id: conversation.id },
+                    data: { assignedToId: assignToId }
+                  });
+                  await prisma.activityLog.create({
+                    data: {
+                      type: 'AUTOMATION',
+                      content: `Auto-assigned by rule "${rule.name}"`,
+                      conversationId: conversation.id,
+                      contactId: contact.id,
+                      workspaceId: number.workspaceId
+                    }
+                  });
+                  break; // First matching rule wins
+                }
+              }
+            } catch (e) {
+              console.error('[assignment-rules] Error:', e);
+            }
+          }
+
+          // Auto-enroll in follow-up sequences
+          {
+            const triggerTypes = ['NEW_LEAD'];
+            if (adLeadSource) triggerTypes.push('AD_LEAD');
+            try {
+              const sequences = await prisma.followUpSequence.findMany({
+                where: { workspaceId: number.workspaceId, enabled: true, triggerType: { in: triggerTypes } },
+                include: { steps: { orderBy: { position: 'asc' } } }
+              });
+              for (const seq of sequences) {
+                if (seq.steps.length === 0) continue;
+                const existing = await prisma.followUpEnrollment.findUnique({
+                  where: { sequenceId_contactId: { sequenceId: seq.id, contactId: contact.id } }
+                });
+                if (!existing) {
+                  const firstDelay = seq.steps[0].delayHours;
+                  await prisma.followUpEnrollment.create({
+                    data: {
+                      sequenceId: seq.id,
+                      contactId: contact.id,
+                      conversationId: conversation.id,
+                      workspaceId: number.workspaceId,
+                      nextStepDueAt: new Date(Date.now() + firstDelay * 60 * 60 * 1000)
+                    }
+                  });
+                }
+              }
+            } catch (e) {
+              console.error('[follow-up-enroll] Error:', e);
+            }
           }
 
           // Handle quote reply context from WhatsApp
@@ -4147,6 +4261,171 @@ async function startServer() {
     res.json(rule);
   });
 
+  // ── Assignment Rules CRUD ────────────────────────────────────────
+
+  app.get("/api/assignment-rules", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
+    const rules = await prisma.assignmentRule.findMany({
+      where: { workspaceId: req.query.workspaceId as string },
+      orderBy: { priority: 'desc' }
+    });
+    res.json(rules);
+  });
+
+  app.post("/api/assignment-rules", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
+    const { name, strategy, conditions, agentIds, priority, workspaceId } = req.body;
+    const rule = await prisma.assignmentRule.create({
+      data: {
+        name,
+        strategy,
+        conditions: JSON.stringify(conditions || {}),
+        agentIds: JSON.stringify(agentIds || []),
+        priority: priority || 0,
+        workspaceId
+      }
+    });
+    res.json(rule);
+  });
+
+  app.patch("/api/assignment-rules/:id", requireAuth, async (req: any, res) => {
+    const rule = await prisma.assignmentRule.findUnique({ where: { id: req.params.id } });
+    if (!rule) return res.status(404).json({ error: "Rule not found" });
+
+    const data: any = {};
+    if (req.body.name !== undefined) data.name = req.body.name;
+    if (req.body.strategy !== undefined) data.strategy = req.body.strategy;
+    if (req.body.conditions !== undefined) data.conditions = JSON.stringify(req.body.conditions);
+    if (req.body.agentIds !== undefined) data.agentIds = JSON.stringify(req.body.agentIds);
+    if (req.body.priority !== undefined) data.priority = req.body.priority;
+    if (req.body.enabled !== undefined) data.enabled = req.body.enabled;
+
+    const updated = await prisma.assignmentRule.update({ where: { id: req.params.id }, data });
+    res.json(updated);
+  });
+
+  app.delete("/api/assignment-rules/:id", requireAuth, async (req: any, res) => {
+    await prisma.assignmentRule.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  });
+
+  // ── Follow-up Sequences CRUD ───────────────────────────────────
+
+  app.get("/api/follow-up-sequences", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
+    const sequences = await prisma.followUpSequence.findMany({
+      where: { workspaceId: req.query.workspaceId as string },
+      include: {
+        steps: { orderBy: { position: 'asc' } },
+        _count: { select: { enrollments: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(sequences);
+  });
+
+  app.post("/api/follow-up-sequences", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
+    const { name, triggerType, steps, workspaceId } = req.body;
+    const sequence = await prisma.followUpSequence.create({
+      data: {
+        name,
+        triggerType: triggerType || 'NEW_LEAD',
+        workspaceId,
+        steps: {
+          create: (steps || []).map((s: any, i: number) => ({
+            position: i,
+            delayHours: s.delayHours || 24,
+            templateName: s.templateName,
+            templateLanguage: s.templateLanguage || 'en'
+          }))
+        }
+      },
+      include: { steps: { orderBy: { position: 'asc' } } }
+    });
+    res.json(sequence);
+  });
+
+  app.patch("/api/follow-up-sequences/:id", requireAuth, async (req: any, res) => {
+    const seq = await prisma.followUpSequence.findUnique({ where: { id: req.params.id } });
+    if (!seq) return res.status(404).json({ error: "Sequence not found" });
+
+    const data: any = {};
+    if (req.body.name !== undefined) data.name = req.body.name;
+    if (req.body.triggerType !== undefined) data.triggerType = req.body.triggerType;
+    if (req.body.enabled !== undefined) data.enabled = req.body.enabled;
+
+    const updated = await prisma.followUpSequence.update({
+      where: { id: req.params.id },
+      data,
+      include: { steps: { orderBy: { position: 'asc' } } }
+    });
+
+    // If steps are provided, replace them
+    if (req.body.steps) {
+      await prisma.followUpStep.deleteMany({ where: { sequenceId: req.params.id } });
+      for (let i = 0; i < req.body.steps.length; i++) {
+        const s = req.body.steps[i];
+        await prisma.followUpStep.create({
+          data: {
+            sequenceId: req.params.id,
+            position: i,
+            delayHours: s.delayHours || 24,
+            templateName: s.templateName,
+            templateLanguage: s.templateLanguage || 'en'
+          }
+        });
+      }
+    }
+
+    const final = await prisma.followUpSequence.findUnique({
+      where: { id: req.params.id },
+      include: { steps: { orderBy: { position: 'asc' } } }
+    });
+    res.json(final);
+  });
+
+  app.delete("/api/follow-up-sequences/:id", requireAuth, async (req: any, res) => {
+    await prisma.followUpSequence.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  });
+
+  // Manual enrollment
+  app.post("/api/follow-up-sequences/:id/enroll", requireAuth, async (req: any, res) => {
+    const { contactId, conversationId, workspaceId } = req.body;
+    const seq = await prisma.followUpSequence.findUnique({
+      where: { id: req.params.id },
+      include: { steps: { orderBy: { position: 'asc' } } }
+    });
+    if (!seq || seq.steps.length === 0) {
+      return res.status(404).json({ error: "Sequence not found or has no steps" });
+    }
+
+    const existing = await prisma.followUpEnrollment.findUnique({
+      where: { sequenceId_contactId: { sequenceId: req.params.id, contactId } }
+    });
+    if (existing) {
+      return res.status(409).json({ error: "Contact already enrolled in this sequence" });
+    }
+
+    const enrollment = await prisma.followUpEnrollment.create({
+      data: {
+        sequenceId: req.params.id,
+        contactId,
+        conversationId,
+        workspaceId,
+        nextStepDueAt: new Date(Date.now() + seq.steps[0].delayHours * 60 * 60 * 1000)
+      }
+    });
+    res.json(enrollment);
+  });
+
+  app.get("/api/follow-up-enrollments", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
+    const enrollments = await prisma.followUpEnrollment.findMany({
+      where: { workspaceId: req.query.workspaceId as string },
+      include: { sequence: true },
+      orderBy: { enrolledAt: 'desc' },
+      take: 100
+    });
+    res.json(enrollments);
+  });
+
   // Activity Logs
   app.get("/api/activity-logs", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
     const { workspaceId, contactId, conversationId } = req.query;
@@ -5346,6 +5625,15 @@ async function startServer() {
 
     // Start appointment reminder scheduler (checks every 30 min)
     startReminderScheduler();
+
+    // Wire up follow-up sequence emitter with Socket.io
+    setFollowUpEmitter((workspaceId, message, conversationId) => {
+      io.to(workspaceId).emit("new-message", message);
+      io.to(workspaceId).emit("conversation-updated", conversationId);
+    });
+
+    // Start follow-up sequence scheduler (checks every 5 min)
+    startFollowUpScheduler();
   });
 }
 
