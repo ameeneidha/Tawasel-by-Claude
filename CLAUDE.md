@@ -74,6 +74,7 @@ npx vite build       # Production build
 - Auto-assign rules engine (round-robin, lead source, keyword-based routing)
 - Follow-up sequences (auto-send templates when leads don't reply)
 - Ad performance analytics + conversion funnel on dashboard
+- AI-to-human escalation system (auto-detects when bot can't help, pauses AI, notifies agents with sound + toast, sets conversation to WAITING_FOR_INTERNAL)
 
 ## Potential Next Features
 - Calendar view with drag-to-reschedule (react-big-calendar)

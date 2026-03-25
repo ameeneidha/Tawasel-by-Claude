@@ -141,6 +141,28 @@ export async function recordAiUsage(
 
 // ── Appointment Booking Tools (OpenAI Function Calling) ──────────
 
+// ── Escalation Tool ────────────────────────────────────────────────
+
+const ESCALATION_TOOL = {
+  type: "function",
+  function: {
+    name: "escalate_to_agent",
+    description:
+      "Escalate the conversation to a human agent. Call this when: (1) the customer explicitly asks to speak to a human/agent/person, (2) you cannot answer the customer's question after trying, (3) the customer is frustrated or upset, (4) the request requires human judgment (refunds, complaints, complex issues), (5) you've failed to help after 2-3 attempts.",
+    parameters: {
+      type: "object",
+      properties: {
+        reason: {
+          type: "string",
+          description:
+            "Brief reason for escalation (e.g. 'Customer requested human agent', 'Cannot answer technical question', 'Customer is frustrated')",
+        },
+      },
+      required: ["reason"],
+    },
+  },
+};
+
 const APPOINTMENT_TOOLS: any[] = [
   {
     type: "function",
@@ -477,21 +499,27 @@ async function workspaceHasAppointmentServices(
 
 // ── AI Functions ───────────────────────────────────────────────────
 
+export interface AIResponseResult {
+  text: string;
+  escalated?: boolean;
+  escalationReason?: string;
+}
+
 export async function getAIResponse(
   chatbot: any,
   message: string,
   context?: { workspaceId?: string; contactId?: string; conversationId?: string }
-) {
+): Promise<AIResponseResult> {
   try {
     const quota = await checkAiQuota(chatbot.workspaceId);
     if (!quota.allowed) {
       console.warn(
         `AI quota exceeded for workspace ${chatbot.workspaceId}: ${quota.used}/${quota.limit}`
       );
-      return "";
+      return { text: "", escalated: false };
     }
 
-    if (!openai) return "";
+    if (!openai) return { text: "", escalated: false };
 
     const workspaceId = context?.workspaceId || chatbot.workspaceId;
     const contactId = context?.contactId || "";
@@ -529,6 +557,15 @@ Always confirm details with the customer before calling book_appointment.
 When showing times, use a friendly format (e.g., "10:00 AM", "2:30 PM").
 Today's date is ${new Date().toISOString().slice(0, 10)}.`
         : "",
+      `# Escalation to Human Agent
+You have the ability to escalate conversations to a human agent. Use the escalate_to_agent tool when:
+- The customer explicitly asks to speak to a human, agent, representative, or person
+- You cannot answer the customer's question after trying your best
+- The customer seems frustrated, angry, or dissatisfied with your responses
+- The request involves refunds, complaints, account issues, or other sensitive matters that require human judgment
+- You've attempted to help 2-3 times but the customer is still not satisfied
+
+When escalating, provide a brief reason. After escalating, send a polite message letting the customer know a team member will assist them shortly.`,
       APPENDED_CHATBOT_SAFETY_INSTRUCTIONS,
     ]
       .filter(Boolean)
@@ -540,15 +577,16 @@ Today's date is ${new Date().toISOString().slice(0, 10)}.`
       { role: "user", content: message },
     ];
 
+    // Build tools array — always include escalation, optionally include appointment tools
+    const allTools = [ESCALATION_TOOL, ...(hasServices ? APPOINTMENT_TOOLS : [])];
+
     // First API call
     const completionParams: any = {
       model: FIXED_CHATBOT_MODEL,
       messages,
+      tools: allTools,
+      tool_choice: "auto",
     };
-    if (hasServices) {
-      completionParams.tools = APPOINTMENT_TOOLS;
-      completionParams.tool_choice = "auto";
-    }
 
     let completion = await openai.chat.completions.create(completionParams);
     let totalUsage = completion.usage;
@@ -556,6 +594,9 @@ Today's date is ${new Date().toISOString().slice(0, 10)}.`
 
     // Tool calling loop (max 5 iterations to prevent runaway)
     let iterations = 0;
+    let escalated = false;
+    let escalationReason = "";
+
     while (responseMsg.tool_calls && responseMsg.tool_calls.length > 0 && iterations < 5) {
       iterations++;
 
@@ -569,6 +610,23 @@ Today's date is ${new Date().toISOString().slice(0, 10)}.`
         const fnArgs = JSON.parse(tc.function.arguments || "{}");
 
         console.log(`[AI Tool Call] ${fnName}`, fnArgs);
+
+        // Handle escalation tool
+        if (fnName === "escalate_to_agent") {
+          escalated = true;
+          escalationReason = fnArgs.reason || "AI could not resolve the issue";
+          console.log(`[AI Escalation] Reason: ${escalationReason}`);
+
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({
+              success: true,
+              message: "Escalation successful. A human agent will be notified. Send a polite message to the customer letting them know.",
+            }),
+          });
+          continue;
+        }
 
         const result = await executeAppointmentTool(
           fnName,
@@ -588,7 +646,7 @@ Today's date is ${new Date().toISOString().slice(0, 10)}.`
       completion = await openai.chat.completions.create({
         model: FIXED_CHATBOT_MODEL,
         messages,
-        tools: APPOINTMENT_TOOLS,
+        tools: allTools,
         tool_choice: "auto",
       });
 
@@ -611,11 +669,15 @@ Today's date is ${new Date().toISOString().slice(0, 10)}.`
       totalUsage
     );
 
-    return responseMsg.content || "";
+    return {
+      text: responseMsg.content || "",
+      escalated,
+      escalationReason,
+    };
   } catch (error) {
     console.error("AI Response Error:", error);
   }
-  return "";
+  return { text: "", escalated: false };
 }
 
 export async function generateAISummary(

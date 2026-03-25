@@ -18,6 +18,9 @@ Your entire team sees every WhatsApp conversation in one place. No more passing 
 ### AI Chatbot Auto-Replies
 When a customer messages at 11 PM or during Friday prayers, the AI chatbot responds instantly. It answers common questions, collects information, and can even book appointments — so you never lose a lead to slow response time.
 
+### AI-to-Human Escalation
+When the AI chatbot can't answer a question, detects customer frustration, or the customer asks to speak to a real person, it automatically hands off the conversation to your team. The bot tells the customer "I'm connecting you with a team member," pauses itself, and raises the conversation priority. Every agent online gets a real-time notification with a sound alert so the customer gets a fast response from a human.
+
 ### Campaign Link Generator & Ad Tracking
 Run ads on **any platform** — Snapchat, Google, TikTok, Instagram, Facebook, YouTube, LinkedIn, or even QR codes — and track exactly which ad brought each lead. Tawasel's Campaign Link Generator creates unique WhatsApp links with tracking codes for each ad campaign. When a customer clicks your ad and messages you, Tawasel automatically detects the campaign code and tags the lead with the platform and campaign name. No more guessing which ads are working.
 
@@ -85,6 +88,17 @@ The repo also includes an App Platform spec:
 - [`.do/app.yaml`](C:\Users\Khaled\Desktop\SaaS%20Whatsapp\SaaS-Whatsapp-CRM-main\SaaS-Whatsapp-CRM-main\.do\app.yaml)
 
 ## Update Log
+
+### March 25, 2026 (Update 3)
+
+- **AI-to-Human Escalation System**: The AI chatbot now automatically detects when it can't help a customer and escalates to a human agent
+  - AI calls `escalate_to_agent` tool when: customer asks for a human, bot fails to help after multiple attempts, customer is frustrated, or request needs human judgment (refunds, complaints)
+  - Conversation is automatically paused from AI auto-replies and set to **WAITING FOR INTERNAL** status
+  - Priority is auto-raised to **HIGH** so agents notice it immediately
+  - Real-time **toast notification with sound** alerts all agents in the workspace
+  - Activity log records the escalation reason for context
+  - Agent clicks "Open" on the notification → jumps straight to the conversation
+  - Works on both WhatsApp and Instagram channels
 
 ### March 25, 2026 (Update 2)
 

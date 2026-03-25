@@ -438,11 +438,42 @@ export default function Inbox() {
         }
       });
 
+      // AI Escalation notification — agent needs to take over
+      socket.on('ai-escalation', (data: { conversationId: string; contactName: string; reason: string }) => {
+        // Play notification sound
+        try {
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2JkpuTj4eDfnl4eH19hIuTm5+dm5eSjIZ/eHRxcXR5gIiQl5yenp2alI6HgHp1cXBydnyDi5KYnJ6enZqVj4mCfHZycHJ2fISLkpibnp6dmpiSjIV/eXRxcnZ8g4qRl5udnp2bmpSPiYJ8dnJwcnV7goqRl5ucnZ2cmZWQioN9d3JxcnV7gYmQlpucnZ2cmZWQioN9d3NxcnV7gYiQlpqcnZycmZWQi4R+eHNxcnR6gIiPlpqcnJ2cmZaRi4R+eHNxcnR6gIiPlpmcnJ2cmZaRi4V+eHRycnR6gIePlpmbnJ2cmZaRjIV/eXRycnR6f4ePlpmbnJ2cmZaRjIV/eXRycnR5f4ePlpmbnJ2cmJaRjIV/eXRycnR5f4ePlpmbnJycmJaRjIV/eXRycXR5f4ePlpmbnJycmJaSjIV/eXRxcnR5f4eOlZmbnJycmJaSjIV/eXRxcnR5f4eOlZmbnJycmJaSjIZ/eXVycnR5f4eOlZmbnJycmJaSjIZ/eXVycnR5f4eOlZmbnJycl5aSjIZ/enVycnR5f4eOlZmbnJybmJaSjIaAenVycnR5f4eOlZmbnJybmJaSjIaAenVycnR5foaOlZmbnJybmJaSjIaAenVycnR5foaOlZibnJybmJaSjIaAenVycXR5foaOlZibnJybmJaTjIaAenVycXR5foaOlZibnJybmJaTjIaAenVycXR5foaOlZibnJybmJaTjIaAenVycXR5foaOlZibnJybmJaTjIaAenVycXR5foaOlJibnJybmJaTjIaAe3VycXR5foWOlJibnJybmJaTjIaAe3VycXR4foWOlJibm5ybmJaTjIaAe3VycXR4foWNlJibm5ybmJaTjIeBe3ZycXR4foWNlJibm5ybmJaTjYeBe3ZycXR4foWNlJibm5ubmJaTjYeBe3ZycXR4foWNlJibm5ubmJaTjYeBe3ZycXR4foWNlJibm5ubmJaTjYeBe3ZycXR4foWNlJibm5ubmJaTjYeBe3ZycXR4foWNlJiamJaTjYeBe3ZycXR4foWNlJiamJaTjYeBe3ZycXR4fg==');
+          audio.volume = 0.5;
+          audio.play().catch(() => {});
+        } catch {}
+
+        // Show toast notification
+        toast.warning(`🔔 Agent needed: ${data.contactName}`, {
+          description: data.reason,
+          duration: 10000,
+          action: {
+            label: 'Open',
+            onClick: () => {
+              // Find and select the escalated conversation
+              setConversations(prev => {
+                const conv = prev.find(c => c.id === data.conversationId);
+                if (conv) setSelectedConv(conv);
+                return prev;
+              });
+            },
+          },
+        });
+
+        // Refresh conversation list to show updated status
+        fetchConversations(data.conversationId);
+      });
+
       return () => {
         socket.off('new-message');
         socket.off('conversation-updated');
         socket.off('conversation-deleted');
         socket.off('message-status-updated');
+        socket.off('ai-escalation');
         socket.disconnect();
       };
     } else {

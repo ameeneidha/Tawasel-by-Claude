@@ -1052,13 +1052,13 @@ async function startServer() {
         contactId = conv?.contactId || undefined;
       }
 
-      const responseText = await getAIResponse(chatbot, message, {
+      const aiResult = await getAIResponse(chatbot, message, {
         workspaceId: chatbot.workspaceId,
         contactId,
         conversationId,
       });
 
-      if (!responseText) {
+      if (!aiResult.text) {
         return res.status(500).json({ error: "No AI provider configured or AI failed" });
       }
 
@@ -1067,7 +1067,7 @@ async function startServer() {
         const aiMsg = await prisma.message.create({
           data: {
             conversationId,
-            content: responseText,
+            content: aiResult.text,
             direction: 'OUTGOING',
             senderType: 'AI_BOT',
             senderName: chatbot.name,
@@ -1082,7 +1082,7 @@ async function startServer() {
         }
       }
 
-      res.json({ response: responseText });
+      res.json({ response: aiResult.text, escalated: aiResult.escalated, escalationReason: aiResult.escalationReason });
     } catch (e: any) {
       console.error('AI Error:', e);
       res.status(500).json({ error: "AI processing failed" });
@@ -1552,16 +1552,16 @@ async function startServer() {
               }
             });
             if (chatbot && chatbot.enabled) {
-              const aiResponse = await getAIResponse(chatbot, incomingPayload.aiInput, {
+              const aiResult = await getAIResponse(chatbot, incomingPayload.aiInput, {
                 workspaceId: number.workspaceId,
                 contactId: contact.id,
                 conversationId: conversation.id,
               });
-              if (aiResponse) {
+              if (aiResult.text) {
                 const whatsAppConfig = getWhatsAppChannelConfig(number);
                 try {
                   // Send back to WhatsApp
-                  const aiMetaMsgId = await sendMetaMessage(from, aiResponse, 'whatsapp', {
+                  const aiMetaMsgId = await sendMetaMessage(from, aiResult.text, 'whatsapp', {
                     accessToken: whatsAppConfig.accessToken,
                     phoneNumberId: whatsAppConfig.phoneNumberId || phoneNumberId
                   });
@@ -1570,7 +1570,7 @@ async function startServer() {
                   const aiMsg = await prisma.message.create({
                     data: {
                       conversationId: conversation.id,
-                      content: aiResponse,
+                      content: aiResult.text,
                       direction: 'OUTGOING',
                       senderType: 'AI_BOT',
                       senderName: chatbot.name,
@@ -1585,7 +1585,7 @@ async function startServer() {
                   const failedAiMsg = await prisma.message.create({
                     data: {
                       conversationId: conversation.id,
-                      content: aiResponse,
+                      content: aiResult.text,
                       direction: 'OUTGOING',
                       senderType: 'AI_BOT',
                       senderName: chatbot.name,
@@ -1595,6 +1595,42 @@ async function startServer() {
 
                   io.to(number.workspaceId).emit("new-message", failedAiMsg);
                 }
+              }
+
+              // Handle AI escalation to human agent
+              if (aiResult.escalated) {
+                console.log(`[AI Escalation] Conversation ${conversation.id} escalated: ${aiResult.escalationReason}`);
+
+                // Pause AI on this conversation
+                await prisma.conversation.update({
+                  where: { id: conversation.id },
+                  data: {
+                    aiPaused: true,
+                    internalStatus: "WAITING_FOR_INTERNAL",
+                    priority: conversation.priority === "LOW" || conversation.priority === "MEDIUM" ? "HIGH" : conversation.priority,
+                  },
+                });
+
+                // Log the escalation
+                await prisma.activityLog.create({
+                  data: {
+                    type: "AI_HANDOFF",
+                    content: `AI escalated to human agent. Reason: ${aiResult.escalationReason}`,
+                    contactId: contact.id,
+                    workspaceId: number.workspaceId,
+                    conversationId: conversation.id,
+                  },
+                });
+
+                // Emit escalation event for real-time notification
+                io.to(number.workspaceId).emit("ai-escalation", {
+                  conversationId: conversation.id,
+                  contactName: contact.name || contact.phoneNumber || "Unknown",
+                  reason: aiResult.escalationReason,
+                  timestamp: new Date().toISOString(),
+                });
+
+                io.to(number.workspaceId).emit("conversation-updated", conversation.id);
               }
             }
           }
@@ -1708,15 +1744,15 @@ async function startServer() {
               }
             });
             if (chatbot && chatbot.enabled) {
-              const aiResponse = await getAIResponse(chatbot, text, {
+              const aiResult = await getAIResponse(chatbot, text, {
                 workspaceId: account.workspaceId,
                 contactId: contact.id,
                 conversationId: conversation.id,
               });
-              if (aiResponse) {
+              if (aiResult.text) {
                 try {
                   // Send back to Instagram
-                  await sendMetaMessage(senderId, aiResponse, 'instagram', {
+                  await sendMetaMessage(senderId, aiResult.text, 'instagram', {
                     accessToken: account.accessToken || process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || "",
                     instagramId: recipientId
                   });
@@ -1725,7 +1761,7 @@ async function startServer() {
                   const aiMsg = await prisma.message.create({
                     data: {
                       conversationId: conversation.id,
-                      content: aiResponse,
+                      content: aiResult.text,
                       direction: 'OUTGOING',
                       senderType: 'AI_BOT',
                       senderName: chatbot.name,
@@ -1739,7 +1775,7 @@ async function startServer() {
                   const failedAiMsg = await prisma.message.create({
                     data: {
                       conversationId: conversation.id,
-                      content: aiResponse,
+                      content: aiResult.text,
                       direction: 'OUTGOING',
                       senderType: 'AI_BOT',
                       senderName: chatbot.name,
@@ -1749,6 +1785,39 @@ async function startServer() {
 
                   io.to(account.workspaceId).emit("new-message", failedAiMsg);
                 }
+              }
+
+              // Handle AI escalation to human agent
+              if (aiResult.escalated) {
+                console.log(`[AI Escalation] Instagram conversation ${conversation.id} escalated: ${aiResult.escalationReason}`);
+
+                await prisma.conversation.update({
+                  where: { id: conversation.id },
+                  data: {
+                    aiPaused: true,
+                    internalStatus: "WAITING_FOR_INTERNAL",
+                    priority: conversation.priority === "LOW" || conversation.priority === "MEDIUM" ? "HIGH" : conversation.priority,
+                  },
+                });
+
+                await prisma.activityLog.create({
+                  data: {
+                    type: "AI_HANDOFF",
+                    content: `AI escalated to human agent. Reason: ${aiResult.escalationReason}`,
+                    contactId: contact.id,
+                    workspaceId: account.workspaceId,
+                    conversationId: conversation.id,
+                  },
+                });
+
+                io.to(account.workspaceId).emit("ai-escalation", {
+                  conversationId: conversation.id,
+                  contactName: contact.name || "Unknown",
+                  reason: aiResult.escalationReason,
+                  timestamp: new Date().toISOString(),
+                });
+
+                io.to(account.workspaceId).emit("conversation-updated", conversation.id);
               }
             }
           }
