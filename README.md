@@ -89,6 +89,10 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### March 25, 2026 (Update 4 — Hotfix)
+
+- **Follow-up Sequences page fix**: Fixed "Failed to load data" error — page was calling `/api/templates` (non-existent) instead of `/api/templates/whatsapp`
+
 ### March 25, 2026 (Update 3)
 
 - **AI-to-Human Escalation System**: The AI chatbot now automatically detects when it can't help a customer and escalates to a human agent
