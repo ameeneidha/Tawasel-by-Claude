@@ -54,7 +54,7 @@ export default function FollowUps() {
     try {
       const [seqRes, tplRes] = await Promise.all([
         axios.get(`/api/follow-up-sequences?workspaceId=${workspaceId}`),
-        axios.get(`/api/templates?workspaceId=${workspaceId}`)
+        axios.get(`/api/templates/whatsapp?workspaceId=${workspaceId}`)
       ]);
       setSequences(seqRes.data);
       setTemplates(tplRes.data.filter((t: Template) => t.status === 'APPROVED'));
