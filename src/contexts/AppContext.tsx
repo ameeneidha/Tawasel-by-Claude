@@ -15,6 +15,10 @@ interface VerificationRequestResult {
   verificationUrl?: string;
 }
 
+interface WorkspaceMembership {
+  role: 'OWNER' | 'ADMIN' | 'USER';
+}
+
 interface Workspace {
   id: string;
   name: string;
@@ -25,6 +29,7 @@ interface Workspace {
   subscriptionStatus?: string | null;
   subscriptionCurrentPeriodEnd?: string | null;
   subscriptionCancelAtPeriodEnd?: boolean;
+  membership?: WorkspaceMembership;
 }
 
 interface ConnectedAccount {
@@ -47,6 +52,7 @@ interface AppContextType {
   hasVerifiedEmail: boolean;
   hasActiveSubscription: boolean;
   hasFullAccess: boolean;
+  workspaceRole: 'OWNER' | 'ADMIN' | 'USER';
   setUser: (user: User | null, token: string | null, rememberMe?: boolean) => void;
   setActiveWorkspace: (workspace: Workspace | null) => void;
   switchAccount: (accountId: string) => Promise<void>;
@@ -356,6 +362,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const hasVerifiedEmail = !!user?.emailVerified;
   const hasActiveSubscription = ['active', 'trialing'].includes((activeWorkspace?.subscriptionStatus || '').toLowerCase());
   const hasFullAccess = isSuperadmin || (hasVerifiedEmail && hasActiveSubscription);
+  const workspaceRole: 'OWNER' | 'ADMIN' | 'USER' = (activeWorkspace?.membership?.role as 'OWNER' | 'ADMIN' | 'USER') || 'USER';
 
   return (
     <AppContext.Provider value={{ 
@@ -368,7 +375,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       hasVerifiedEmail,
       hasActiveSubscription,
       hasFullAccess,
-      setUser: handleSetUser, 
+      workspaceRole,
+      setUser: handleSetUser,
       setActiveWorkspace: handleSetActiveWorkspace,
       switchAccount,
       logout,

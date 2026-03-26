@@ -89,6 +89,19 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### March 26, 2026 (Update 2)
+
+- **Role-Based Access Control (RBAC)**: Enforced authority levels across all API routes and frontend navigation
+  - **SUPERADMIN** (SaaS Owner): Platform-wide admin dashboard — view all workspaces, users, billing, and usage
+  - **OWNER** (Business Owner): Full workspace access — billing, team, channels, chatbots, and all settings
+  - **ADMIN** (Team Manager): Full operational access — chatbots, channels, broadcasts, templates, auto-assign, follow-ups, campaigns, services, staff. Cannot manage billing or delete workspace
+  - **USER** (Agent): Day-to-day operations — inbox, CRM, contacts, appointments, compose messages. Cannot access admin settings
+  - `requireRole('ADMIN', 'OWNER')` middleware applied to 28 sensitive routes (chatbots, channels, templates, team, auto-assign, follow-ups, services, staff, campaigns)
+  - `requireRole('OWNER')` applied to 3 billing routes
+  - Sidebar navigation auto-filters based on user role — agents only see pages they can access
+  - Workspace API now returns membership role to frontend
+  - `workspaceRole` exposed in AppContext for component-level role checks
+
 ### March 26, 2026
 
 - **Mobile Responsive Layout**: Full mobile support for the entire app

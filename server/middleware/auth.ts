@@ -408,6 +408,56 @@ export const enforceMonthlyAppointmentLimit = async (
   return true;
 };
 
+// ── Role-Based Access Control ──────────────────────────────────
+
+/**
+ * Middleware factory that checks if the user's workspace membership role
+ * is sufficient for the route.
+ *
+ * Usage:
+ *   requireRole('ADMIN', 'OWNER')  — ADMIN or OWNER can access
+ *   requireRole('OWNER')           — only OWNER can access
+ *
+ * Must be placed AFTER requireAuth in the middleware chain.
+ */
+export const requireRole = (...allowedRoles: string[]) => {
+  return async (req: any, res: any, next: any) => {
+    const workspaceId =
+      req.headers["x-workspace-id"] ||
+      req.body?.workspaceId ||
+      req.query?.workspaceId;
+
+    if (!workspaceId) {
+      return res.status(400).json({ error: "Workspace ID required" });
+    }
+
+    const membership = await prisma.workspaceMembership.findFirst({
+      where: {
+        workspaceId,
+        userId: req.user.userId,
+      },
+    });
+
+    if (!membership) {
+      return res.status(403).json({ error: "Workspace access denied" });
+    }
+
+    const userRole = String(membership.role || "").toUpperCase();
+
+    // OWNER can always access everything
+    if (userRole === "OWNER") return next();
+
+    // Check if user's role is in the allowed roles
+    if (allowedRoles.map((r) => r.toUpperCase()).includes(userRole)) {
+      return next();
+    }
+
+    return res.status(403).json({
+      error: `This action requires ${allowedRoles.join(" or ")} role`,
+    });
+  };
+};
+
 // ── Meta Signature Verification ────────────────────────────────────
 
 export const verifyMetaSignature = (req: any) => {

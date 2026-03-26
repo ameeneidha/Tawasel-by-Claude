@@ -40,7 +40,7 @@ import {
   requireSubscribedWorkspaceManagerById, requireSubscribedWorkspaceManagerFromBody,
   requireSubscribedConversation, requireSubscribedContact, requireSubscribedTask,
   enforceWorkspacePlanLimit, enforceMonthlyAppointmentLimit, verifyMetaSignature,
-  businessRateLimiter,
+  businessRateLimiter, requireRole,
 } from "./server/middleware/index.js";
 
 import {
@@ -801,7 +801,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/meta/embedded-signup/resolve-assets", requireAuth, async (req, res) => {
+  app.post("/api/meta/embedded-signup/resolve-assets", requireAuth, requireRole('ADMIN', 'OWNER'), async (req, res) => {
     const accessToken = String(req.body.accessToken || '').trim();
     const businessId = String(req.body.businessId || '').trim();
     const wabaId = String(req.body.wabaId || '').trim();
@@ -827,7 +827,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/meta/embedded-signup/finalize", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
+  app.post("/api/meta/embedded-signup/finalize", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req, res) => {
     const {
       workspaceId,
       phoneNumberId,
@@ -901,7 +901,7 @@ async function startServer() {
   });
 
   // Stripe Checkout
-  app.post("/api/billing/create-checkout-session", requireAuth, requireVerifiedEmail, async (req, res) => {
+  app.post("/api/billing/create-checkout-session", requireAuth, requireRole('OWNER'), requireVerifiedEmail, async (req, res) => {
     if (!stripe) return res.status(500).json({ error: "Stripe not configured" });
     const { planId, planKey, workspaceId, successUrl, cancelUrl } = req.body;
 
@@ -928,7 +928,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/billing/create-portal-session", requireAuth, async (req: any, res) => {
+  app.post("/api/billing/create-portal-session", requireAuth, requireRole('OWNER'), async (req: any, res) => {
     if (!stripe) return res.status(500).json({ error: "Stripe not configured" });
 
     const { workspaceId, returnUrl } = req.body;
@@ -967,7 +967,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/billing/sync-subscription", requireAuth, async (req: any, res) => {
+  app.post("/api/billing/sync-subscription", requireAuth, requireRole('OWNER'), async (req: any, res) => {
     if (!stripe) return res.status(500).json({ error: "Stripe not configured" });
     const { workspaceId } = req.body;
     if (!workspaceId) return res.status(400).json({ error: "Missing workspaceId" });
@@ -2134,7 +2134,7 @@ async function startServer() {
       where: { userId: req.user.userId },
       include: { workspace: true }
     });
-    res.json(memberships.map(m => m.workspace));
+    res.json(memberships.map(m => ({ ...m.workspace, membership: { role: m.role } })));
   });
 
   app.post("/api/workspaces", requireAuth, requireVerifiedEmail, async (req: any, res) => {
@@ -2801,7 +2801,7 @@ async function startServer() {
     res.json(templates);
   });
 
-  app.post("/api/templates/whatsapp/sync", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
+  app.post("/api/templates/whatsapp/sync", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req, res) => {
     const workspaceId = String(req.body.workspaceId || '').trim();
     if (!workspaceId) {
       return res.status(400).json({ error: "Workspace is required" });
@@ -3032,7 +3032,7 @@ async function startServer() {
     res.json(templates);
   });
 
-  app.post("/api/templates/session", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
+  app.post("/api/templates/session", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req, res) => {
     const workspaceId = String(req.body.workspaceId || '').trim();
     const name = String(req.body.name || '').trim();
     const content = String(req.body.content || '').trim();
@@ -3064,7 +3064,7 @@ async function startServer() {
     res.json(template);
   });
 
-  app.patch("/api/templates/session/:id", requireAuth, async (req, res, next) => {
+  app.patch("/api/templates/session/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req, res, next) => {
     const existingTemplate = await prisma.sessionTemplate.findUnique({
       where: { id: String(req.params.id || '').trim() }
     });
@@ -3107,7 +3107,7 @@ async function startServer() {
     res.json(template);
   });
 
-  app.delete("/api/templates/session/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/templates/session/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req, res, next) => {
     const existingTemplate = await prisma.sessionTemplate.findUnique({
       where: { id: String(req.params.id || '').trim() }
     });
@@ -3154,7 +3154,7 @@ async function startServer() {
     res.json(accounts);
   });
 
-  app.post("/api/instagram/accounts", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
+  app.post("/api/instagram/accounts", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req, res) => {
     if (!INSTAGRAM_INTEGRATION_ENABLED) {
       return res.status(403).json({ error: "Instagram is not enabled in this release" });
     }
@@ -3184,7 +3184,7 @@ async function startServer() {
     res.json(chatbots);
   });
 
-  app.post("/api/chatbots", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
+  app.post("/api/chatbots", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req, res) => {
     const { workspaceId, name, instructions } = req.body;
     if (!(await enforceWorkspacePlanLimit(res, workspaceId, 'chatbots'))) {
       return;
@@ -3201,7 +3201,7 @@ async function startServer() {
     res.json(chatbot);
   });
 
-  app.patch("/api/chatbots/:id", requireAuth, async (req, res, next) => {
+  app.patch("/api/chatbots/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req, res, next) => {
     const chatbot = await prisma.chatbot.findUnique({ where: { id: req.params.id } });
     return requireSubscribedWorkspaceById(req, res, next, chatbot?.workspaceId);
   }, async (req, res) => {
@@ -3305,7 +3305,7 @@ async function startServer() {
     res.json(members.map(sanitizeMembership));
   });
 
-  app.post("/api/team", requireAuth, requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+  app.post("/api/team", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req: any, res) => {
     const { workspaceId, name, email, password, role } = req.body;
 
     if (!workspaceId || !name?.trim() || !email?.trim()) {
@@ -3410,7 +3410,7 @@ async function startServer() {
     res.json(sanitizeMembership(teamMember));
   });
 
-  app.patch("/api/team/:id", requireAuth, requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+  app.patch("/api/team/:id", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req: any, res) => {
     const { workspaceId, name, role, status } = req.body;
     const membershipId = req.params.id;
 
@@ -3492,7 +3492,7 @@ async function startServer() {
     res.json(sanitizeMembership(updatedMembership));
   });
 
-  app.delete("/api/team/:id", requireAuth, requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+  app.delete("/api/team/:id", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req: any, res) => {
     const { workspaceId } = req.body;
     const membershipId = req.params.id;
 
@@ -4327,7 +4327,7 @@ async function startServer() {
     res.json(rules);
   });
 
-  app.post("/api/automation/rules", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
+  app.post("/api/automation/rules", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req, res) => {
     const { name, trigger, conditions, actions, workspaceId } = req.body;
     if (!(await enforceWorkspacePlanLimit(res, workspaceId, 'automations'))) {
       return;
@@ -4354,7 +4354,7 @@ async function startServer() {
     res.json(rules);
   });
 
-  app.post("/api/assignment-rules", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
+  app.post("/api/assignment-rules", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req, res) => {
     const { name, strategy, conditions, agentIds, priority, workspaceId } = req.body;
     const rule = await prisma.assignmentRule.create({
       data: {
@@ -4369,7 +4369,7 @@ async function startServer() {
     res.json(rule);
   });
 
-  app.patch("/api/assignment-rules/:id", requireAuth, async (req: any, res) => {
+  app.patch("/api/assignment-rules/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req: any, res) => {
     const rule = await prisma.assignmentRule.findUnique({ where: { id: req.params.id } });
     if (!rule) return res.status(404).json({ error: "Rule not found" });
 
@@ -4385,7 +4385,7 @@ async function startServer() {
     res.json(updated);
   });
 
-  app.delete("/api/assignment-rules/:id", requireAuth, async (req: any, res) => {
+  app.delete("/api/assignment-rules/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req: any, res) => {
     await prisma.assignmentRule.delete({ where: { id: req.params.id } });
     res.json({ success: true });
   });
@@ -4404,7 +4404,7 @@ async function startServer() {
     res.json(sequences);
   });
 
-  app.post("/api/follow-up-sequences", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
+  app.post("/api/follow-up-sequences", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req, res) => {
     const { name, triggerType, steps, workspaceId } = req.body;
     const sequence = await prisma.followUpSequence.create({
       data: {
@@ -4425,7 +4425,7 @@ async function startServer() {
     res.json(sequence);
   });
 
-  app.patch("/api/follow-up-sequences/:id", requireAuth, async (req: any, res) => {
+  app.patch("/api/follow-up-sequences/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req: any, res) => {
     const seq = await prisma.followUpSequence.findUnique({ where: { id: req.params.id } });
     if (!seq) return res.status(404).json({ error: "Sequence not found" });
 
@@ -4464,7 +4464,7 @@ async function startServer() {
     res.json(final);
   });
 
-  app.delete("/api/follow-up-sequences/:id", requireAuth, async (req: any, res) => {
+  app.delete("/api/follow-up-sequences/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req: any, res) => {
     await prisma.followUpSequence.delete({ where: { id: req.params.id } });
     res.json({ success: true });
   });
@@ -4568,7 +4568,7 @@ async function startServer() {
     res.json(campaign);
   });
 
-  app.post("/api/campaigns/test", requireAuth, upload.single('headerImage'), requireSubscribedWorkspaceFromBody, async (req, res) => {
+  app.post("/api/campaigns/test", requireAuth, requireRole('ADMIN', 'OWNER'), upload.single('headerImage'), requireSubscribedWorkspaceFromBody, async (req, res) => {
     const { workspaceId, name, numberId, phoneNumber, messageBody } = req.body;
     const headerImage = req.file as Express.Multer.File | undefined;
 
@@ -4618,7 +4618,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/campaigns", requireAuth, businessRateLimiter('campaigns'), upload.single('headerImage'), requireSubscribedWorkspaceFromBody, async (req, res) => {
+  app.post("/api/campaigns", requireAuth, requireRole('ADMIN', 'OWNER'), businessRateLimiter('campaigns'), upload.single('headerImage'), requireSubscribedWorkspaceFromBody, async (req, res) => {
     const { workspaceId, name, numberId, audienceType, audienceId, sendMode, messageBody, templateId } = req.body;
     const headerImage = req.file as Express.Multer.File | undefined;
 
@@ -5278,7 +5278,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/services", requireAuth, requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+  app.post("/api/services", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req: any, res) => {
     const { workspaceId, name, description, durationMin, price, currency, color } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: "Service name is required" });
     if (!(await enforceWorkspacePlanLimit(res, workspaceId, "services"))) return;
@@ -5302,7 +5302,7 @@ async function startServer() {
     }
   });
 
-  app.patch("/api/services/:id", requireAuth, async (req: any, res) => {
+  app.patch("/api/services/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req: any, res) => {
     try {
       const service = await prisma.service.findUnique({ where: { id: req.params.id } });
       if (!service) return res.status(404).json({ error: "Service not found" });
@@ -5328,7 +5328,7 @@ async function startServer() {
     }
   });
 
-  app.delete("/api/services/:id", requireAuth, async (req: any, res) => {
+  app.delete("/api/services/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req: any, res) => {
     try {
       const service = await prisma.service.findUnique({ where: { id: req.params.id } });
       if (!service) return res.status(404).json({ error: "Service not found" });
@@ -5359,7 +5359,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/staff", requireAuth, requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+  app.post("/api/staff", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req: any, res) => {
     const { workspaceId, name, phone, email, workingHours, serviceIds } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: "Staff name is required" });
     if (!(await enforceWorkspacePlanLimit(res, workspaceId, "staffMembers"))) return;
@@ -5393,7 +5393,7 @@ async function startServer() {
     }
   });
 
-  app.patch("/api/staff/:id", requireAuth, async (req: any, res) => {
+  app.patch("/api/staff/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req: any, res) => {
     try {
       const staff = await prisma.staffMember.findUnique({ where: { id: req.params.id } });
       if (!staff) return res.status(404).json({ error: "Staff member not found" });
@@ -5428,7 +5428,7 @@ async function startServer() {
     }
   });
 
-  app.delete("/api/staff/:id", requireAuth, async (req: any, res) => {
+  app.delete("/api/staff/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req: any, res) => {
     try {
       const staff = await prisma.staffMember.findUnique({ where: { id: req.params.id } });
       if (!staff) return res.status(404).json({ error: "Staff member not found" });

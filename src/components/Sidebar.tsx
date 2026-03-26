@@ -37,31 +37,34 @@ import { motion } from 'motion/react';
 import AppTooltip from './AppTooltip';
 
 const navItems = [
-  { icon: BarChart3, label: 'Dashboard', path: '/app/dashboard' },
-  { icon: MessageSquare, label: 'Inbox', path: '/app/inbox' },
-  { icon: LayoutGrid, label: 'CRM Pipeline', path: '/app/crm' },
-  { icon: ContactRound, label: 'Contacts', path: '/app/contacts' },
-  { icon: CalendarCheck, label: 'Appointments', path: '/app/appointments' },
-  { icon: Send, label: 'Compose', path: '/app/compose' },
-  { icon: Radio, label: 'Broadcast', path: '/app/broadcast' },
-  { icon: FileText, label: 'Templates', path: '/app/templates' },
-  { icon: Bot, label: 'AI Chatbots', path: '/app/chatbots' },
-  { icon: Link2, label: 'Campaigns', path: '/app/campaigns' },
-  { icon: Route, label: 'Auto-Assign', path: '/app/auto-assign' },
-  { icon: RefreshCw, label: 'Follow-ups', path: '/app/follow-ups' },
-  { icon: Zap, label: 'Integrations', path: '/app/integrations' },
-  { icon: Hash, label: 'Channels', path: '/app/channels' },
+  { icon: BarChart3, label: 'Dashboard', path: '/app/dashboard', minRole: 'USER' as const },
+  { icon: MessageSquare, label: 'Inbox', path: '/app/inbox', minRole: 'USER' as const },
+  { icon: LayoutGrid, label: 'CRM Pipeline', path: '/app/crm', minRole: 'USER' as const },
+  { icon: ContactRound, label: 'Contacts', path: '/app/contacts', minRole: 'USER' as const },
+  { icon: CalendarCheck, label: 'Appointments', path: '/app/appointments', minRole: 'USER' as const },
+  { icon: Send, label: 'Compose', path: '/app/compose', minRole: 'USER' as const },
+  { icon: Radio, label: 'Broadcast', path: '/app/broadcast', minRole: 'ADMIN' as const },
+  { icon: FileText, label: 'Templates', path: '/app/templates', minRole: 'ADMIN' as const },
+  { icon: Bot, label: 'AI Chatbots', path: '/app/chatbots', minRole: 'ADMIN' as const },
+  { icon: Link2, label: 'Campaigns', path: '/app/campaigns', minRole: 'ADMIN' as const },
+  { icon: Route, label: 'Auto-Assign', path: '/app/auto-assign', minRole: 'ADMIN' as const },
+  { icon: RefreshCw, label: 'Follow-ups', path: '/app/follow-ups', minRole: 'ADMIN' as const },
+  { icon: Zap, label: 'Integrations', path: '/app/integrations', minRole: 'ADMIN' as const },
+  { icon: Hash, label: 'Channels', path: '/app/channels', minRole: 'ADMIN' as const },
 ];
+
+const roleLevel: Record<string, number> = { USER: 1, ADMIN: 2, OWNER: 3 };
 
 export default function Sidebar() {
   const location = useLocation();
-  const { user, workspaces, activeWorkspace, setActiveWorkspace, logout, hasFullAccess, isSuperadmin } = useApp();
+  const { user, workspaces, activeWorkspace, setActiveWorkspace, logout, hasFullAccess, isSuperadmin, workspaceRole } = useApp();
   const { theme, toggleTheme } = useTheme();
   const { isOpen, close } = useSidebar();
   const displayName = getDisplayName(user?.name, user?.email);
+  const userRoleLevel = roleLevel[workspaceRole] || 1;
   const visibleNavItems = isSuperadmin
-    ? [{ icon: ShieldAlert, label: 'Superadmin', path: '/app/superadmin' }]
-    : navItems;
+    ? [{ icon: ShieldAlert, label: 'Superadmin', path: '/app/superadmin', minRole: 'USER' as const }]
+    : navItems.filter(item => userRoleLevel >= (roleLevel[item.minRole] || 1));
 
   return (
     <>
@@ -184,7 +187,7 @@ export default function Sidebar() {
                 </DropdownMenu.Item>
               )}
 
-              {!isSuperadmin && (
+              {!isSuperadmin && userRoleLevel >= roleLevel.ADMIN && (
                 <DropdownMenu.Item asChild>
                   <Link to="/app/team" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer outline-none hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                     <Users className="w-4 h-4" />

@@ -19,6 +19,7 @@ export {
   enforceWorkspacePlanLimit,
   enforceMonthlyAppointmentLimit,
   verifyMetaSignature,
+  requireRole,
 } from "./auth.js";
 
 export { businessRateLimiter } from "./rateLimiter.js";

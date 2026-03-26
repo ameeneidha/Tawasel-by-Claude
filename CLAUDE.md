@@ -27,6 +27,7 @@
 ## Key Patterns
 - Multi-tenant: everything scoped by workspaceId
 - Auth: requireAuth middleware → req.user, workspace membership check
+- RBAC: requireRole('ADMIN', 'OWNER') middleware for sensitive routes, requireRole('OWNER') for billing
 - Plan limits: enforceWorkspacePlanLimit('resource', res, workspaceId) middleware
 - API: Express routes in server.ts with Prisma queries
 - Frontend state: useApp() context hook for workspace/user data
@@ -79,6 +80,9 @@ npx vite build       # Production build
 - Mobile responsive layout — sidebar overlay, mobile top bar, full-screen inbox chat with back arrow
 - SVG favicon — green chat bubble with white T
 - Quote reply in inbox with image thumbnail previews
+- Role-based access control (RBAC) — requireRole middleware on 31 routes, sidebar filters by role
+- Four authority levels: SUPERADMIN → OWNER → ADMIN → USER
+- workspaceRole exposed in AppContext for frontend role checks
 
 ## Potential Next Features
 - Calendar view with drag-to-reschedule (react-big-calendar)
