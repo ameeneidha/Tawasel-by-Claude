@@ -1,13 +1,15 @@
 import { Outlet, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useApp } from '../contexts/AppContext';
-import { AlertCircle, CheckCircle2, CreditCard, Loader2, Lock } from 'lucide-react';
+import { useSidebar } from '../contexts/SidebarContext';
+import { AlertCircle, CheckCircle2, CreditCard, Loader2, Lock, Menu } from 'lucide-react';
 import { useState } from 'react';
 
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isLoading, requestEmailVerification, hasVerifiedEmail, hasActiveSubscription, hasFullAccess, isSuperadmin } = useApp();
+  const { toggle } = useSidebar();
   const [isVerifying, setIsVerifying] = useState(false);
 
   if (isLoading) {
@@ -55,7 +57,20 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-[#F8F9FA] dark:bg-slate-950 overflow-hidden transition-colors">
+    <div className="flex flex-col h-screen bg-[#F8F9FA] dark:bg-slate-950 overflow-hidden transition-colors">
+      {/* Mobile top bar */}
+      <div className="md:hidden flex items-center h-14 px-4 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+        <button onClick={toggle} className="text-gray-600 dark:text-gray-300">
+          <Menu className="w-6 h-6" />
+        </button>
+        <div className="ml-3 flex items-center gap-2">
+          <div className="w-7 h-7 bg-[#25D366] rounded-lg flex items-center justify-center text-white font-bold text-sm">
+            T
+          </div>
+          <span className="font-bold text-lg text-gray-900 dark:text-white">Tawasel</span>
+        </div>
+      </div>
+      <div className="flex flex-1 min-h-0">
       <Sidebar />
       <main className="flex-1 min-h-0 overflow-hidden relative flex flex-col">
         {!isSuperadmin && !hasVerifiedEmail && (
@@ -93,6 +108,7 @@ export default function AppLayout() {
           <Outlet />
         </div>
       </main>
+      </div>
     </div>
   );
 }

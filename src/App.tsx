@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './contexts/AppContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { SidebarProvider } from './contexts/SidebarContext';
 import AppLayout from './layouts/AppLayout';
 import Login from './pages/Login';
 import Home from './pages/Home';
@@ -43,6 +44,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <AppProvider>
+        <SidebarProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -89,6 +91,7 @@ export default function App() {
           </Routes>
         </BrowserRouter>
         <Toaster position="top-right" />
+        </SidebarProvider>
       </AppProvider>
     </ThemeProvider>
   );

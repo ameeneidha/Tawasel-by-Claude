@@ -27,7 +27,9 @@ import {
   BotOff,
   Reply,
   X,
-  Trash2
+  Trash2,
+  ArrowLeft,
+  PanelRightOpen
 } from 'lucide-react';
 import { cn, getDisplayName } from '../lib/utils';
 import { format } from 'date-fns';
@@ -325,6 +327,7 @@ export default function Inbox() {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [slaBreachAlert, setSlaBreachAlert] = useState<string | null>(null);
+  const [mobileContactPanel, setMobileContactPanel] = useState(false);
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -1004,7 +1007,10 @@ export default function Inbox() {
   return (
     <div className="h-full flex bg-white dark:bg-slate-950 transition-colors">
       {/* Left Column: Conversation List */}
-      <div className="w-80 border-r border-gray-100 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-colors">
+      <div className={cn(
+        "w-full md:w-80 border-r border-gray-100 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-colors",
+        selectedConv && "hidden md:flex"
+      )}>
         {isRestrictedMode && (
           <div className="mx-4 mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
             {hasVerifiedEmail
@@ -1230,7 +1236,10 @@ export default function Inbox() {
       </div>
 
       {/* Center Column: Chat Timeline */}
-      <div className="flex-1 flex flex-col bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
+      <div className={cn(
+        "flex-1 flex flex-col bg-[#F8F9FA] dark:bg-slate-950 transition-colors",
+        !selectedConv && "hidden md:flex"
+      )}>
         {slaBreachAlert && (
           <div className="bg-red-500 text-white px-6 py-2 text-xs font-bold flex items-center justify-between animate-pulse shrink-0">
             <div className="flex items-center gap-2">
@@ -1247,8 +1256,14 @@ export default function Inbox() {
         )}
         {selectedConv ? (
           <>
-            <div className="h-16 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-6 flex items-center justify-between shrink-0 transition-colors">
+            <div className="h-16 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-4 md:px-6 flex items-center justify-between shrink-0 transition-colors">
               <div className="flex items-center gap-3">
+                <button
+                  className="md:hidden mr-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  onClick={() => setSelectedConv(null)}
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
                 <div className="w-8 h-8 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400">
                   <User className="w-4 h-4" />
                 </div>
@@ -1300,7 +1315,7 @@ export default function Inbox() {
                   )}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-3">
+              <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
                 {conversationHasAiBot(selectedConv) && (
                   <AppTooltip
                     content={
@@ -1359,7 +1374,7 @@ export default function Inbox() {
                     />
                   </div>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700">
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700">
                   <span className="text-xs text-gray-500 dark:text-gray-400">Assigned to:</span>
                   <select
                     value={selectedConv.assignedToId || ''}
@@ -1371,7 +1386,7 @@ export default function Inbox() {
                     {/* In a real app, we'd fetch all team members here */}
                   </select>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700">
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700">
                   <span className="text-xs text-gray-500 dark:text-gray-400">From:</span>
                     <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                       {selectedConv.channelType === 'INSTAGRAM' 
@@ -1383,6 +1398,12 @@ export default function Inbox() {
                       : selectedConv.contact.phoneNumber || selectedConv.number?.phoneNumber || 'No customer number'}
                     </span>
                   </div>
+                <button
+                  className="md:hidden p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
+                  onClick={() => setMobileContactPanel(true)}
+                >
+                  <PanelRightOpen className="w-5 h-5" />
+                </button>
                 <div className="relative">
                   <AppTooltip content="Conversation actions" side="bottom">
                     <button
@@ -1845,12 +1866,31 @@ export default function Inbox() {
         )}
       </div>
 
+      {/* Mobile backdrop for contact panel */}
+      {mobileContactPanel && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setMobileContactPanel(false)}
+        />
+      )}
       {/* Right Column: Contact Info / Tasks / Activity */}
-      <div className="w-80 border-l border-gray-100 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-colors">
+      <div className={cn(
+        "w-80 border-l border-gray-100 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-all duration-300",
+        "fixed inset-y-0 right-0 z-50 md:relative md:translate-x-0",
+        mobileContactPanel ? "translate-x-0" : "translate-x-full md:translate-x-0",
+        "hidden md:flex",
+        mobileContactPanel && "flex"
+      )}>
         {selectedConv && (
           <>
             <div className="flex border-b border-gray-100 dark:border-slate-800 shrink-0">
-              <button 
+              <button
+                className="md:hidden px-3 py-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                onClick={() => setMobileContactPanel(false)}
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <button
                 onClick={() => setRightTab('info')}
                 className={cn(
                   "flex-1 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all",

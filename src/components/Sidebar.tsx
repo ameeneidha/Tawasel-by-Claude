@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useSidebar } from '../contexts/SidebarContext';
 import { cn, getDisplayName } from '../lib/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { motion } from 'motion/react';
@@ -56,13 +57,26 @@ export default function Sidebar() {
   const location = useLocation();
   const { user, workspaces, activeWorkspace, setActiveWorkspace, logout, hasFullAccess, isSuperadmin } = useApp();
   const { theme, toggleTheme } = useTheme();
+  const { isOpen, close } = useSidebar();
   const displayName = getDisplayName(user?.name, user?.email);
   const visibleNavItems = isSuperadmin
     ? [{ icon: ShieldAlert, label: 'Superadmin', path: '/app/superadmin' }]
     : navItems;
 
   return (
-    <div className="w-20 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 flex flex-col items-center py-6 h-screen sticky top-0 transition-colors">
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={close}
+        />
+      )}
+      <div className={cn(
+        "fixed inset-y-0 left-0 z-50 w-20 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 flex flex-col items-center py-6 h-screen transition-all duration-300",
+        "md:relative md:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
       <div className="mb-8">
         <div className="w-10 h-10 bg-[#25D366] rounded-xl flex items-center justify-center text-white font-bold text-xl">
           T
@@ -78,6 +92,7 @@ export default function Sidebar() {
               <AppTooltip content={isLocked ? `${item.label} locked until subscription` : item.label}>
                 <Link
                   to={isLocked ? '/app/settings/billing/plans' : item.path}
+                  onClick={close}
                   className={cn(
                     "w-12 h-12 rounded-xl flex items-center justify-center transition-all relative",
                     isActive 
@@ -237,5 +252,6 @@ export default function Sidebar() {
         </DropdownMenu.Root>
       </div>
     </div>
+    </>
   );
 }
