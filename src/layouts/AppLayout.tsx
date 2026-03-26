@@ -8,7 +8,7 @@ import { useState } from 'react';
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isLoading, requestEmailVerification, hasVerifiedEmail, hasActiveSubscription, hasFullAccess, isSuperadmin } = useApp();
+  const { user, isLoading, requestEmailVerification, hasVerifiedEmail, hasActiveSubscription, hasFullAccess, isSuperadmin, isImpersonating, impersonatingWorkspaceName, stopImpersonation } = useApp();
   const { toggle } = useSidebar();
   const [isVerifying, setIsVerifying] = useState(false);
 
@@ -24,7 +24,7 @@ export default function AppLayout() {
     return <Navigate to="/login" replace />;
   }
 
-  if (isSuperadmin && !location.pathname.startsWith('/app/superadmin')) {
+  if (isSuperadmin && !isImpersonating && !location.pathname.startsWith('/app/superadmin')) {
     return <Navigate to="/app/superadmin" replace />;
   }
 
@@ -73,7 +73,24 @@ export default function AppLayout() {
       <div className="flex flex-1 min-h-0">
       <Sidebar />
       <main className="flex-1 min-h-0 overflow-hidden relative flex flex-col">
-        {!isSuperadmin && !hasVerifiedEmail && (
+        {isImpersonating && (
+          <div className="bg-amber-400 px-4 py-2 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2 text-amber-900 text-sm font-bold">
+              <AlertCircle className="w-4 h-4" />
+              <span>You are impersonating: {impersonatingWorkspaceName || 'Workspace'}</span>
+            </div>
+            <button
+              onClick={async () => {
+                await stopImpersonation();
+                navigate('/app/superadmin');
+              }}
+              className="px-3 py-1 bg-amber-900 hover:bg-amber-950 text-white text-xs font-bold rounded-lg transition-colors"
+            >
+              Exit Impersonation
+            </button>
+          </div>
+        )}
+        {!isSuperadmin && !isImpersonating && !hasVerifiedEmail && (
           <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-900/30 px-4 py-2 flex items-center justify-between">
             <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 text-sm font-medium">
               <AlertCircle className="w-4 h-4" />
@@ -89,7 +106,7 @@ export default function AppLayout() {
             </button>
           </div>
         )}
-        {!isSuperadmin && hasVerifiedEmail && !hasActiveSubscription && (
+        {!isSuperadmin && !isImpersonating && hasVerifiedEmail && !hasActiveSubscription && (
           <div className="bg-blue-50 border-b border-blue-100 px-4 py-2 flex items-center justify-between">
             <div className="flex items-center gap-2 text-blue-700 text-sm font-medium">
               <Lock className="w-4 h-4" />

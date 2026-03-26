@@ -8,6 +8,7 @@ import {
   authRateLimitStore,
   SUPERADMIN_EMAIL,
   getWorkspacePlanLimits,
+  resolveWorkspacePlanLimits,
 } from "../config.js";
 
 // ── Core Auth ──────────────────────────────────────────────────────
@@ -82,10 +83,18 @@ export const requireWorkspaceAccessById = async (
 
   const membership = await prisma.workspaceMembership.findFirst({
     where: { workspaceId, userId: req.user.userId },
+    include: { workspace: { select: { suspended: true } } },
   });
 
   if (!membership) {
     return res.status(403).json({ error: "Workspace access denied" });
+  }
+
+  // Block access to suspended workspaces (superadmins bypass)
+  const user = await prisma.user.findUnique({ where: { id: req.user.userId }, select: { email: true } });
+  const isSuperadmin = user && String(user.email || "").toLowerCase() === SUPERADMIN_EMAIL;
+  if ((membership.workspace as any)?.suspended && !isSuperadmin) {
+    return res.status(403).json({ error: "This workspace has been suspended. Contact support." });
   }
 
   next();
@@ -331,7 +340,7 @@ export const enforceWorkspacePlanLimit = async (
 
   const workspace = await prisma.workspace.findUnique({
     where: { id: workspaceId },
-    select: { id: true, plan: true },
+    select: { id: true, plan: true, planOverride: true, planOverrideUntil: true },
   });
 
   if (!workspace) {
@@ -339,7 +348,7 @@ export const enforceWorkspacePlanLimit = async (
     return false;
   }
 
-  const limits = getWorkspacePlanLimits(workspace.plan);
+  const limits = resolveWorkspacePlanLimits(workspace);
 
   const countMap: Record<string, () => Promise<number>> = {
     whatsapp: () => prisma.whatsAppNumber.count({ where: { workspaceId } }),
@@ -382,7 +391,7 @@ export const enforceMonthlyAppointmentLimit = async (
 ) => {
   const workspace = await prisma.workspace.findUnique({
     where: { id: workspaceId },
-    select: { id: true, plan: true },
+    select: { id: true, plan: true, planOverride: true, planOverrideUntil: true },
   });
 
   if (!workspace) {
@@ -390,7 +399,7 @@ export const enforceMonthlyAppointmentLimit = async (
     return false;
   }
 
-  const limits = getWorkspacePlanLimits(workspace.plan);
+  const limits = resolveWorkspacePlanLimits(workspace);
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 

@@ -49,6 +49,8 @@ interface AppContextType {
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
   isSuperadmin: boolean;
+  isImpersonating: boolean;
+  impersonatingWorkspaceName: string | null;
   hasVerifiedEmail: boolean;
   hasActiveSubscription: boolean;
   hasFullAccess: boolean;
@@ -60,11 +62,13 @@ interface AppContextType {
   signOutAllAccounts: () => void;
   requestEmailVerification: () => Promise<VerificationRequestResult>;
   refreshWorkspaces: () => Promise<void>;
+  startImpersonation: (workspaceId: string, workspaceName: string) => Promise<void>;
+  stopImpersonation: () => Promise<void>;
   isLoading: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
-const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || '').trim().toLowerCase();
+const SUPERADMIN_EMAIL = (import.meta.env.VITE_SUPERADMIN_EMAIL || '').trim().toLowerCase();
 const CONNECTED_ACCOUNTS_STORAGE_KEY = 'connectedAccounts';
 const isSuperadminUser = (user: User | null) => (user?.email || '').toLowerCase() === SUPERADMIN_EMAIL;
 
@@ -112,6 +116,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isImpersonating, setIsImpersonating] = useState(false);
+  const [impersonatingWorkspaceName, setImpersonatingWorkspaceName] = useState<string | null>(null);
+  const [impersonatingWorkspaceId, setImpersonatingWorkspaceId] = useState<string | null>(null);
 
   const persistConnectedAccounts = (accounts: ConnectedAccount[]) => {
     const sorted = [...accounts].sort((a, b) => new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime());
@@ -358,20 +365,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await fetchWorkspaces(user.id, localStorage.getItem('activeWorkspaceId'));
   };
 
+  const startImpersonation = async (workspaceId: string, workspaceName: string) => {
+    try {
+      await axios.post(`/api/superadmin/impersonate/${workspaceId}`);
+      // Now fetch workspaces so the impersonated workspace appears
+      const res = await axios.get('/api/workspaces');
+      const data = Array.isArray(res.data) ? res.data : [];
+      setWorkspaces(data);
+      const ws = data.find((w: Workspace) => w.id === workspaceId) || data[0];
+      if (ws) {
+        setActiveWorkspace(ws);
+        localStorage.setItem('activeWorkspaceId', ws.id);
+      }
+      setIsImpersonating(true);
+      setImpersonatingWorkspaceName(workspaceName);
+      setImpersonatingWorkspaceId(workspaceId);
+    } catch (error) {
+      console.error('Failed to impersonate workspace', error);
+      throw error;
+    }
+  };
+
+  const stopImpersonation = async () => {
+    try {
+      if (impersonatingWorkspaceId) {
+        await axios.post(`/api/superadmin/stop-impersonate/${impersonatingWorkspaceId}`);
+      }
+      setIsImpersonating(false);
+      setImpersonatingWorkspaceName(null);
+      setImpersonatingWorkspaceId(null);
+      setWorkspaces([]);
+      setActiveWorkspace(null);
+      localStorage.removeItem('activeWorkspaceId');
+    } catch (error) {
+      console.error('Failed to stop impersonation', error);
+      throw error;
+    }
+  };
+
   const isSuperadmin = isSuperadminUser(user);
   const hasVerifiedEmail = !!user?.emailVerified;
   const hasActiveSubscription = ['active', 'trialing'].includes((activeWorkspace?.subscriptionStatus || '').toLowerCase());
-  const hasFullAccess = isSuperadmin || (hasVerifiedEmail && hasActiveSubscription);
+  const hasFullAccess = isSuperadmin || isImpersonating || (hasVerifiedEmail && hasActiveSubscription);
   const workspaceRole: 'OWNER' | 'ADMIN' | 'USER' = (activeWorkspace?.membership?.role as 'OWNER' | 'ADMIN' | 'USER') || 'USER';
 
   return (
-    <AppContext.Provider value={{ 
-      user, 
+    <AppContext.Provider value={{
+      user,
       token,
       connectedAccounts,
-      workspaces, 
-      activeWorkspace, 
+      workspaces,
+      activeWorkspace,
       isSuperadmin,
+      isImpersonating,
+      impersonatingWorkspaceName,
       hasVerifiedEmail,
       hasActiveSubscription,
       hasFullAccess,
@@ -383,7 +430,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       signOutAllAccounts,
       requestEmailVerification,
       refreshWorkspaces,
-      isLoading 
+      startImpersonation,
+      stopImpersonation,
+      isLoading
     }}>
       {children}
     </AppContext.Provider>

@@ -1,16 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
+  Ban,
+  BarChart3,
   Building2,
+  CheckCircle,
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  Crown,
+  DollarSign,
   ExternalLink,
+  Eye,
   Loader2,
   MessageSquare,
+  RefreshCw,
   Search,
   ShieldCheck,
+  TrendingUp,
   UserCheck,
   Users,
   Wallet,
@@ -19,7 +29,7 @@ import {
 import { useApp } from '../contexts/AppContext';
 import { cn } from '../lib/utils';
 
-type SuperadminTab = 'overview' | 'workspaces' | 'users';
+type SuperadminTab = 'overview' | 'workspaces' | 'users' | 'analytics';
 
 type SuperadminStats = {
   totalUsers: number;
@@ -30,6 +40,25 @@ type SuperadminStats = {
   activeSubscribers: number;
   suspendedCount: number;
   planBreakdown: Record<string, number>;
+};
+
+type PlatformAnalytics = {
+  totalWorkspaces: number;
+  totalUsers: number;
+  totalMessages: number;
+  totalConversations: number;
+  activeWorkspaces30d: number;
+  messagesLast30d: number;
+  messagesLast7d: number;
+  messagesToday: number;
+  mrr: number;
+  planDistribution: Record<string, number>;
+  topWorkspacesByMessages: Array<{
+    id: string;
+    name: string;
+    plan: string;
+    messageCount: number;
+  }>;
 };
 
 type WorkspaceMember = {
@@ -62,7 +91,11 @@ type SuperadminWorkspaceSummary = {
   slug: string;
   plan: string;
   suspended?: boolean;
+  suspendedReason?: string | null;
+  planOverride?: string | null;
+  planOverrideUntil?: string | null;
   subscriptionStatus?: string | null;
+  stripeCustomerId?: string | null;
   createdAt: string;
   members: WorkspaceMember[];
   _count?: WorkspaceCounts;
@@ -114,8 +147,11 @@ type SuperadminUsersResponse = {
   users: SuperadminUser[];
 };
 
+type ModalType = 'suspend' | 'override' | 'refund' | null;
+
 const tabs: Array<{ id: SuperadminTab; label: string }> = [
   { id: 'overview', label: 'Overview' },
+  { id: 'analytics', label: 'Analytics' },
   { id: 'workspaces', label: 'Workspaces' },
   { id: 'users', label: 'Users' },
 ];
@@ -128,10 +164,8 @@ const currencyFormatter = new Intl.NumberFormat('en-AE', {
 
 function formatDate(value?: string | null) {
   if (!value) return '-';
-
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return '-';
-
   return parsed.toLocaleDateString('en-AE', {
     year: 'numeric',
     month: 'short',
@@ -141,10 +175,8 @@ function formatDate(value?: string | null) {
 
 function formatDateTime(value?: string | null) {
   if (!value) return '-';
-
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return '-';
-
   return parsed.toLocaleString('en-AE', {
     year: 'numeric',
     month: 'short',
@@ -170,10 +202,7 @@ function getPlanTone(plan: string) {
 }
 
 function getStatusTone(status?: string | null, suspended?: boolean) {
-  if (suspended) {
-    return 'bg-rose-100 text-rose-700';
-  }
-
+  if (suspended) return 'bg-rose-100 text-rose-700';
   switch (String(status || '').toLowerCase()) {
     case 'active':
     case 'trialing':
@@ -260,11 +289,18 @@ function TimelineSection({
   );
 }
 
+function hasActiveOverride(ws: SuperadminWorkspaceSummary) {
+  return ws.planOverride && ws.planOverrideUntil && new Date(ws.planOverrideUntil) > new Date();
+}
+
 export default function Superadmin() {
-  const { user } = useApp();
+  const { user, startImpersonation } = useApp();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<SuperadminTab>('overview');
   const [stats, setStats] = useState<SuperadminStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [workspaces, setWorkspaces] = useState<SuperadminWorkspaceSummary[]>([]);
   const [workspacesLoading, setWorkspacesLoading] = useState(true);
   const [workspaceQuery, setWorkspaceQuery] = useState('');
@@ -276,6 +312,18 @@ export default function Superadmin() {
   const [userQuery, setUserQuery] = useState('');
   const [userPage, setUserPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
+
+  // Modal state
+  const [modalType, setModalType] = useState<ModalType>(null);
+  const [modalWorkspace, setModalWorkspace] = useState<SuperadminWorkspaceSummary | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [suspendReason, setSuspendReason] = useState('');
+  const [overridePlan, setOverridePlan] = useState('PRO');
+  const [overrideDays, setOverrideDays] = useState('30');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('requested_by_customer');
+  const [latestCharge, setLatestCharge] = useState<any>(null);
+  const [chargeLoading, setChargeLoading] = useState(false);
 
   useEffect(() => {
     const loadInitial = async () => {
@@ -300,48 +348,41 @@ export default function Superadmin() {
   }, []);
 
   useEffect(() => {
+    if (activeTab === 'analytics' && !analytics && !analyticsLoading) {
+      setAnalyticsLoading(true);
+      axios.get<PlatformAnalytics>('/api/superadmin/analytics')
+        .then(res => setAnalytics(res.data))
+        .catch(err => setError(err?.response?.data?.error || 'Failed to load analytics.'))
+        .finally(() => setAnalyticsLoading(false));
+    }
+  }, [activeTab, analytics, analyticsLoading]);
+
+  useEffect(() => {
     const loadUsers = async () => {
       setUsersLoading(true);
       setError(null);
       try {
         const response = await axios.get<SuperadminUsersResponse>('/api/superadmin/users', {
-          params: {
-            search: userQuery,
-            page: userPage,
-            limit: 12,
-          },
+          params: { search: userQuery, page: userPage, limit: 12 },
         });
         setUsers(response.data);
       } catch (err: any) {
         setError(err?.response?.data?.error || 'Failed to load users.');
-        setUsers({
-          total: 0,
-          page: 1,
-          limit: 12,
-          users: [],
-        });
+        setUsers({ total: 0, page: 1, limit: 12, users: [] });
       } finally {
         setUsersLoading(false);
       }
     };
-
     loadUsers();
   }, [userPage, userQuery]);
 
   const filteredWorkspaces = useMemo(() => {
     const term = workspaceQuery.trim().toLowerCase();
     if (!term) return workspaces;
-
     return workspaces.filter((workspace) => {
-      const memberEmails = workspace.members
-        .map((member) => member.user?.email || member.user?.name || '')
-        .join(' ')
-        .toLowerCase();
-
+      const memberEmails = workspace.members.map((m) => m.user?.email || m.user?.name || '').join(' ').toLowerCase();
       return [workspace.name, workspace.slug, workspace.plan, workspace.subscriptionStatus || '', memberEmails]
-        .join(' ')
-        .toLowerCase()
-        .includes(term);
+        .join(' ').toLowerCase().includes(term);
     });
   }, [workspaceQuery, workspaces]);
 
@@ -362,6 +403,118 @@ export default function Superadmin() {
   const closeWorkspacePanel = () => {
     setSelectedWorkspaceId(null);
     setSelectedWorkspace(null);
+  };
+
+  const refreshWorkspaces = async () => {
+    try {
+      const res = await axios.get<SuperadminWorkspaceSummary[]>('/api/superadmin/workspaces');
+      setWorkspaces(res.data);
+    } catch { /* ignore */ }
+  };
+
+  // ── Action handlers ──────────────────────────────────────────────
+
+  const openModal = (type: ModalType, workspace: SuperadminWorkspaceSummary) => {
+    setModalType(type);
+    setModalWorkspace(workspace);
+    setSuspendReason('');
+    setOverridePlan('PRO');
+    setOverrideDays('30');
+    setRefundAmount('');
+    setRefundReason('requested_by_customer');
+    setLatestCharge(null);
+
+    if (type === 'refund' && workspace.stripeCustomerId) {
+      setChargeLoading(true);
+      axios.get(`/api/superadmin/workspaces/${workspace.id}/latest-charge`)
+        .then(res => {
+          setLatestCharge(res.data.charge);
+          if (res.data.charge) {
+            setRefundAmount(String(res.data.charge.amount || ''));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setChargeLoading(false));
+    }
+  };
+
+  const closeModal = () => {
+    setModalType(null);
+    setModalWorkspace(null);
+  };
+
+  const handleSuspendToggle = async () => {
+    if (!modalWorkspace) return;
+    setModalLoading(true);
+    try {
+      if (modalWorkspace.suspended) {
+        await axios.post(`/api/superadmin/workspaces/${modalWorkspace.id}/unsuspend`);
+        toast.success(`${modalWorkspace.name} has been unsuspended.`);
+      } else {
+        await axios.post(`/api/superadmin/workspaces/${modalWorkspace.id}/suspend`, { reason: suspendReason });
+        toast.success(`${modalWorkspace.name} has been suspended.`);
+      }
+      await refreshWorkspaces();
+      closeModal();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Action failed.');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handlePlanOverride = async () => {
+    if (!modalWorkspace) return;
+    setModalLoading(true);
+    try {
+      await axios.post(`/api/superadmin/workspaces/${modalWorkspace.id}/plan-override`, {
+        plan: overridePlan,
+        durationDays: Number(overrideDays) || 30,
+      });
+      toast.success(`Plan override applied: ${overridePlan} for ${overrideDays} days.`);
+      await refreshWorkspaces();
+      closeModal();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to apply plan override.');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleRemoveOverride = async (ws: SuperadminWorkspaceSummary) => {
+    try {
+      await axios.post(`/api/superadmin/workspaces/${ws.id}/remove-plan-override`);
+      toast.success('Plan override removed.');
+      await refreshWorkspaces();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to remove override.');
+    }
+  };
+
+  const handleRefund = async () => {
+    if (!modalWorkspace) return;
+    setModalLoading(true);
+    try {
+      const res = await axios.post(`/api/superadmin/workspaces/${modalWorkspace.id}/refund`, {
+        amount: refundAmount ? Number(refundAmount) : undefined,
+        reason: refundReason,
+      });
+      toast.success(`Refund processed: ${res.data.refund?.amount} ${res.data.refund?.currency?.toUpperCase() || 'AED'} - Status: ${res.data.refund?.status}`);
+      closeModal();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to process refund.');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleImpersonate = async (ws: SuperadminWorkspaceSummary) => {
+    try {
+      await startImpersonation(ws.id, ws.name);
+      navigate('/app/dashboard');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to impersonate workspace.');
+    }
   };
 
   const totalUserPages = users ? Math.max(1, Math.ceil(users.total / users.limit)) : 1;
@@ -388,7 +541,7 @@ export default function Superadmin() {
             <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Signed in as</p>
               <p className="mt-2 text-lg font-semibold">{user?.name || 'Owner'}</p>
-              <p className="text-sm text-white/70">{user?.email || 'ameeneidha@gmail.com'}</p>
+              <p className="text-sm text-white/70">{user?.email || ''}</p>
             </div>
           </div>
 
@@ -418,6 +571,7 @@ export default function Superadmin() {
           </div>
         ) : null}
 
+        {/* ── Overview Tab ─────────────────────────────────────────── */}
         {activeTab === 'overview' ? (
           <div className="space-y-6">
             {statsLoading || !stats ? (
@@ -530,6 +684,122 @@ export default function Superadmin() {
           </div>
         ) : null}
 
+        {/* ── Analytics Tab ────────────────────────────────────────── */}
+        {activeTab === 'analytics' ? (
+          <div className="space-y-6">
+            {analyticsLoading || !analytics ? (
+              <div className="flex min-h-[280px] items-center justify-center rounded-[32px] border border-slate-100 bg-white">
+                <Loader2 className="h-7 w-7 animate-spin text-[#25D366]" />
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                  <SuperadminStatCard
+                    label="MRR"
+                    value={currencyFormatter.format(analytics.mrr)}
+                    icon={<DollarSign className="h-6 w-6" />}
+                    helper="Monthly recurring revenue from active subscriptions."
+                  />
+                  <SuperadminStatCard
+                    label="Active Workspaces (30d)"
+                    value={String(analytics.activeWorkspaces30d)}
+                    icon={<TrendingUp className="h-6 w-6" />}
+                    helper="Workspaces with messages in the last 30 days."
+                  />
+                  <SuperadminStatCard
+                    label="Total Conversations"
+                    value={String(analytics.totalConversations)}
+                    icon={<MessageSquare className="h-6 w-6" />}
+                    helper="All conversations across all workspaces."
+                  />
+                  <SuperadminStatCard
+                    label="Total Users"
+                    value={String(analytics.totalUsers)}
+                    icon={<Users className="h-6 w-6" />}
+                    helper="All user accounts on the platform."
+                  />
+                </div>
+
+                <div className="grid gap-5 lg:grid-cols-3">
+                  <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+                    <div className="mb-4 flex items-center gap-3">
+                      <BarChart3 className="h-5 w-5 text-[#25D366]" />
+                      <h3 className="text-lg font-bold text-slate-900">Message Volume</h3>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Today</p>
+                        <p className="mt-2 text-3xl font-bold text-slate-900">{analytics.messagesToday.toLocaleString()}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Last 7 Days</p>
+                        <p className="mt-2 text-3xl font-bold text-slate-900">{analytics.messagesLast7d.toLocaleString()}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Last 30 Days</p>
+                        <p className="mt-2 text-3xl font-bold text-slate-900">{analytics.messagesLast30d.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+                    <div className="mb-4 flex items-center gap-3">
+                      <Building2 className="h-5 w-5 text-[#25D366]" />
+                      <h3 className="text-lg font-bold text-slate-900">Plan Distribution</h3>
+                    </div>
+                    <div className="space-y-3">
+                      {Object.entries(analytics.planDistribution).sort(([, a], [, b]) => (b as number) - (a as number)).map(([plan, count]) => {
+                        const pct = analytics.totalWorkspaces > 0 ? Math.round(((count as number) / analytics.totalWorkspaces) * 100) : 0;
+                        return (
+                          <div key={plan} className="rounded-2xl bg-slate-50 p-4">
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className={cn('rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]', getPlanTone(plan))}>{plan}</span>
+                              <span className="text-sm font-semibold text-slate-700">{count} ({pct}%)</span>
+                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-white">
+                              <div className="h-full rounded-full bg-[#25D366]" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+                    <div className="mb-4 flex items-center gap-3">
+                      <Crown className="h-5 w-5 text-[#25D366]" />
+                      <h3 className="text-lg font-bold text-slate-900">Top Workspaces (30d)</h3>
+                    </div>
+                    {analytics.topWorkspacesByMessages.length > 0 ? (
+                      <div className="space-y-3">
+                        {analytics.topWorkspacesByMessages.map((ws, i) => (
+                          <div key={ws.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
+                            <div className="flex items-center gap-3">
+                              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366]/10 text-sm font-bold text-[#25D366]">
+                                {i + 1}
+                              </span>
+                              <div>
+                                <p className="font-semibold text-slate-900">{ws.name}</p>
+                                <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase', getPlanTone(ws.plan))}>{ws.plan}</span>
+                              </div>
+                            </div>
+                            <p className="text-sm font-bold text-slate-700">{ws.messageCount.toLocaleString()} msgs</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-400">
+                        No message activity in the last 30 days.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
+
+        {/* ── Workspaces Tab ───────────────────────────────────────── */}
         {activeTab === 'workspaces' ? (
           <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -565,7 +835,7 @@ export default function Superadmin() {
                         <th className="px-5 py-4">Members</th>
                         <th className="px-5 py-4">Usage</th>
                         <th className="px-5 py-4">Created</th>
-                        <th className="px-5 py-4 text-right">Open</th>
+                        <th className="px-5 py-4 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
@@ -583,19 +853,33 @@ export default function Superadmin() {
                               </div>
                             </td>
                             <td className="px-5 py-4">
-                              <span className={cn('rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]', getPlanTone(workspace.plan))}>
-                                {workspace.plan}
-                              </span>
+                              <div className="flex flex-col gap-1.5">
+                                <span className={cn('inline-block w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]', getPlanTone(workspace.plan))}>
+                                  {workspace.plan}
+                                </span>
+                                {hasActiveOverride(workspace) && (
+                                  <span className="inline-block w-fit rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-700">
+                                    Override: {workspace.planOverride} until {formatDate(workspace.planOverrideUntil)}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-5 py-4">
-                              <span
-                                className={cn(
-                                  'rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]',
-                                  getStatusTone(workspace.subscriptionStatus, workspace.suspended)
+                              <div className="flex flex-col gap-1.5">
+                                <span
+                                  className={cn(
+                                    'inline-block w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]',
+                                    getStatusTone(workspace.subscriptionStatus, workspace.suspended)
+                                  )}
+                                >
+                                  {workspace.suspended ? 'Suspended' : workspace.subscriptionStatus || 'inactive'}
+                                </span>
+                                {workspace.suspended && (
+                                  <span className="inline-block w-fit rounded-full bg-rose-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                                    SUSPENDED
+                                  </span>
                                 )}
-                              >
-                                {workspace.suspended ? 'Suspended' : workspace.subscriptionStatus || 'inactive'}
-                              </span>
+                              </div>
                             </td>
                             <td className="px-5 py-4 text-sm text-slate-600">
                               {workspace._count?.members ?? workspace.members.length}
@@ -604,17 +888,54 @@ export default function Superadmin() {
                               {workspace._count?.conversations ?? 0} chats / {workspace._count?.numbers ?? 0} numbers
                             </td>
                             <td className="px-5 py-4 text-sm text-slate-600">{formatDate(workspace.createdAt)}</td>
-                            <td className="px-5 py-4 text-right">
-                              <button
-                                type="button"
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-900 hover:text-white"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  fetchWorkspaceDetail(workspace.id);
-                                }}
-                              >
-                                <ChevronRight className="h-4 w-4" />
-                              </button>
+                            <td className="px-5 py-4">
+                              <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  title={workspace.suspended ? 'Unsuspend' : 'Suspend'}
+                                  onClick={() => openModal('suspend', workspace)}
+                                  className={cn(
+                                    'inline-flex h-8 w-8 items-center justify-center rounded-full transition',
+                                    workspace.suspended
+                                      ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
+                                      : 'bg-rose-100 text-rose-600 hover:bg-rose-200'
+                                  )}
+                                >
+                                  <Ban className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Override Plan"
+                                  onClick={() => openModal('override', workspace)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-purple-600 transition hover:bg-purple-200"
+                                >
+                                  <Crown className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Impersonate"
+                                  onClick={() => handleImpersonate(workspace)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-600 transition hover:bg-amber-200"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Refund"
+                                  onClick={() => openModal('refund', workspace)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600 transition hover:bg-blue-200"
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="View Details"
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-900 hover:text-white"
+                                  onClick={() => fetchWorkspaceDetail(workspace.id)}
+                                >
+                                  <ChevronRight className="h-4 w-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -633,6 +954,7 @@ export default function Superadmin() {
           </div>
         ) : null}
 
+        {/* ── Users Tab ────────────────────────────────────────────── */}
         {activeTab === 'users' ? (
           <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -700,7 +1022,7 @@ export default function Superadmin() {
                                         key={`${platformUser.id}-${membership.workspace.id}`}
                                         className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600"
                                       >
-                                        {membership.workspace.name} · {membership.workspace.plan}
+                                        {membership.workspace.name} - {membership.workspace.plan}
                                       </span>
                                     ))
                                   ) : (
@@ -725,7 +1047,7 @@ export default function Superadmin() {
 
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-slate-500">
-                    Showing page {users.page} of {totalUserPages} · {users.total} total user{users.total === 1 ? '' : 's'}
+                    Showing page {users.page} of {totalUserPages} - {users.total} total user{users.total === 1 ? '' : 's'}
                   </p>
                   <div className="flex items-center gap-3">
                     <button
@@ -754,6 +1076,7 @@ export default function Superadmin() {
         ) : null}
       </div>
 
+      {/* ── Workspace Detail Slide-Over Panel ────────────────────── */}
       {(selectedWorkspaceId || workspaceDetailLoading) && (
         <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/30 backdrop-blur-[2px]">
           <button type="button" className="h-full flex-1" onClick={closeWorkspacePanel} aria-label="Close workspace panel" />
@@ -784,10 +1107,56 @@ export default function Superadmin() {
               </div>
             ) : (
               <div className="space-y-6 px-6 py-6">
+                {/* Quick Actions */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => openModal('suspend', selectedWorkspace)}
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition',
+                      selectedWorkspace.suspended
+                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                        : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                    )}
+                  >
+                    <Ban className="h-4 w-4" />
+                    {selectedWorkspace.suspended ? 'Unsuspend' : 'Suspend'}
+                  </button>
+                  <button
+                    onClick={() => openModal('override', selectedWorkspace)}
+                    className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-700 transition hover:bg-purple-200"
+                  >
+                    <Crown className="h-4 w-4" />
+                    Override Plan
+                  </button>
+                  {hasActiveOverride(selectedWorkspace) && (
+                    <button
+                      onClick={() => handleRemoveOverride(selectedWorkspace)}
+                      className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                    >
+                      <X className="h-4 w-4" />
+                      Remove Override
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleImpersonate(selectedWorkspace)}
+                    className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-200"
+                  >
+                    <Eye className="h-4 w-4" />
+                    Impersonate
+                  </button>
+                  <button
+                    onClick={() => openModal('refund', selectedWorkspace)}
+                    className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-200"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Refund
+                  </button>
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-3xl border border-slate-100 bg-slate-50 p-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Plan</p>
-                    <div className="mt-3 flex items-center gap-3">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className={cn('rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]', getPlanTone(selectedWorkspace.plan))}>
                         {selectedWorkspace.plan}
                       </span>
@@ -799,7 +1168,20 @@ export default function Superadmin() {
                       >
                         {selectedWorkspace.suspended ? 'Suspended' : selectedWorkspace.subscriptionStatus || 'inactive'}
                       </span>
+                      {selectedWorkspace.suspended && (
+                        <span className="rounded-full bg-rose-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                          SUSPENDED
+                        </span>
+                      )}
+                      {hasActiveOverride(selectedWorkspace) && (
+                        <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-700">
+                          Override: {selectedWorkspace.planOverride} until {formatDate(selectedWorkspace.planOverrideUntil)}
+                        </span>
+                      )}
                     </div>
+                    {selectedWorkspace.suspended && selectedWorkspace.suspendedReason && (
+                      <p className="mt-3 text-sm text-rose-600">Reason: {selectedWorkspace.suspendedReason}</p>
+                    )}
                     <p className="mt-4 text-sm text-slate-500">Created {formatDate(selectedWorkspace.createdAt)}</p>
                     <p className="mt-1 text-sm text-slate-500">
                       Renewal {formatDate(selectedWorkspace.subscriptionCurrentPeriodEnd)}
@@ -869,30 +1251,223 @@ export default function Superadmin() {
                 </div>
 
                 <div className="grid gap-4">
-                  <TimelineSection
-                    title="Recent Payments"
-                    items={selectedWorkspace.ledgerEntries}
-                    emptyLabel="No billing ledger activity recorded for this workspace yet."
-                  />
-                  <TimelineSection
-                    title="Usage Logs"
-                    items={selectedWorkspace.usageLogs}
-                    emptyLabel="No usage log activity recorded yet."
-                  />
-                  <TimelineSection
-                    title="Feature Requests"
-                    items={selectedWorkspace.featureRequests}
-                    emptyLabel="No feature requests from this workspace."
-                  />
-                  <TimelineSection
-                    title="Issue Reports"
-                    items={selectedWorkspace.issueReports}
-                    emptyLabel="No issue reports from this workspace."
-                  />
+                  <TimelineSection title="Recent Payments" items={selectedWorkspace.ledgerEntries} emptyLabel="No billing ledger activity recorded for this workspace yet." />
+                  <TimelineSection title="Usage Logs" items={selectedWorkspace.usageLogs} emptyLabel="No usage log activity recorded yet." />
+                  <TimelineSection title="Feature Requests" items={selectedWorkspace.featureRequests} emptyLabel="No feature requests from this workspace." />
+                  <TimelineSection title="Issue Reports" items={selectedWorkspace.issueReports} emptyLabel="No issue reports from this workspace." />
                 </div>
               </div>
             )}
           </aside>
+        </div>
+      )}
+
+      {/* ── Modals ─────────────────────────────────────────────────── */}
+      {modalType && modalWorkspace && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 backdrop-blur-[2px]">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl">
+            {/* Suspend/Unsuspend Modal */}
+            {modalType === 'suspend' && (
+              <>
+                <div className="mb-6 flex items-center gap-3">
+                  <div className={cn('flex h-12 w-12 items-center justify-center rounded-2xl', modalWorkspace.suspended ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600')}>
+                    <Ban className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">{modalWorkspace.suspended ? 'Unsuspend' : 'Suspend'} Workspace</h3>
+                    <p className="text-sm text-slate-500">{modalWorkspace.name}</p>
+                  </div>
+                </div>
+
+                {!modalWorkspace.suspended && (
+                  <div className="mb-6">
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">Reason for suspension</label>
+                    <textarea
+                      value={suspendReason}
+                      onChange={(e) => setSuspendReason(e.target.value)}
+                      placeholder="e.g. Policy violation, non-payment, abuse..."
+                      className="h-24 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-[#25D366] focus:bg-white"
+                    />
+                  </div>
+                )}
+
+                {modalWorkspace.suspended && (
+                  <div className="mb-6 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-700">
+                    <p className="font-semibold">This will restore access for all workspace members.</p>
+                    {modalWorkspace.suspendedReason && (
+                      <p className="mt-2">Current reason: {modalWorkspace.suspendedReason}</p>
+                    )}
+                  </div>
+                )}
+
+                {!modalWorkspace.suspended && (
+                  <div className="mb-6 rounded-2xl bg-rose-50 p-4 text-sm text-rose-700">
+                    All workspace members will immediately lose access.
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3">
+                  <button onClick={closeModal} className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSuspendToggle}
+                    disabled={modalLoading}
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50',
+                      modalWorkspace.suspended ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+                    )}
+                  >
+                    {modalLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {modalWorkspace.suspended ? 'Unsuspend' : 'Suspend'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Plan Override Modal */}
+            {modalType === 'override' && (
+              <>
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 text-purple-600">
+                    <Crown className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Override Plan</h3>
+                    <p className="text-sm text-slate-500">{modalWorkspace.name} (current: {modalWorkspace.plan})</p>
+                  </div>
+                </div>
+
+                {hasActiveOverride(modalWorkspace) && (
+                  <div className="mb-4 rounded-2xl bg-purple-50 p-4 text-sm text-purple-700">
+                    Active override: {modalWorkspace.planOverride} until {formatDate(modalWorkspace.planOverrideUntil)}
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Plan</label>
+                  <select
+                    value={overridePlan}
+                    onChange={(e) => setOverridePlan(e.target.value)}
+                    className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#25D366] focus:bg-white"
+                  >
+                    <option value="STARTER">STARTER</option>
+                    <option value="GROWTH">GROWTH</option>
+                    <option value="PRO">PRO</option>
+                  </select>
+                </div>
+
+                <div className="mb-6">
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Duration (days)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={overrideDays}
+                    onChange={(e) => setOverrideDays(e.target.value)}
+                    className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#25D366] focus:bg-white"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3">
+                  <button onClick={closeModal} className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handlePlanOverride}
+                    disabled={modalLoading}
+                    className="inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    {modalLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Apply Override
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Refund Modal */}
+            {modalType === 'refund' && (
+              <>
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
+                    <DollarSign className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Process Refund</h3>
+                    <p className="text-sm text-slate-500">{modalWorkspace.name}</p>
+                  </div>
+                </div>
+
+                {!modalWorkspace.stripeCustomerId ? (
+                  <div className="mb-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-700">
+                    This workspace has no Stripe customer ID. Refund is not available.
+                  </div>
+                ) : chargeLoading ? (
+                  <div className="mb-6 flex items-center justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                  </div>
+                ) : !latestCharge ? (
+                  <div className="mb-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-700">
+                    No charges found for this customer.
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-4 rounded-2xl bg-slate-50 p-4 text-sm">
+                      <p className="font-semibold text-slate-700">Latest Charge</p>
+                      <div className="mt-2 space-y-1 text-slate-600">
+                        <p>Amount: {latestCharge.amount} {latestCharge.currency?.toUpperCase()}</p>
+                        <p>Date: {formatDateTime(latestCharge.created)}</p>
+                        <p>Status: {latestCharge.status}</p>
+                        {latestCharge.refunded && <p className="text-rose-600">Already refunded: {latestCharge.amountRefunded} {latestCharge.currency?.toUpperCase()}</p>}
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">Amount (leave empty for full refund)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        value={refundAmount}
+                        onChange={(e) => setRefundAmount(e.target.value)}
+                        placeholder={String(latestCharge.amount)}
+                        className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#25D366] focus:bg-white"
+                      />
+                    </div>
+
+                    <div className="mb-6">
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">Reason</label>
+                      <select
+                        value={refundReason}
+                        onChange={(e) => setRefundReason(e.target.value)}
+                        className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#25D366] focus:bg-white"
+                      >
+                        <option value="requested_by_customer">Requested by customer</option>
+                        <option value="duplicate">Duplicate charge</option>
+                        <option value="fraudulent">Fraudulent</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex items-center justify-end gap-3">
+                  <button onClick={closeModal} className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+                    Cancel
+                  </button>
+                  {modalWorkspace.stripeCustomerId && latestCharge && !chargeLoading && (
+                    <button
+                      onClick={handleRefund}
+                      disabled={modalLoading}
+                      className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {modalLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {latestCharge.refunded ? 'Refund Again' : 'Process Refund'}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

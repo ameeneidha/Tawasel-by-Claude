@@ -204,6 +204,25 @@ export const getWorkspacePlanLimits = (plan?: string | null) =>
       WORKSPACE_PLAN_LIMITS.STARTER
   );
 
+/**
+ * Resolve plan limits for a workspace, taking active plan overrides into account.
+ * Call this instead of getWorkspacePlanLimits when you have the full workspace row.
+ */
+export const resolveWorkspacePlanLimits = (workspace: {
+  plan: string;
+  planOverride?: string | null;
+  planOverrideUntil?: Date | string | null;
+}) => {
+  if (
+    workspace.planOverride &&
+    workspace.planOverrideUntil &&
+    new Date(workspace.planOverrideUntil) > new Date()
+  ) {
+    return getWorkspacePlanLimits(workspace.planOverride);
+  }
+  return getWorkspacePlanLimits(workspace.plan);
+};
+
 export const normalizePhone = (value?: string | null) =>
   (value || "").replace(/\D/g, "");
 

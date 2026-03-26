@@ -83,6 +83,9 @@ npx vite build       # Production build
 - Role-based access control (RBAC) — requireRole middleware on 31 routes, sidebar filters by role
 - Four authority levels: SUPERADMIN → OWNER → ADMIN → USER
 - workspaceRole exposed in AppContext for frontend role checks
+- Advanced superadmin dashboard: platform analytics, suspend/ban, plan override, impersonate, Stripe refunds
+- Workspace model extended: suspended, suspendedReason, planOverride, planOverrideUntil fields
+- Plan override logic in getWorkspacePlanLimits — active overrides take precedence over Stripe plan
 
 ## Potential Next Features
 - Calendar view with drag-to-reschedule (react-big-calendar)

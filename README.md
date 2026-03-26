@@ -89,6 +89,17 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### March 26, 2026 (Update 3)
+
+- **Advanced Superadmin Dashboard**: Full platform management capabilities for the SaaS owner
+  - **Platform Analytics**: Total workspaces, users, messages, conversations, active workspaces (30d), messages today/7d/30d, MRR calculation, plan distribution with progress bars, top workspaces by message volume
+  - **Suspend/Ban Workspaces**: Toggle suspension on any workspace with a reason. Suspended workspaces are blocked from accessing the app with a clear error message. Red "SUSPENDED" badge in the dashboard
+  - **Override Plan Limits**: Temporarily upgrade any workspace's plan (STARTER/GROWTH/PRO) for a configurable number of days. Shows "OVERRIDE: PRO until Apr 5" badge. Limits auto-revert after expiration
+  - **Impersonate Workspace**: Click "Impersonate" to enter any workspace as OWNER for debugging/support. Yellow banner shows "Impersonating [name]" with exit button. Creates temporary membership, removed on exit
+  - **Stripe Refunds**: Issue full or partial refunds to any workspace's latest Stripe charge. Modal shows last payment amount with reason dropdown (duplicate, fraudulent, requested_by_customer)
+  - Schema additions: `suspended`, `suspendedReason`, `planOverride`, `planOverrideUntil` fields on Workspace model
+  - Plan override check in `getWorkspacePlanLimits` — active overrides take precedence
+
 ### March 26, 2026 (Update 2)
 
 - **Role-Based Access Control (RBAC)**: Enforced authority levels across all API routes and frontend navigation

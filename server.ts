@@ -5091,6 +5091,7 @@ async function startServer() {
             id: true,
             plan: true,
             subscriptionStatus: true,
+            suspended: true,
             createdAt: true,
           }
         }),
@@ -5104,7 +5105,7 @@ async function startServer() {
       const activeSubscribers = allWorkspaces.filter((workspace) =>
         ['active', 'trialing'].includes(String(workspace.subscriptionStatus || '').toLowerCase())
       ).length;
-      const suspendedCount = 0;
+      const suspendedCount = allWorkspaces.filter((w: any) => w.suspended).length;
 
       res.json({
         totalUsers,
@@ -5259,6 +5260,343 @@ async function startServer() {
     } catch (error) {
       console.error('[superadmin:users]', error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ── Superadmin: Suspend / Unsuspend Workspace ───────────────────
+
+  app.post("/api/superadmin/workspaces/:id/suspend", requireAuth, requireSuperadmin, async (req, res) => {
+    try {
+      const { reason } = req.body || {};
+      const workspace = await prisma.workspace.update({
+        where: { id: req.params.id },
+        data: { suspended: true, suspendedReason: reason || null },
+      });
+      res.json({ success: true, suspended: true, id: workspace.id });
+    } catch (error) {
+      console.error('[superadmin:suspend]', error);
+      res.status(500).json({ error: 'Failed to suspend workspace' });
+    }
+  });
+
+  app.post("/api/superadmin/workspaces/:id/unsuspend", requireAuth, requireSuperadmin, async (req, res) => {
+    try {
+      const workspace = await prisma.workspace.update({
+        where: { id: req.params.id },
+        data: { suspended: false, suspendedReason: null },
+      });
+      res.json({ success: true, suspended: false, id: workspace.id });
+    } catch (error) {
+      console.error('[superadmin:unsuspend]', error);
+      res.status(500).json({ error: 'Failed to unsuspend workspace' });
+    }
+  });
+
+  // ── Superadmin: Plan Override ───────────────────────────────────
+
+  app.post("/api/superadmin/workspaces/:id/plan-override", requireAuth, requireSuperadmin, async (req, res) => {
+    try {
+      const { plan, durationDays } = req.body || {};
+      if (!plan || !['STARTER', 'GROWTH', 'PRO'].includes(String(plan).toUpperCase())) {
+        return res.status(400).json({ error: 'Invalid plan. Must be STARTER, GROWTH, or PRO.' });
+      }
+      const days = Math.max(1, Math.min(365, Number(durationDays) || 30));
+      const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+      const workspace = await prisma.workspace.update({
+        where: { id: req.params.id },
+        data: {
+          planOverride: String(plan).toUpperCase(),
+          planOverrideUntil: until,
+        },
+      });
+      res.json({ success: true, id: workspace.id, planOverride: workspace.planOverride, planOverrideUntil: workspace.planOverrideUntil });
+    } catch (error) {
+      console.error('[superadmin:plan-override]', error);
+      res.status(500).json({ error: 'Failed to set plan override' });
+    }
+  });
+
+  app.post("/api/superadmin/workspaces/:id/remove-plan-override", requireAuth, requireSuperadmin, async (req, res) => {
+    try {
+      const workspace = await prisma.workspace.update({
+        where: { id: req.params.id },
+        data: { planOverride: null, planOverrideUntil: null },
+      });
+      res.json({ success: true, id: workspace.id });
+    } catch (error) {
+      console.error('[superadmin:remove-plan-override]', error);
+      res.status(500).json({ error: 'Failed to remove plan override' });
+    }
+  });
+
+  // ── Superadmin: Impersonate Workspace ───────────────────────────
+
+  app.post("/api/superadmin/impersonate/:workspaceId", requireAuth, requireSuperadmin, async (req: any, res) => {
+    try {
+      const workspaceId = req.params.workspaceId;
+      const superadminUser = req.superadminUser;
+
+      const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+      if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
+
+      // Create temporary OWNER membership if not exists
+      await prisma.workspaceMembership.upsert({
+        where: {
+          userId_workspaceId: {
+            userId: superadminUser.id,
+            workspaceId,
+          },
+        },
+        create: {
+          userId: superadminUser.id,
+          workspaceId,
+          role: 'OWNER',
+          status: 'ACTIVE',
+        },
+        update: {
+          role: 'OWNER',
+          status: 'ACTIVE',
+        },
+      });
+
+      res.json({ success: true, workspaceId, workspaceName: workspace.name });
+    } catch (error) {
+      console.error('[superadmin:impersonate]', error);
+      res.status(500).json({ error: 'Failed to impersonate workspace' });
+    }
+  });
+
+  app.post("/api/superadmin/stop-impersonate/:workspaceId", requireAuth, requireSuperadmin, async (req: any, res) => {
+    try {
+      const workspaceId = req.params.workspaceId;
+      const superadminUser = req.superadminUser;
+
+      // Remove the temporary membership
+      await prisma.workspaceMembership.deleteMany({
+        where: {
+          userId: superadminUser.id,
+          workspaceId,
+        },
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[superadmin:stop-impersonate]', error);
+      res.status(500).json({ error: 'Failed to stop impersonation' });
+    }
+  });
+
+  // ── Superadmin: Platform Analytics ──────────────────────────────
+
+  app.get("/api/superadmin/analytics", requireAuth, requireSuperadmin, async (_req, res) => {
+    try {
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      const [
+        totalWorkspaces,
+        totalUsers,
+        totalMessages,
+        totalConversations,
+        messagesLast30d,
+        messagesLast7d,
+        messagesToday,
+        allWorkspaces,
+      ] = await Promise.all([
+        prisma.workspace.count(),
+        prisma.user.count(),
+        prisma.message.count(),
+        prisma.conversation.count(),
+        prisma.message.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+        prisma.message.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+        prisma.message.count({ where: { createdAt: { gte: todayStart } } }),
+        prisma.workspace.findMany({
+          select: { id: true, plan: true, subscriptionStatus: true },
+        }),
+      ]);
+
+      // Active workspaces (had messages in last 30d)
+      const workspacesWithRecentMessages = await prisma.conversation.findMany({
+        where: {
+          messages: { some: { createdAt: { gte: thirtyDaysAgo } } },
+        },
+        select: { workspaceId: true },
+        distinct: ['workspaceId'],
+      });
+      const activeWorkspaces30d = workspacesWithRecentMessages.length;
+
+      // Plan distribution
+      const planDistribution: Record<string, number> = {};
+      for (const ws of allWorkspaces) {
+        const plan = String(ws.plan || 'NONE').toUpperCase();
+        planDistribution[plan] = (planDistribution[plan] || 0) + 1;
+      }
+
+      // MRR calculation (STARTER=99, GROWTH=279, PRO=549 AED)
+      const planPrices: Record<string, number> = { STARTER: 99, GROWTH: 279, PRO: 549 };
+      let mrr = 0;
+      for (const ws of allWorkspaces) {
+        if (['active', 'trialing'].includes(String(ws.subscriptionStatus || '').toLowerCase())) {
+          mrr += planPrices[String(ws.plan || '').toUpperCase()] || 0;
+        }
+      }
+
+      // Top 5 workspaces by message count in last 30d
+      const topWorkspacesRaw = await prisma.conversation.groupBy({
+        by: ['workspaceId'],
+        _count: { id: true },
+        where: {
+          messages: { some: { createdAt: { gte: thirtyDaysAgo } } },
+        },
+        orderBy: { _count: { id: 'desc' } },
+        take: 5,
+      });
+
+      const topWorkspaceIds = topWorkspacesRaw.map(w => w.workspaceId);
+      const topWorkspaceDetails = topWorkspaceIds.length > 0
+        ? await prisma.workspace.findMany({
+            where: { id: { in: topWorkspaceIds } },
+            select: { id: true, name: true, plan: true },
+          })
+        : [];
+
+      // Get actual message counts for top workspaces
+      const topWorkspacesByMessages = await Promise.all(
+        topWorkspacesRaw.map(async (tw) => {
+          const ws = topWorkspaceDetails.find(d => d.id === tw.workspaceId);
+          const msgCount = await prisma.message.count({
+            where: {
+              conversation: { workspaceId: tw.workspaceId },
+              createdAt: { gte: thirtyDaysAgo },
+            },
+          });
+          return {
+            id: tw.workspaceId,
+            name: ws?.name || 'Unknown',
+            plan: ws?.plan || 'NONE',
+            messageCount: msgCount,
+          };
+        })
+      );
+      topWorkspacesByMessages.sort((a, b) => b.messageCount - a.messageCount);
+
+      res.json({
+        totalWorkspaces,
+        totalUsers,
+        totalMessages,
+        totalConversations,
+        activeWorkspaces30d,
+        messagesLast30d,
+        messagesLast7d,
+        messagesToday,
+        mrr,
+        planDistribution,
+        topWorkspacesByMessages,
+      });
+    } catch (error) {
+      console.error('[superadmin:analytics]', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ── Superadmin: Refund via Stripe ───────────────────────────────
+
+  app.post("/api/superadmin/workspaces/:id/refund", requireAuth, requireSuperadmin, async (req, res) => {
+    try {
+      if (!stripe) {
+        return res.status(500).json({ error: 'Stripe is not configured' });
+      }
+
+      const workspace = await prisma.workspace.findUnique({
+        where: { id: req.params.id },
+        select: { id: true, name: true, stripeCustomerId: true },
+      });
+
+      if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
+      if (!workspace.stripeCustomerId) return res.status(400).json({ error: 'Workspace has no Stripe customer' });
+
+      const { amount, reason } = req.body || {};
+
+      // Get latest charge
+      const charges = await stripe.charges.list({
+        customer: workspace.stripeCustomerId,
+        limit: 1,
+      });
+
+      if (!charges.data.length) {
+        return res.status(400).json({ error: 'No charges found for this customer' });
+      }
+
+      const latestCharge = charges.data[0];
+      const validReasons = ['duplicate', 'fraudulent', 'requested_by_customer'] as const;
+      const stripeReason = validReasons.includes(reason) ? reason : 'requested_by_customer';
+
+      const refundData: any = {
+        charge: latestCharge.id,
+        reason: stripeReason,
+      };
+
+      // Partial refund if amount specified
+      if (amount && Number(amount) > 0) {
+        refundData.amount = Math.round(Number(amount) * 100); // Convert to cents
+      }
+
+      const refund = await stripe.refunds.create(refundData);
+
+      res.json({
+        success: true,
+        refund: {
+          id: refund.id,
+          amount: (refund.amount || 0) / 100,
+          currency: refund.currency,
+          status: refund.status,
+          reason: refund.reason,
+          chargeId: latestCharge.id,
+          originalAmount: (latestCharge.amount || 0) / 100,
+        },
+      });
+    } catch (error: any) {
+      console.error('[superadmin:refund]', error);
+      res.status(500).json({ error: error?.message || 'Failed to process refund' });
+    }
+  });
+
+  app.get("/api/superadmin/workspaces/:id/latest-charge", requireAuth, requireSuperadmin, async (req, res) => {
+    try {
+      if (!stripe) return res.status(500).json({ error: 'Stripe is not configured' });
+
+      const workspace = await prisma.workspace.findUnique({
+        where: { id: req.params.id },
+        select: { stripeCustomerId: true },
+      });
+
+      if (!workspace?.stripeCustomerId) return res.json({ charge: null });
+
+      const charges = await stripe.charges.list({
+        customer: workspace.stripeCustomerId,
+        limit: 1,
+      });
+
+      if (!charges.data.length) return res.json({ charge: null });
+
+      const charge = charges.data[0];
+      res.json({
+        charge: {
+          id: charge.id,
+          amount: (charge.amount || 0) / 100,
+          currency: charge.currency,
+          status: charge.status,
+          created: new Date(charge.created * 1000).toISOString(),
+          refunded: charge.refunded,
+          amountRefunded: (charge.amount_refunded || 0) / 100,
+        },
+      });
+    } catch (error) {
+      console.error('[superadmin:latest-charge]', error);
+      res.status(500).json({ error: 'Failed to fetch charge info' });
     }
   });
 
