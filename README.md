@@ -89,6 +89,18 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### March 26, 2026
+
+- **Mobile Responsive Layout**: Full mobile support for the entire app
+  - Sidebar becomes a slide-in overlay with hamburger menu (☰) on mobile
+  - Mobile top bar with Tawasel branding and menu toggle
+  - Inbox: conversation list → tap to open chat full-screen with back arrow (←)
+  - Contact info panel slides in from right on mobile via panel button
+  - Desktop layout completely unchanged — all changes use Tailwind `md:` breakpoints
+  - New `SidebarContext` for sidebar open/close state management
+- **Favicon**: Added SVG favicon — green chat bubble with white "T" matching brand colors
+- **Theme color**: Added `<meta name="theme-color">` for mobile browser address bar
+
 ### March 25, 2026 (Update 4 — Hotfix)
 
 - **Follow-up Sequences page fix**: Fixed "Failed to load data" error — page was calling `/api/templates` (non-existent) instead of `/api/templates/whatsapp`

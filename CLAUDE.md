@@ -12,6 +12,7 @@
 - `src/` — React frontend (Vite)
 - `src/pages/` — Page components (Inbox, Contacts, Appointments, Campaigns, etc.)
 - `src/components/` — Shared components (Sidebar, Topbar, etc.)
+- `src/contexts/SidebarContext.tsx` — Mobile sidebar open/close state
 - `src/constants/plans.ts` — Plan tier config (STARTER/GROWTH/PRO)
 - `server.ts` — Express API + Socket.io + all route handlers
 - `server/` — Backend services and middleware
@@ -75,6 +76,9 @@ npx vite build       # Production build
 - Follow-up sequences (auto-send templates when leads don't reply)
 - Ad performance analytics + conversion funnel on dashboard
 - AI-to-human escalation system (auto-detects when bot can't help, pauses AI, notifies agents with sound + toast, sets conversation to WAITING_FOR_INTERNAL)
+- Mobile responsive layout — sidebar overlay, mobile top bar, full-screen inbox chat with back arrow
+- SVG favicon — green chat bubble with white T
+- Quote reply in inbox with image thumbnail previews
 
 ## Potential Next Features
 - Calendar view with drag-to-reschedule (react-big-calendar)
