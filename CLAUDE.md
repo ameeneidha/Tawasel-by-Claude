@@ -56,6 +56,7 @@ npx vite build       # Production build
 - META_ACCESS_TOKEN, META_PHONE_NUMBER_ID (WhatsApp)
 - META_APP_ID, META_APP_SECRET, META_EMBEDDED_SIGNUP_CONFIG_ID (WhatsApp Embedded Signup)
 - STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+- RESEND_API_KEY, EMAIL_FROM (e.g., `Tawasel <noreply@tawasel.io>`)
 - INSTAGRAM_ACCESS_TOKEN
 
 ## Recently Completed Features
@@ -86,6 +87,33 @@ npx vite build       # Production build
 - Advanced superadmin dashboard: platform analytics, suspend/ban, plan override, impersonate, Stripe refunds
 - Workspace model extended: suspended, suspendedReason, planOverride, planOverrideUntil fields
 - Plan override logic in getWorkspacePlanLimits — active overrides take precedence over Stripe plan
+- Resend domain verification for transactional emails (tawasel.io)
+- Forgot password / password reset via Resend email
+- Email verification flow via Resend email
+- Fixed broadcast "Workspace ID required" bug — requireRole middleware ran before multer parsed FormData body, now sends workspaceId via x-workspace-id header
+
+## Deployment
+- **Server**: DigitalOcean droplet at 137.184.35.83
+- **Domain**: tawasel.io (root), app.tawasel.io (frontend), api.tawasel.io (backend)
+- **DNS**: Hostinger
+- **Email**: Resend (DKIM + SPF verified on tawasel.io)
+- **Process manager**: PM2 (`pm2 restart tawasel-app`)
+- **App directory on server**: `/root/SaaSdeploy`
+- **GitHub repo**: github.com/ameeneidha/Tawasel-by-Claude (origin on server)
+
+## Server Deploy Commands
+```bash
+ssh root@137.184.35.83
+cd /root/SaaSdeploy
+git pull origin main
+npx vite build
+pm2 restart tawasel-app
+```
+
+## Known Issues
+- META_ACCESS_TOKEN is a temporary token (expires every 24h) — needs permanent System User token for production
+- Prisma migrations need baseline on production (`npx prisma migrate resolve --applied <name>`)
+- Meta App Review pending — Embedded Signup requires whatsapp_business_management approval
 
 ## Potential Next Features
 - Calendar view with drag-to-reschedule (react-big-calendar)

@@ -89,6 +89,13 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### March 28, 2026
+
+- **Resend Email Verification**: Configured and verified tawasel.io domain on Resend with DKIM + SPF records for transactional email delivery
+- **Password Reset Emails**: Forgot password flow now sends real reset emails via Resend API (was previously blocked by unverified domain)
+- **Broadcast Bug Fix**: Fixed "Workspace ID required" error when launching broadcast campaigns — `requireRole` middleware was running before multer parsed the FormData body, so `workspaceId` was undefined. Now sends `workspaceId` via `x-workspace-id` header as fallback
+- **Server Deployment**: Updated production server with latest code, new Meta access token, and Prisma migration baseline
+
 ### March 26, 2026 (Update 3)
 
 - **Advanced Superadmin Dashboard**: Full platform management capabilities for the SaaS owner
