@@ -585,7 +585,9 @@ function BroadcastBuilder({
 
     setIsLaunching(true);
     try {
-      const response = await axios.post('/api/campaigns', formData);
+      const response = await axios.post('/api/campaigns', formData, {
+        headers: { 'x-workspace-id': workspaceId },
+      });
 
       toast.success(sendMode === 'SCHEDULE' ? 'Campaign scheduled' : 'Campaign launched and sent');
       onCreated(response.data);
@@ -618,7 +620,9 @@ function BroadcastBuilder({
 
     setIsSendingTest(true);
     try {
-      await axios.post('/api/campaigns/test', formData);
+      await axios.post('/api/campaigns/test', formData, {
+        headers: { 'x-workspace-id': workspaceId },
+      });
       toast.success('Test message sent');
     } catch (error) {
       if (axios.isAxiosError(error)) {
