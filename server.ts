@@ -118,7 +118,7 @@ async function startServer() {
         callback(new Error("Not allowed by CORS"));
       },
       methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
+      allowedHeaders: ["Content-Type", "Authorization", "x-workspace-id"],
       credentials: true,
     })
   );
@@ -130,7 +130,7 @@ async function startServer() {
       callback(new Error("Not allowed by CORS"));
     },
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-workspace-id"],
     credentials: true,
   }));
 
