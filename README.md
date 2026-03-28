@@ -94,6 +94,8 @@ The repo also includes an App Platform spec:
 - **Resend Email Verification**: Configured and verified tawasel.io domain on Resend with DKIM + SPF records for transactional email delivery
 - **Password Reset Emails**: Forgot password flow now sends real reset emails via Resend API (was previously blocked by unverified domain)
 - **Broadcast Bug Fix**: Fixed "Workspace ID required" error when launching broadcast campaigns — `requireRole` middleware was running before multer parsed the FormData body, so `workspaceId` was undefined. Now sends `workspaceId` via `x-workspace-id` header as fallback
+- **CORS Fix**: Added `x-workspace-id` to CORS `allowedHeaders` — browser was blocking broadcast requests because the custom header wasn't permitted in preflight
+- **Nginx Upload Limit**: Set `client_max_body_size 25M` to allow FormData with file uploads (was defaulting to 1MB)
 - **Server Deployment**: Updated production server with latest code, new Meta access token, and Prisma migration baseline
 
 ### March 26, 2026 (Update 3)

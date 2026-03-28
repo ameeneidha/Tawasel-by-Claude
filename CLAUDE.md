@@ -91,6 +91,8 @@ npx vite build       # Production build
 - Forgot password / password reset via Resend email
 - Email verification flow via Resend email
 - Fixed broadcast "Workspace ID required" bug — requireRole middleware ran before multer parsed FormData body, now sends workspaceId via x-workspace-id header
+- Added x-workspace-id to CORS allowedHeaders (was blocking broadcast requests)
+- Nginx client_max_body_size set to 25M for FormData/file uploads
 
 ## Deployment
 - **Server**: DigitalOcean droplet at 137.184.35.83
