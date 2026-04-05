@@ -3154,6 +3154,20 @@ async function startServer() {
         return res.status(403).json({ error: "Access denied" });
       }
 
+      // Delete all related records in correct order
+      const convIds = (await prisma.conversation.findMany({ where: { numberId: id }, select: { id: true } })).map(c => c.id);
+      if (convIds.length > 0) {
+        await prisma.message.deleteMany({ where: { conversationId: { in: convIds } } });
+        await prisma.conversationNote.deleteMany({ where: { conversationId: { in: convIds } } });
+        await prisma.task.deleteMany({ where: { conversationId: { in: convIds } } });
+        await prisma.activityLog.deleteMany({ where: { conversationId: { in: convIds } } });
+        await prisma.conversation.deleteMany({ where: { numberId: id } });
+      }
+      const campIds = (await prisma.broadcastCampaign.findMany({ where: { numberId: id }, select: { id: true } })).map(c => c.id);
+      if (campIds.length > 0) {
+        await prisma.broadcastRecipient.deleteMany({ where: { campaignId: { in: campIds } } });
+        await prisma.broadcastCampaign.deleteMany({ where: { numberId: id } });
+      }
       await prisma.whatsAppNumber.delete({ where: { id } });
       res.json({ success: true });
     } catch (err: any) {
