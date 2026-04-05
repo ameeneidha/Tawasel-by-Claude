@@ -388,10 +388,10 @@ export async function fetchEmbeddedSignupPhoneAssets(
       if (collected.size > 0) {
         break;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.warn(
         `Embedded signup asset lookup failed for ${query.path}`,
-        error instanceof Error ? error.message : error
+        error?.response?.data || error?.message || error
       );
     }
   }

@@ -746,6 +746,17 @@ async function startServer() {
     try {
       const redirectUri = getEmbeddedSignupCallbackUrl(req);
       const tokenResponse = await exchangeMetaCodeForAccessToken(code, redirectUri);
+
+      // Debug: check token permissions
+      try {
+        const debugRes = await axios.get(`https://graph.facebook.com/${META_GRAPH_VERSION}/debug_token`, {
+          params: { input_token: tokenResponse.access_token, access_token: `${process.env.META_APP_ID}|${process.env.META_APP_SECRET}` }
+        });
+        console.log('[embedded-signup] token debug:', JSON.stringify(debugRes.data, null, 2));
+      } catch (e: any) {
+        console.warn('[embedded-signup] token debug failed:', e?.response?.data || e?.message);
+      }
+
       let phoneNumbers = await fetchEmbeddedSignupPhoneAssets(tokenResponse.access_token, {
         businessId: businessId || null,
         wabaId: wabaId || null,
