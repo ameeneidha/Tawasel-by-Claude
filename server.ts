@@ -3147,8 +3147,8 @@ async function startServer() {
       const number = await prisma.whatsAppNumber.findUnique({ where: { id } });
       if (!number) return res.status(404).json({ error: "Number not found" });
 
-      const membership = await prisma.workspaceMember.findFirst({
-        where: { workspaceId: number.workspaceId, userId: req.user!.id }
+      const membership = await prisma.workspaceMembership.findFirst({
+        where: { workspaceId: number.workspaceId, userId: req.user!.userId }
       });
       if (!membership && req.user!.role !== 'SUPERADMIN') {
         return res.status(403).json({ error: "Access denied" });
