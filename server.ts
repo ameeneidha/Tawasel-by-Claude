@@ -751,6 +751,25 @@ async function startServer() {
         wabaId: wabaId || null,
       });
 
+      // Retry after 3s delay — Meta may still be provisioning
+      if (phoneNumbers.length === 0) {
+        console.log('[embedded-signup] no phones found, retrying in 3s...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        phoneNumbers = await fetchEmbeddedSignupPhoneAssets(tokenResponse.access_token, {
+          businessId: businessId || null,
+          wabaId: wabaId || null,
+        });
+      }
+
+      // Fallback: try with the global System User token
+      if (phoneNumbers.length === 0 && process.env.META_ACCESS_TOKEN) {
+        console.log('[embedded-signup] retrying with System User token...');
+        phoneNumbers = await fetchEmbeddedSignupPhoneAssets(process.env.META_ACCESS_TOKEN, {
+          businessId: businessId || null,
+          wabaId: wabaId || null,
+        });
+      }
+
       if (phoneNumbers.length === 0 && phoneNumberId) {
         phoneNumbers = [
           {
