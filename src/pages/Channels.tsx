@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
 import { getPlanConfig, PLANS, PlanType } from '../constants/plans';
@@ -71,6 +71,7 @@ export default function Channels() {
   const [embeddedSignupConfig, setEmbeddedSignupConfig] = useState<EmbeddedSignupConfig | null>(null);
   const [isLoadingEmbeddedSignupConfig, setIsLoadingEmbeddedSignupConfig] = useState(false);
   const [embeddedSignupSessionHints, setEmbeddedSignupSessionHints] = useState<MetaEmbeddedSignupSessionHints | null>(null);
+  const embeddedSignupSessionHintsRef = useRef<MetaEmbeddedSignupSessionHints | null>(null);
 
   const currentPlan = activeWorkspace?.plan || 'NONE';
   const planInfo = getPlanConfig(currentPlan) || PLANS.STARTER;
@@ -158,12 +159,15 @@ export default function Channels() {
         rawData.type === 'WA_EMBEDDED_SIGNUP' &&
         rawData.event === 'FINISH'
       ) {
-        setEmbeddedSignupSessionHints({
+        const hints = {
           businessId: rawData.data?.business_id || null,
           wabaId: rawData.data?.waba_id || null,
           phoneNumberId: rawData.data?.phone_number_id || null,
           displayPhoneNumber: rawData.data?.display_phone_number || null,
-        });
+        };
+        console.log('[embedded-signup] WA_EMBEDDED_SIGNUP hints received', hints);
+        embeddedSignupSessionHintsRef.current = hints;
+        setEmbeddedSignupSessionHints(hints);
         return;
       }
 
@@ -174,12 +178,16 @@ export default function Channels() {
 
       const payload = rawData.payload as EmbeddedSignupMessagePayload;
       if (!payload?.success) {
+        // Use ref for synchronous access (state may not have updated yet)
+        const hints = embeddedSignupSessionHintsRef.current;
+        console.log('[embedded-signup] callback failed, checking hints ref', hints);
+
         // If we have session hints with a phoneNumberId, use it directly as fallback
-        if (payload?.accessToken && embeddedSignupSessionHints?.phoneNumberId) {
+        if (payload?.accessToken && hints?.phoneNumberId) {
           await finalizeConnectedPhone(payload, [{
-            phoneNumberId: embeddedSignupSessionHints.phoneNumberId,
-            displayPhoneNumber: embeddedSignupSessionHints.displayPhoneNumber || embeddedSignupSessionHints.phoneNumberId,
-            wabaId: embeddedSignupSessionHints.wabaId || null,
+            phoneNumberId: hints.phoneNumberId,
+            displayPhoneNumber: hints.displayPhoneNumber || hints.phoneNumberId,
+            wabaId: hints.wabaId || null,
             businessName: null,
             verifiedName: null,
           }]);
@@ -188,14 +196,14 @@ export default function Channels() {
 
         const canRetryLookup =
           Boolean(payload?.accessToken) &&
-          Boolean(embeddedSignupSessionHints?.businessId || embeddedSignupSessionHints?.wabaId);
+          Boolean(hints?.businessId || hints?.wabaId);
 
         if (canRetryLookup) {
           try {
             const response = await axios.post('/api/meta/embedded-signup/resolve-assets', {
               accessToken: payload.accessToken,
-              businessId: embeddedSignupSessionHints?.businessId || undefined,
-              wabaId: embeddedSignupSessionHints?.wabaId || undefined,
+              businessId: hints?.businessId || undefined,
+              wabaId: hints?.wabaId || undefined,
             });
 
             const resolvedPhoneNumbers = Array.isArray(response.data?.phoneNumbers)
