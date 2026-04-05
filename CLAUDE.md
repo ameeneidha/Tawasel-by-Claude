@@ -112,10 +112,18 @@ npx vite build
 pm2 restart tawasel-app
 ```
 
+## Recently Completed (April 5, 2026)
+- Meta App Review: whatsapp_business_management APPROVED
+- whatsapp_business_messaging submitted for review (rejected once — screencast must show message received on phone)
+- System User permanent token configured (replaces 24h temp token)
+- Delete WhatsApp number from Channels page (DELETE /api/numbers/:id with cascade delete of conversations, messages, notes, tasks, activities, campaigns, recipients)
+- Embedded Signup debugging: added token debug logging, retry with 3s delay, System User token fallback, session hints ref for race condition fix
+- Two Meta Business Accounts: Quantops (production, owns Tawasel app) and SOSO (testing Embedded Signup with virtual numbers)
+
 ## Known Issues
-- META_ACCESS_TOKEN is a temporary token (expires every 24h) — needs permanent System User token for production
+- Embedded Signup phone lookup returns 0 results — OAuth user token gets 400 from /me endpoints; System User token also can't see SOSO's WABA numbers (cross-BA). Session hints (WA_EMBEDDED_SIGNUP postMessage) not received. Debug logging added to diagnose. Next step: check pm2 logs for token debug output and exact Meta error response
+- whatsapp_business_messaging not yet approved — need screencast showing message sent from app AND received on WhatsApp phone client
 - Prisma migrations need baseline on production (`npx prisma migrate resolve --applied <name>`)
-- Meta App Review pending — Embedded Signup requires whatsapp_business_management approval
 
 ## Potential Next Features
 - Calendar view with drag-to-reschedule (react-big-calendar)

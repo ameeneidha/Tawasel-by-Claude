@@ -89,6 +89,18 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### April 5, 2026
+
+- **Meta App Review**: `whatsapp_business_management` permission approved. `whatsapp_business_messaging` submitted (pending — screencast must show message received on phone)
+- **Permanent System User Token**: Replaced 24-hour temporary Meta access token with permanent System User token
+- **Delete WhatsApp Numbers**: Channels page now supports deleting connected WhatsApp numbers with full cascade cleanup (conversations, messages, notes, tasks, activities, campaigns, recipients)
+- **Embedded Signup Improvements**:
+  - Added retry with 3-second delay for phone number provisioning
+  - Added System User token fallback for phone asset lookup
+  - Fixed React state race condition — session hints now use useRef for synchronous access
+  - Added detailed error logging and token debug endpoint for troubleshooting
+  - Known issue: phone lookup still returns 0 results when signing up under a different Business Account (SOSO) than the app owner (Quantops) — debug logging added to diagnose exact Meta API error
+
 ### March 28, 2026
 
 - **Resend Email Verification**: Configured and verified tawasel.io domain on Resend with DKIM + SPF records for transactional email delivery
