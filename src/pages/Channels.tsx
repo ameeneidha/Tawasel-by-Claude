@@ -238,7 +238,7 @@ export default function Channels() {
   const handleDeleteNumber = async (id: string, label: string) => {
     if (!confirm(`Are you sure you want to delete "${label}"? This cannot be undone.`)) return;
     try {
-      await axios.delete(`/api/numbers/${id}`);
+      await axios.delete(`/api/numbers/${id}`, { headers: { 'x-workspace-id': activeWorkspace?.id } });
       toast.success('Number deleted');
       fetchChannels();
     } catch (err: any) {
