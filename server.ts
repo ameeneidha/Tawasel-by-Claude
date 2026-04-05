@@ -3141,6 +3141,27 @@ async function startServer() {
     res.json(numbers);
   });
 
+  app.delete("/api/numbers/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const number = await prisma.whatsAppNumber.findUnique({ where: { id } });
+      if (!number) return res.status(404).json({ error: "Number not found" });
+
+      const membership = await prisma.workspaceMember.findFirst({
+        where: { workspaceId: number.workspaceId, userId: req.user!.id }
+      });
+      if (!membership && req.user!.role !== 'SUPERADMIN') {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      await prisma.whatsAppNumber.delete({ where: { id } });
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[DELETE /api/numbers/:id]", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Instagram Accounts
   app.get("/api/instagram/accounts", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
     if (!INSTAGRAM_INTEGRATION_ENABLED) {

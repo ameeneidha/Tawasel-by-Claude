@@ -235,6 +235,17 @@ export default function Channels() {
     }
   };
 
+  const handleDeleteNumber = async (id: string, label: string) => {
+    if (!confirm(`Are you sure you want to delete "${label}"? This cannot be undone.`)) return;
+    try {
+      await axios.delete(`/api/numbers/${id}`);
+      toast.success('Number deleted');
+      fetchChannels();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to delete number');
+    }
+  };
+
   const handleConnectWhatsApp = async () => {
     if (waLimitReached) {
       toast.error(`Limit reached for ${planInfo.name} plan`);
@@ -460,7 +471,10 @@ export default function Channels() {
                       <button className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
                         <Settings2 className="w-4 h-4" />
                       </button>
-                      <button className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                      <button
+                        onClick={() => handleDeleteNumber(num.id, num.label || num.phoneNumber)}
+                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
