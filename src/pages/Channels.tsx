@@ -174,6 +174,18 @@ export default function Channels() {
 
       const payload = rawData.payload as EmbeddedSignupMessagePayload;
       if (!payload?.success) {
+        // If we have session hints with a phoneNumberId, use it directly as fallback
+        if (payload?.accessToken && embeddedSignupSessionHints?.phoneNumberId) {
+          await finalizeConnectedPhone(payload, [{
+            phoneNumberId: embeddedSignupSessionHints.phoneNumberId,
+            displayPhoneNumber: embeddedSignupSessionHints.displayPhoneNumber || embeddedSignupSessionHints.phoneNumberId,
+            wabaId: embeddedSignupSessionHints.wabaId || null,
+            businessName: null,
+            verifiedName: null,
+          }]);
+          return;
+        }
+
         const canRetryLookup =
           Boolean(payload?.accessToken) &&
           Boolean(embeddedSignupSessionHints?.businessId || embeddedSignupSessionHints?.wabaId);
