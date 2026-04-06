@@ -369,7 +369,62 @@ export async function fetchEmbeddedSignupPhoneAssets(
     );
   }
 
-  console.log("[embedded-signup] asset lookup started", {
+  // Step 1: Try to get WABA IDs from the token's granular_scopes (works for System User tokens)
+  try {
+    const appId = process.env.META_APP_ID;
+    const debugResponse = await axios.get(
+      `https://graph.facebook.com/${META_GRAPH_VERSION}/debug_token`,
+      {
+        params: { input_token: accessToken, access_token: `${appId}|${process.env.META_APP_SECRET}` },
+      }
+    );
+    const tokenData = debugResponse.data?.data;
+    console.log("[embedded-signup] token debug:", JSON.stringify(debugResponse.data, null, 2));
+
+    // Extract WABA IDs from granular_scopes target_ids
+    const wabaScope = tokenData?.granular_scopes?.find(
+      (s: any) => s.scope === "whatsapp_business_management"
+    );
+    const targetIds: string[] = Array.isArray(wabaScope?.target_ids) ? wabaScope.target_ids : [];
+
+    if (targetIds.length > 0) {
+      console.log("[embedded-signup] found WABA target_ids from token:", targetIds);
+      // Query each WABA ID directly for phone numbers
+      for (const wabaTargetId of targetIds) {
+        try {
+          const wabaResponse = await axios.get(
+            `https://graph.facebook.com/${META_GRAPH_VERSION}/${wabaTargetId}/phone_numbers`,
+            {
+              params: { fields: "id,display_phone_number,verified_name,whatsapp_business_account_id" },
+              headers,
+            }
+          );
+          const phones = Array.isArray(wabaResponse.data?.data) ? wabaResponse.data.data : [];
+          for (const phone of phones) {
+            addPhone(phone, { wabaId: wabaTargetId, businessName: null });
+          }
+          console.log(`[embedded-signup] WABA ${wabaTargetId} returned ${phones.length} phone(s)`);
+        } catch (wabaError: any) {
+          console.warn(`[embedded-signup] failed to query WABA ${wabaTargetId}:`, wabaError?.response?.data?.error || wabaError.message);
+        }
+      }
+
+      if (collected.size > 0) {
+        console.log("[embedded-signup] asset lookup finished via token target_ids", {
+          assetCount: collected.size,
+          phoneNumberIds: Array.from(collected.values()).map((asset) => asset.phoneNumberId),
+        });
+        return Array.from(collected.values()).filter(
+          (asset) => asset.displayPhoneNumber || asset.phoneNumberId
+        );
+      }
+    }
+  } catch (debugError: any) {
+    console.warn("[embedded-signup] token debug failed:", debugError?.response?.data?.error || debugError.message);
+  }
+
+  // Step 2: Fallback to original query candidates
+  console.log("[embedded-signup] asset lookup started (fallback)", {
     businessId: normalizedBusinessId || null,
     wabaId: normalizedWabaId || null,
     candidateQueries: queryCandidates.map((query) => query.path),
@@ -391,7 +446,7 @@ export async function fetchEmbeddedSignupPhoneAssets(
     } catch (error: any) {
       console.warn(
         `Embedded signup asset lookup failed for ${query.path}`,
-        error?.response?.data || error?.message || error
+        error?.response?.data?.error || error?.response?.data || error?.message || error
       );
     }
   }
