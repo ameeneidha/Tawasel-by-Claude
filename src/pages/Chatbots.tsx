@@ -248,7 +248,8 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
         instructions,
         language,
         enabled,
-        assignedNumberIds: selectionToSave
+        assignedNumberIds: selectionToSave,
+        workspaceId: activeWorkspace?.id
       });
 
       if (activeWorkspace?.id) {
