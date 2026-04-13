@@ -26,7 +26,8 @@ import {
   CalendarCheck,
   Route,
   RefreshCw,
-  Link2
+  Link2,
+  Languages
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -35,22 +36,23 @@ import { cn, getDisplayName } from '../lib/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { motion } from 'motion/react';
 import AppTooltip from './AppTooltip';
+import { useTranslation } from 'react-i18next';
 
 const navItems = [
-  { icon: BarChart3, label: 'Dashboard', path: '/app/dashboard', minRole: 'USER' as const },
-  { icon: MessageSquare, label: 'Inbox', path: '/app/inbox', minRole: 'USER' as const },
-  { icon: LayoutGrid, label: 'CRM Pipeline', path: '/app/crm', minRole: 'USER' as const },
-  { icon: ContactRound, label: 'Contacts', path: '/app/contacts', minRole: 'USER' as const },
-  { icon: CalendarCheck, label: 'Appointments', path: '/app/appointments', minRole: 'USER' as const },
-  { icon: Send, label: 'Compose', path: '/app/compose', minRole: 'USER' as const },
-  { icon: Radio, label: 'Broadcast', path: '/app/broadcast', minRole: 'ADMIN' as const },
-  { icon: FileText, label: 'Templates', path: '/app/templates', minRole: 'ADMIN' as const },
-  { icon: Bot, label: 'AI Chatbots', path: '/app/chatbots', minRole: 'ADMIN' as const },
-  { icon: Link2, label: 'Campaigns', path: '/app/campaigns', minRole: 'ADMIN' as const },
-  { icon: Route, label: 'Auto-Assign', path: '/app/auto-assign', minRole: 'ADMIN' as const },
-  { icon: RefreshCw, label: 'Follow-ups', path: '/app/follow-ups', minRole: 'ADMIN' as const },
-  { icon: Zap, label: 'Integrations', path: '/app/integrations', minRole: 'ADMIN' as const },
-  { icon: Hash, label: 'Channels', path: '/app/channels', minRole: 'ADMIN' as const },
+  { icon: BarChart3, labelKey: 'sidebar.dashboard', path: '/app/dashboard', minRole: 'USER' as const },
+  { icon: MessageSquare, labelKey: 'sidebar.inbox', path: '/app/inbox', minRole: 'USER' as const },
+  { icon: LayoutGrid, labelKey: 'sidebar.crmPipeline', path: '/app/crm', minRole: 'USER' as const },
+  { icon: ContactRound, labelKey: 'sidebar.contacts', path: '/app/contacts', minRole: 'USER' as const },
+  { icon: CalendarCheck, labelKey: 'sidebar.appointments', path: '/app/appointments', minRole: 'USER' as const },
+  { icon: Send, labelKey: 'sidebar.compose', path: '/app/compose', minRole: 'USER' as const },
+  { icon: Radio, labelKey: 'sidebar.broadcast', path: '/app/broadcast', minRole: 'ADMIN' as const },
+  { icon: FileText, labelKey: 'sidebar.templates', path: '/app/templates', minRole: 'ADMIN' as const },
+  { icon: Bot, labelKey: 'sidebar.aiChatbots', path: '/app/chatbots', minRole: 'ADMIN' as const },
+  { icon: Link2, labelKey: 'sidebar.campaigns', path: '/app/campaigns', minRole: 'ADMIN' as const },
+  { icon: Route, labelKey: 'sidebar.autoAssign', path: '/app/auto-assign', minRole: 'ADMIN' as const },
+  { icon: RefreshCw, labelKey: 'sidebar.followUps', path: '/app/follow-ups', minRole: 'ADMIN' as const },
+  { icon: Zap, labelKey: 'sidebar.integrations', path: '/app/integrations', minRole: 'ADMIN' as const },
+  { icon: Hash, labelKey: 'sidebar.channels', path: '/app/channels', minRole: 'ADMIN' as const },
 ];
 
 const roleLevel: Record<string, number> = { USER: 1, ADMIN: 2, OWNER: 3 };
@@ -60,10 +62,13 @@ export default function Sidebar() {
   const { user, workspaces, activeWorkspace, setActiveWorkspace, logout, hasFullAccess, isSuperadmin, workspaceRole } = useApp();
   const { theme, toggleTheme } = useTheme();
   const { isOpen, close } = useSidebar();
+  const { t, i18n } = useTranslation();
   const displayName = getDisplayName(user?.name, user?.email);
   const userRoleLevel = roleLevel[workspaceRole] || 1;
+  const isRtl = i18n.language === 'ar';
+  const toggleLanguage = () => i18n.changeLanguage(isRtl ? 'en' : 'ar');
   const visibleNavItems = isSuperadmin
-    ? [{ icon: ShieldAlert, label: 'Superadmin', path: '/app/superadmin', minRole: 'USER' as const }]
+    ? [{ icon: ShieldAlert, labelKey: 'sidebar.superadmin', path: '/app/superadmin', minRole: 'USER' as const }]
     : navItems.filter(item => userRoleLevel >= (roleLevel[item.minRole] || 1));
 
   return (
@@ -90,9 +95,10 @@ export default function Sidebar() {
         {visibleNavItems.map((item) => {
           const isActive = location.pathname.startsWith(item.path);
           const isLocked = !isSuperadmin && !hasFullAccess && item.path !== '/app/inbox';
+          const label = t(item.labelKey);
           return (
             <div key={item.path}>
-              <AppTooltip content={isLocked ? `${item.label} locked until subscription` : item.label}>
+              <AppTooltip content={isLocked ? t('sidebar.lockedUntilSubscription', { label }) : label}>
                 <Link
                   to={isLocked ? '/app/settings/billing/plans' : item.path}
                   onClick={close}
@@ -115,7 +121,16 @@ export default function Sidebar() {
       </nav>
 
       <div className="mt-auto flex flex-col gap-1 pt-2 border-t border-gray-100 dark:border-slate-800">
-        <AppTooltip content={theme === 'light' ? 'Dark Mode' : 'Light Mode'}>
+        <AppTooltip content={isRtl ? 'English' : 'العربية'}>
+          <button
+            onClick={toggleLanguage}
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-gray-300 transition-all text-xs font-bold"
+          >
+            {isRtl ? 'EN' : 'ع'}
+          </button>
+        </AppTooltip>
+
+        <AppTooltip content={theme === 'light' ? t('sidebar.darkMode') : t('sidebar.lightMode')}>
           <button
             onClick={toggleTheme}
             className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
@@ -127,7 +142,7 @@ export default function Sidebar() {
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <div>
-              <AppTooltip content="Account Menu">
+              <AppTooltip content={t('sidebar.accountMenu')}>
                 <button className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors overflow-hidden text-sm">
                   {displayName[0] || 'U'}
                 </button>
@@ -138,7 +153,7 @@ export default function Sidebar() {
           <DropdownMenu.Portal>
             <DropdownMenu.Content 
               className="min-w-[240px] bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-gray-100 dark:border-slate-800 p-2 z-50 animate-in fade-in zoom-in-95"
-              side="right"
+              side={isRtl ? 'left' : 'right'}
               align="end"
               sideOffset={10}
             >
@@ -150,7 +165,7 @@ export default function Sidebar() {
               {!isSuperadmin && (
                 <>
                   <DropdownMenu.Label className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                    Workspaces
+                    {t('sidebar.workspaces')}
                   </DropdownMenu.Label>
                   
                   {workspaces.map((ws) => (
@@ -170,7 +185,7 @@ export default function Sidebar() {
                   <DropdownMenu.Item asChild>
                     <Link to="/app/inbox" className="flex items-center gap-2 px-3 py-2 text-sm text-[#25D366] font-medium rounded-lg cursor-pointer outline-none hover:bg-[#25D366]/5 transition-colors">
                       <Plus className="w-4 h-4" />
-                      New Workspace
+                      {t('sidebar.newWorkspace')}
                     </Link>
                   </DropdownMenu.Item>
 
@@ -182,7 +197,7 @@ export default function Sidebar() {
                 <DropdownMenu.Item asChild>
                   <Link to="/app/settings/personal" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer outline-none hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                     <Settings className="w-4 h-4" />
-                    Settings
+                    {t('common.settings')}
                   </Link>
                 </DropdownMenu.Item>
               )}
@@ -191,7 +206,7 @@ export default function Sidebar() {
                 <DropdownMenu.Item asChild>
                   <Link to="/app/team" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer outline-none hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                     <Users className="w-4 h-4" />
-                    Team
+                    {t('sidebar.team')}
                   </Link>
                 </DropdownMenu.Item>
               )}
@@ -200,7 +215,7 @@ export default function Sidebar() {
                 <DropdownMenu.Item asChild>
                   <Link to="/app/switch-account" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer outline-none hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                     <UserCircle className="w-4 h-4" />
-                    Switch Account
+                    {t('sidebar.switchAccount')}
                   </Link>
                 </DropdownMenu.Item>
               )}
@@ -211,7 +226,7 @@ export default function Sidebar() {
                 <DropdownMenu.Item asChild>
                   <Link to="/app/web-chat-widget" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer outline-none hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                     <MessageCircle className="w-4 h-4" />
-                    Web Chat Widget
+                    {t('sidebar.webChatWidget')}
                   </Link>
                 </DropdownMenu.Item>
               )}
@@ -220,7 +235,7 @@ export default function Sidebar() {
                 <DropdownMenu.Item asChild>
                   <Link to="/app/feature-request" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer outline-none hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                     <Lightbulb className="w-4 h-4" />
-                    Feature Request
+                    {t('sidebar.featureRequest')}
                   </Link>
                 </DropdownMenu.Item>
               )}
@@ -229,7 +244,7 @@ export default function Sidebar() {
                 <DropdownMenu.Item asChild>
                   <Link to="/app/report-issue" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer outline-none hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                     <AlertCircle className="w-4 h-4" />
-                    Report Issue
+                    {t('sidebar.reportIssue')}
                   </Link>
                 </DropdownMenu.Item>
               )}
@@ -248,7 +263,7 @@ export default function Sidebar() {
                 className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 rounded-lg cursor-pointer outline-none hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
-                Logout
+                {t('common.logout')}
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>

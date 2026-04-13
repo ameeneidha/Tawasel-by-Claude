@@ -36,3 +36,44 @@
     display: none;
   }
 }
+
+/* RTL Support */
+[dir="rtl"] {
+  font-family: "Tajawal", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Flip sidebar position for RTL */
+[dir="rtl"] .sidebar-fixed {
+  left: auto;
+  right: 0;
+}
+
+/* Fix translate directions for RTL sidebar */
+[dir="rtl"] .sidebar-slide {
+  transform: translateX(100%);
+}
+[dir="rtl"] .sidebar-slide.sidebar-open {
+  transform: translateX(0);
+}
+
+/* Flip border directions */
+[dir="rtl"] .border-r {
+  border-right: none;
+  border-left-width: 1px;
+}
+
+/* Flip common layout patterns */
+[dir="rtl"] .rtl\:flex-row-reverse {
+  flex-direction: row-reverse;
+}
+
+/* Fix icon margins in RTL */
+[dir="rtl"] .rtl\:ml-auto {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+[dir="rtl"] .rtl\:mr-auto {
+  margin-right: 0;
+  margin-left: auto;
+}
