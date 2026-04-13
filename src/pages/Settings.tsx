@@ -26,6 +26,7 @@ import axios from 'axios';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import ActivationChecklist from '../components/ActivationChecklist';
+import { useTranslation } from 'react-i18next';
 import { formatLimitValue, getPlanConfig, getPlanPrice, isPaidPlan, PLAN_ORDER, PLANS, PlanType } from '../constants/plans';
 
 const settingsNav = [
@@ -376,43 +377,162 @@ function AutomationRules() {
 }
 
 function CustomAttributes() {
+  const { activeWorkspace } = useApp();
+  const { t } = useTranslation();
+  const [attributes, setAttributes] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newKey, setNewKey] = useState('');
+  const [newType, setNewType] = useState('STRING');
+
+  const fetchAttributes = async () => {
+    if (!activeWorkspace?.id) return;
+    try {
+      const res = await axios.get(`/api/custom-attributes?workspaceId=${activeWorkspace.id}`);
+      setAttributes(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      // API might not exist yet — show empty
+      setAttributes([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchAttributes(); }, [activeWorkspace?.id]);
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`${t('common.delete')} "${name}"?`)) return;
+    try {
+      await axios.delete(`/api/custom-attributes/${id}`, { headers: { 'x-workspace-id': activeWorkspace?.id } });
+      toast.success(t('common.delete') + ' ✓');
+      fetchAttributes();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to delete');
+    }
+  };
+
+  const handleEdit = async (id: string) => {
+    if (!editName.trim()) return;
+    try {
+      await axios.patch(`/api/custom-attributes/${id}`, { name: editName, workspaceId: activeWorkspace?.id });
+      toast.success(t('common.save') + ' ✓');
+      setEditingId(null);
+      fetchAttributes();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to update');
+    }
+  };
+
+  const handleAdd = async () => {
+    if (!newName.trim() || !newKey.trim()) return;
+    try {
+      await axios.post('/api/custom-attributes', {
+        workspaceId: activeWorkspace?.id,
+        name: newName,
+        key: newKey.toLowerCase().replace(/\s+/g, '_'),
+        type: newType
+      });
+      toast.success(t('common.create') + ' ✓');
+      setShowAdd(false);
+      setNewName('');
+      setNewKey('');
+      setNewType('STRING');
+      fetchAttributes();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to create');
+    }
+  };
+
   return (
     <div className="space-y-12">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Custom Attributes</h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Define extra fields to store for your contacts.</p>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('inbox.customAttributes')}</h2>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{t('common.description')}</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white font-medium rounded-xl hover:bg-[#128C7E] transition-all shadow-sm">
+        <button
+          onClick={() => setShowAdd(!showAdd)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white font-medium rounded-xl hover:bg-[#128C7E] transition-all shadow-sm"
+        >
           <Plus className="w-4 h-4" />
-          Add Attribute
+          {t('common.add')}
         </button>
       </div>
+
+      {showAdd && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 space-y-4 transition-colors">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('common.name')}</label>
+              <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Vehicle Type"
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:border-[#25D366]" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Key</label>
+              <input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="e.g. vehicle_type"
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:border-[#25D366]" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('common.type')}</label>
+              <select value={newType} onChange={(e) => setNewType(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:border-[#25D366]">
+                <option value="STRING">String</option>
+                <option value="NUMBER">Number</option>
+                <option value="DATE">Date</option>
+                <option value="BOOLEAN">Boolean</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">{t('common.cancel')}</button>
+            <button onClick={handleAdd} className="px-4 py-2 bg-[#25D366] text-white text-sm font-medium rounded-lg hover:bg-[#128C7E] transition-colors">{t('common.create')}</button>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
         <table className="w-full text-left">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-100 dark:border-slate-800 transition-colors">
-              <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Name</th>
+              <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('common.actions')}</th>
+              <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('common.type')}</th>
               <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Key</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Type</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-right">Actions</th>
+              <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('common.name')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-slate-800 transition-colors">
-            <tr className="hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
-              <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Vehicle Type</td>
-              <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">vehicle_type</td>
-              <td className="px-6 py-4">
-                <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold rounded uppercase">String</span>
-              </td>
-              <td className="px-6 py-4 text-right">
-                <div className="flex items-center justify-end gap-2">
-                  <button className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors"><Edit className="w-4 h-4" /></button>
-                  <button className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
-                </div>
-              </td>
-            </tr>
+            {isLoading ? (
+              <tr><td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-400">{t('common.loading')}</td></tr>
+            ) : attributes.length === 0 ? (
+              <tr><td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-400">{t('common.noResults')}</td></tr>
+            ) : attributes.map((attr) => (
+              <tr key={attr.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleDelete(attr.id, attr.name)} className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => { setEditingId(attr.id); setEditName(attr.name); }} className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors"><Edit className="w-4 h-4" /></button>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold rounded uppercase">{attr.type}</span>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{attr.key}</td>
+                <td className="px-6 py-4">
+                  {editingId === attr.id ? (
+                    <div className="flex items-center gap-2">
+                      <input value={editName} onChange={(e) => setEditName(e.target.value)} className="px-2 py-1 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-sm outline-none focus:border-[#25D366]" autoFocus />
+                      <button onClick={() => handleEdit(attr.id)} className="text-[#25D366] text-xs font-medium">{t('common.save')}</button>
+                      <button onClick={() => setEditingId(null)} className="text-gray-400 text-xs">{t('common.cancel')}</button>
+                    </div>
+                  ) : (
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{attr.name}</span>
+                  )}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

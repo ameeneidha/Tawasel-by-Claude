@@ -3794,6 +3794,65 @@ async function startServer() {
     });
   });
 
+  // Custom Attributes
+  app.get("/api/custom-attributes", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
+    try {
+      const attrs = await prisma.customAttributeDefinition.findMany({
+        where: { workspaceId: req.query.workspaceId as string },
+        orderBy: { name: 'asc' }
+      });
+      res.json(attrs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch custom attributes" });
+    }
+  });
+
+  app.post("/api/custom-attributes", requireAuth, requireRole('ADMIN', 'OWNER'), async (req, res) => {
+    const { workspaceId, name, key, type } = req.body;
+    if (!workspaceId || !name || !key) return res.status(400).json({ error: "Name and key are required" });
+    try {
+      const existing = await prisma.customAttributeDefinition.findFirst({ where: { workspaceId, key } });
+      if (existing) return res.status(400).json({ error: "An attribute with this key already exists" });
+      const attr = await prisma.customAttributeDefinition.create({
+        data: { name, key, type: type || 'STRING', workspaceId }
+      });
+      res.json(attr);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create custom attribute" });
+    }
+  });
+
+  app.patch("/api/custom-attributes/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req, res) => {
+    const { name, workspaceId } = req.body;
+    if (!workspaceId) return res.status(400).json({ error: "Workspace ID required" });
+    try {
+      const attr = await prisma.customAttributeDefinition.findUnique({ where: { id: req.params.id } });
+      if (!attr || attr.workspaceId !== workspaceId) return res.status(404).json({ error: "Not found" });
+      const updated = await prisma.customAttributeDefinition.update({
+        where: { id: req.params.id },
+        data: { name }
+      });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update custom attribute" });
+    }
+  });
+
+  app.delete("/api/custom-attributes/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req, res) => {
+    const workspaceId = req.headers['x-workspace-id'] as string;
+    if (!workspaceId) return res.status(400).json({ error: "Workspace ID required" });
+    try {
+      const attr = await prisma.customAttributeDefinition.findUnique({ where: { id: req.params.id } });
+      if (!attr || attr.workspaceId !== workspaceId) return res.status(404).json({ error: "Not found" });
+      // Delete values first, then definition
+      await prisma.contactCustomAttributeValue.deleteMany({ where: { definitionId: req.params.id } });
+      await prisma.customAttributeDefinition.delete({ where: { id: req.params.id } });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete custom attribute" });
+    }
+  });
+
   // Contacts / CRM
   app.get("/api/contacts", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
     const { workspaceId } = req.query;
