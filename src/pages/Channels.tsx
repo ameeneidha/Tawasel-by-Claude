@@ -2,19 +2,21 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
 import { getPlanConfig, PLANS, PlanType } from '../constants/plans';
-import { 
-  Hash, 
-  Plus, 
-  MoreVertical, 
-  Bot, 
-  CheckCircle2, 
+import {
+  Hash,
+  Plus,
+  MoreVertical,
+  Bot,
+  CheckCircle2,
   AlertCircle,
   Edit2,
   Trash2,
   Settings2,
   Loader2,
   Phone,
-  ShieldCheck
+  ShieldCheck,
+  Instagram,
+  ExternalLink
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -65,6 +67,7 @@ const META_EMBEDDED_SIGNUP_ORIGINS = [
 export default function Channels() {
   const { activeWorkspace } = useApp();
   const [numbers, setNumbers] = useState<any[]>([]);
+  const [igAccounts, setIgAccounts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnectingWhatsApp, setIsConnectingWhatsApp] = useState(false);
   const [isFinalizingWhatsApp, setIsFinalizingWhatsApp] = useState(false);
@@ -78,6 +81,7 @@ export default function Channels() {
   const isMetaTestNumber = (phoneNumber?: string) => phoneNumber?.replace(/\D/g, '') === '15551363768';
 
   const waLimitReached = numbers.length >= planInfo.whatsappLimit;
+  const igLimitReached = igAccounts.length >= (planInfo.instagramLimit || 1);
 
   useEffect(() => {
     if (activeWorkspace) {
@@ -233,8 +237,12 @@ export default function Channels() {
   const fetchChannels = async () => {
     setIsLoading(true);
     try {
-      const numRes = await axios.get(`/api/numbers?workspaceId=${activeWorkspace?.id}`);
+      const [numRes, igRes] = await Promise.all([
+        axios.get(`/api/numbers?workspaceId=${activeWorkspace?.id}`),
+        axios.get(`/api/instagram/accounts?workspaceId=${activeWorkspace?.id}`).catch(() => ({ data: [] }))
+      ]);
       setNumbers(Array.isArray(numRes.data) ? numRes.data : []);
+      setIgAccounts(Array.isArray(igRes.data) ? igRes.data : []);
     } catch (error) {
       console.error('Failed to fetch channels', error);
     } finally {
@@ -330,8 +338,8 @@ export default function Channels() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">WhatsApp Channels</h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">Connect and manage your WhatsApp numbers.</p>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Channels</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">Connect and manage your WhatsApp & Instagram channels.</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-end mr-4">
@@ -523,6 +531,114 @@ export default function Channels() {
                   </p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                     {waLimitReached ? `Limit reached for ${planInfo.name} plan` : 'Use Meta Embedded Signup for this workspace'}
+                  </p>
+                </button>
+              </div>
+            </section>
+
+            {/* Instagram Section */}
+            <section>
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-lg flex items-center justify-center">
+                  <Instagram className="w-4 h-4 text-pink-500" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Instagram Accounts</h2>
+                <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
+                  {igAccounts.length}/{planInfo.instagramLimit || 1}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {igAccounts.map((account: any) => (
+                  <motion.div
+                    key={account.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="p-2 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 text-pink-500 rounded-xl">
+                        <Instagram className="w-6 h-6" />
+                      </div>
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+                        account.status === 'CONNECTED'
+                          ? "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400"
+                          : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+                      )}>
+                        {account.status}
+                      </span>
+                    </div>
+
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{account.name}</h3>
+                    {account.username && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">@{account.username}</p>
+                    )}
+                    <div className="mb-6" />
+
+                    <div className="space-y-4 pt-4 border-t border-gray-50 dark:border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Bot className="w-4 h-4 text-pink-500" />
+                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">AI Chatbot</span>
+                        </div>
+                        {account.chatbot ? (
+                          <span className="px-2 py-1 bg-pink-500/10 text-pink-500 text-[10px] font-bold rounded uppercase">
+                            {account.chatbot.name}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500 italic">None</span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Instagram ID</span>
+                        <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400">
+                          {account.instagramId || '—'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-gray-50 dark:border-slate-800">
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Delete Instagram account "${account.name}"?`)) return;
+                          try {
+                            await axios.delete(`/api/instagram/accounts/${account.id}`, {
+                              headers: { 'x-workspace-id': activeWorkspace?.id }
+                            });
+                            toast.success('Instagram account removed');
+                            fetchChannels();
+                          } catch (err: any) {
+                            toast.error(err.response?.data?.error || 'Failed to delete');
+                          }
+                        }}
+                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+
+                <button
+                  disabled={igLimitReached}
+                  onClick={() => {
+                    toast.info('Instagram connection requires Meta App Review approval for instagram_manage_messages permission. Contact support to connect your Instagram Business account.');
+                  }}
+                  className={cn(
+                    "border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center transition-all group min-h-[200px]",
+                    igLimitReached
+                      ? "bg-gray-50 dark:bg-slate-900/50 border-gray-200 dark:border-slate-800 cursor-not-allowed"
+                      : "bg-gray-50 dark:bg-slate-900/50 border-gray-200 dark:border-slate-800 hover:bg-gray-100 dark:hover:bg-slate-800"
+                  )}
+                >
+                  <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                    <Instagram className={cn("w-6 h-6", igLimitReached ? "text-gray-300 dark:text-gray-700" : "text-pink-400")} />
+                  </div>
+                  <p className={cn("text-sm font-semibold", igLimitReached ? "text-gray-400 dark:text-gray-600" : "text-gray-600 dark:text-gray-300")}>
+                    Connect Instagram
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    {igLimitReached ? `Limit reached for ${planInfo.name} plan` : 'Receive & reply to Instagram DMs'}
                   </p>
                 </button>
               </div>

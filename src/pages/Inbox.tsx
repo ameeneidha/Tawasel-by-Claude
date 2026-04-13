@@ -343,7 +343,7 @@ export default function Inbox() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [channelFilter, setChannelFilter] = useState<'ALL' | 'WHATSAPP'>('ALL');
+  const [channelFilter, setChannelFilter] = useState<'ALL' | 'WHATSAPP' | 'INSTAGRAM'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'WAITING_FOR_CUSTOMER' | 'WAITING_FOR_INTERNAL' | 'RESOLVED'>('ALL');
   const [contactDraft, setContactDraft] = useState({ name: '', phoneNumber: '', listNames: [] as string[] });
   const [contactLists, setContactLists] = useState<ContactListOption[]>([]);
@@ -1067,11 +1067,12 @@ export default function Inbox() {
               <div className="grid grid-cols-2 gap-2">
                 <select
                   value={channelFilter}
-                  onChange={(e) => setChannelFilter(e.target.value as 'ALL' | 'WHATSAPP')}
+                  onChange={(e) => setChannelFilter(e.target.value as 'ALL' | 'WHATSAPP' | 'INSTAGRAM')}
                   className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700 outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200"
                 >
                   <option value="ALL">All channels</option>
                   <option value="WHATSAPP">WhatsApp</option>
+                  <option value="INSTAGRAM">Instagram</option>
                 </select>
                 <select
                   value={statusFilter}

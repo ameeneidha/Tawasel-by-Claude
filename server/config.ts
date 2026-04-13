@@ -4,7 +4,7 @@ import multer from "multer";
 import crypto from "crypto";
 
 // ── Feature Flags ──────────────────────────────────────────────────
-export const INSTAGRAM_INTEGRATION_ENABLED = false;
+export const INSTAGRAM_INTEGRATION_ENABLED = true;
 
 // ── AI Model Config ────────────────────────────────────────────────
 export const FIXED_CHATBOT_MODEL = "gpt-4.1-mini";
