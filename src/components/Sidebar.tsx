@@ -76,17 +76,17 @@ export default function Sidebar() {
         />
       )}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-20 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 flex flex-col items-center py-6 h-screen transition-all duration-300",
+        "fixed inset-y-0 left-0 z-50 w-16 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 flex flex-col items-center py-4 h-screen transition-all duration-300",
         "md:relative md:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-      <div className="mb-8">
-        <div className="w-10 h-10 bg-[#25D366] rounded-xl flex items-center justify-center text-white font-bold text-xl">
+      <div className="mb-4">
+        <div className="w-9 h-9 bg-[#25D366] rounded-xl flex items-center justify-center text-white font-bold text-lg">
           T
         </div>
       </div>
 
-      <nav className="flex-1 flex flex-col gap-4">
+      <nav className="flex-1 flex flex-col gap-1 overflow-y-auto overflow-x-hidden scrollbar-hide min-h-0">
         {visibleNavItems.map((item) => {
           const isActive = location.pathname.startsWith(item.path);
           const isLocked = !isSuperadmin && !hasFullAccess && item.path !== '/app/inbox';
@@ -97,14 +97,14 @@ export default function Sidebar() {
                   to={isLocked ? '/app/settings/billing/plans' : item.path}
                   onClick={close}
                   className={cn(
-                    "w-12 h-12 rounded-xl flex items-center justify-center transition-all relative",
-                    isActive 
-                      ? "bg-[#25D366]/10 text-[#25D366]" 
+                    "w-10 h-10 rounded-xl flex items-center justify-center transition-all relative",
+                    isActive
+                      ? "bg-[#25D366]/10 text-[#25D366]"
                       : "text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-gray-300",
                     isLocked && "opacity-60"
                   )}
                 >
-                  <item.icon className="w-6 h-6" />
+                  <item.icon className="w-5 h-5" />
                   {isLocked && <Lock className="absolute -right-0.5 -top-0.5 w-3.5 h-3.5 text-amber-500 bg-white rounded-full p-[1px]" />}
                 </Link>
               </AppTooltip>
@@ -114,13 +114,13 @@ export default function Sidebar() {
 
       </nav>
 
-      <div className="mt-auto flex flex-col gap-4">
+      <div className="mt-auto flex flex-col gap-1 pt-2 border-t border-gray-100 dark:border-slate-800">
         <AppTooltip content={theme === 'light' ? 'Dark Mode' : 'Light Mode'}>
-          <button 
+          <button
             onClick={toggleTheme}
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
           >
-            {theme === 'light' ? <Moon className="w-6 h-6" /> : <Sun className="w-6 h-6" />}
+            {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
           </button>
         </AppTooltip>
 
@@ -128,7 +128,7 @@ export default function Sidebar() {
           <DropdownMenu.Trigger asChild>
             <div>
               <AppTooltip content="Account Menu">
-                <button className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors overflow-hidden">
+                <button className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors overflow-hidden text-sm">
                   {displayName[0] || 'U'}
                 </button>
               </AppTooltip>
