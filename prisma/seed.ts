@@ -158,14 +158,14 @@ const demoAccounts: DemoAccount[] = [
 ];
 
 async function resetDatabase() {
-  // Get all table names and delete in safe order using PRAGMA
-  const tables: Array<{ name: string }> = await prisma.$queryRaw`SELECT name FROM sqlite_master WHERE type='table' AND name != '_prisma_migrations' AND name != 'sqlite_sequence'`;
-  // Disable FK checks, truncate all, re-enable
-  await prisma.$executeRawUnsafe('PRAGMA foreign_keys = OFF');
+  const tables: Array<{ name: string }> = await prisma.$queryRaw`
+    SELECT tablename AS name FROM pg_tables
+    WHERE schemaname = 'public' AND tablename != '_prisma_migrations'`;
+  await prisma.$executeRawUnsafe('SET session_replication_role = replica');
   for (const { name } of tables) {
-    await prisma.$executeRawUnsafe(`DELETE FROM "${name}"`);
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${name}" CASCADE`);
   }
-  await prisma.$executeRawUnsafe('PRAGMA foreign_keys = ON');
+  await prisma.$executeRawUnsafe('SET session_replication_role = DEFAULT');
 }
 
 async function createSuperadminUser(hashedPassword: string) {

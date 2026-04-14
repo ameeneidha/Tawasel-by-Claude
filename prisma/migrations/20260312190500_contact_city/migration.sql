@@ -1,1 +1,0 @@
-ALTER TABLE "Contact" ADD COLUMN "city" TEXT;
