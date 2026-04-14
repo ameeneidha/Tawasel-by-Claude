@@ -89,6 +89,10 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### April 14, 2026
+
+- **Arabic Translations**: Wired `react-i18next` into 20 core app pages so the Arabic language switcher fully localizes the main product surface — Dashboard, Inbox, Contacts, CRM Pipeline, Appointments, Compose, Broadcast, Templates, Channels, Chatbots, Campaigns, Team, Follow-ups, Auto-Assign, Integrations, Web Chat Widget, Home, Register, and Forgot Password. Remaining untranslated pages (FeatureRequest, ReportIssue, ResetPassword, VerifyEmail, SwitchAccount, Superadmin, and marketing/legal pages) are lower priority and will follow.
+
 ### April 5, 2026
 
 - **Meta App Review**: `whatsapp_business_management` permission approved. `whatsapp_business_messaging` submitted (pending — screencast must show message received on phone)

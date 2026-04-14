@@ -112,6 +112,10 @@ npx vite build
 pm2 restart tawasel-app
 ```
 
+## Recently Completed (April 14, 2026)
+- Arabic translations wired into 20 core app pages via react-i18next (Dashboard, Inbox, Contacts, CRM, Appointments, Compose, Broadcast, Templates, Channels, Chatbots, Campaigns, Team, FollowUps, AutoAssign, Integrations, WebChatWidget, Home, Register, ForgotPassword, Settings/Login already done)
+- Remaining untranslated pages (lower priority): FeatureRequest, ReportIssue, ResetPassword, VerifyEmail, VerifyEmailSent, SwitchAccount, Superadmin, and marketing pages (About, Careers, Changelog, Privacy, Terms, DataDeletion, NotFound)
+
 ## Recently Completed (April 13, 2026)
 - Meta App Review: whatsapp_business_management APPROVED ✅
 - Meta App Review: whatsapp_business_messaging APPROVED ✅
