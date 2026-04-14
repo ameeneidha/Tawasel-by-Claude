@@ -161,11 +161,9 @@ async function resetDatabase() {
   const tables: Array<{ name: string }> = await prisma.$queryRaw`
     SELECT tablename AS name FROM pg_tables
     WHERE schemaname = 'public' AND tablename != '_prisma_migrations'`;
-  await prisma.$executeRawUnsafe('SET session_replication_role = replica');
   for (const { name } of tables) {
     await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${name}" CASCADE`);
   }
-  await prisma.$executeRawUnsafe('SET session_replication_role = DEFAULT');
 }
 
 async function createSuperadminUser(hashedPassword: string) {
