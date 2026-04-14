@@ -4,9 +4,11 @@ import { useApp } from '../contexts/AppContext';
 import { Send, User, Phone, FileText, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export default function Compose() {
   const { activeWorkspace } = useApp();
+  const { t } = useTranslation();
   const [numbers, setNumbers] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [formData, setFormData] = useState({
@@ -56,7 +58,7 @@ export default function Compose() {
         templateLanguage: selectedTemplate?.language || 'en',
         message: formData.message,
       });
-      toast.success('Message sent successfully');
+      toast.success(t('compose.messageSent'));
       setFormData(prev => ({
         ...prev,
         recipientName: '',
@@ -65,7 +67,7 @@ export default function Compose() {
         message: ''
       }));
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to send message');
+      toast.error(error.response?.data?.error || t('compose.messageFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -75,8 +77,8 @@ export default function Compose() {
     <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 p-8 overflow-y-auto transition-colors">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Compose Message</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Send a one-to-one outbound message to a contact.</p>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('compose.title')}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{t('compose.subtitleAlt')}</p>
         </div>
 
         <motion.div
@@ -86,7 +88,7 @@ export default function Compose() {
         >
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">From Number</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('compose.fromNumber')}</label>
               <select
                 value={formData.fromNumber}
                 onChange={(e) => setFormData({ ...formData, fromNumber: e.target.value })}
@@ -101,7 +103,7 @@ export default function Compose() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Recipient Name</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('compose.recipientName')}</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
@@ -109,12 +111,12 @@ export default function Compose() {
                     value={formData.recipientName}
                     onChange={(e) => setFormData({ ...formData, recipientName: e.target.value })}
                     className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none transition-colors"
-                    placeholder="John Doe"
+                    placeholder={t('compose.recipientNamePlaceholder')}
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('compose.phoneNumber')}</label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
@@ -122,7 +124,7 @@ export default function Compose() {
                     value={formData.recipientPhone}
                     onChange={(e) => setFormData({ ...formData, recipientPhone: e.target.value })}
                     className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none transition-colors"
-                    placeholder="+971 50 000 0000"
+                    placeholder={t('compose.phonePlaceholder')}
                     required
                   />
                 </div>
@@ -130,7 +132,7 @@ export default function Compose() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Template</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('compose.template')}</label>
               <div className="relative">
                 <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <select
@@ -141,9 +143,9 @@ export default function Compose() {
                   }}
                   className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none transition-colors"
                 >
-                  <option value="">Select a template...</option>
+                  <option value="">{t('compose.selectTemplatePlaceholder')}</option>
                   {templates.length === 0 && (
-                    <option value="" disabled>No approved templates — sync from Templates page</option>
+                    <option value="" disabled>{t('compose.noApprovedTemplates')}</option>
                   )}
                   {templates.map(temp => (
                     <option key={temp.id} value={temp.id}>{temp.name} ({temp.language})</option>
@@ -153,13 +155,13 @@ export default function Compose() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Message Preview</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('compose.messagePreview')}</label>
               <textarea
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 rows={5}
                 className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] outline-none resize-none transition-colors"
-                placeholder="Select a template or type your message here..."
+                placeholder={t('compose.messagePreviewPlaceholder')}
                 required
               />
             </div>
@@ -174,7 +176,7 @@ export default function Compose() {
               ) : (
                 <>
                   <Send className="w-5 h-5" />
-                  Send Message
+                  {t('compose.sendMessage')}
                 </>
               )}
             </button>

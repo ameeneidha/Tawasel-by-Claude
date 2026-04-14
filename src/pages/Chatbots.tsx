@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
 import { getPlanConfig, PLANS } from '../constants/plans';
@@ -30,6 +31,7 @@ const APPENDED_SAFETY_INSTRUCTIONS = `# Safety Instructions
 - Do not claim abilities you do not have, such as generating images, videos, or checking third-party systems live.`;
 
 export default function Chatbots() {
+  const { t } = useTranslation();
   const { activeWorkspace } = useApp();
   const [chatbots, setChatbots] = useState<any[]>([]);
   const [selectedBot, setSelectedBot] = useState<any | null>(null);
@@ -61,7 +63,7 @@ export default function Chatbots() {
 
   const handleCreateChatbot = async () => {
     if (limitReached) {
-      toast.error(`Chatbot limit reached for ${planInfo.name} plan`);
+      toast.error(t('chatbots.chatbotLimit', { plan: planInfo.name }));
       return;
     }
 
@@ -73,10 +75,10 @@ export default function Chatbots() {
       });
       setChatbots([...chatbots, res.data]);
       setSelectedBot(res.data);
-      toast.success('New chatbot created');
+      toast.success(t('chatbots.newChatbotCreated'));
     } catch (error) {
       console.error('Failed to create chatbot', error);
-      toast.error('Failed to create chatbot');
+      toast.error(t('chatbots.failedToCreate'));
     }
   };
 
@@ -89,17 +91,17 @@ export default function Chatbots() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">AI Chatbots</h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">Configure AI-powered automated responses for your WhatsApp numbers.</p>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('chatbots.title')}</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">{t('chatbots.subtitle')}</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex flex-col items-end mr-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-[#25D366] uppercase tracking-wider bg-[#25D366]/5 px-3 py-1 rounded-full border border-[#25D366]/10">
                 <ShieldCheck className="w-3 h-3" />
-                {planInfo.name} Plan
+                {t('chatbots.planLabel', { name: planInfo.name })}
               </div>
               <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
-                Chatbots: {chatbots.length}/{planInfo.chatbotLimit}
+                {t('chatbots.chatbotsCount', { current: chatbots.length, max: planInfo.chatbotLimit })}
               </p>
             </div>
             <button 
@@ -111,7 +113,7 @@ export default function Chatbots() {
               )}
             >
               <Plus className="w-5 h-5" />
-              New AI Chatbot
+              {t('chatbots.newChatbot')}
             </button>
           </div>
         </div>
@@ -154,19 +156,19 @@ export default function Chatbots() {
                     </div>
                   ))}
                   {bot.numbers.length === 0 && (
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500 italic">No numbers assigned</span>
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 italic">{t('chatbots.noNumbersAssigned')}</span>
                   )}
                 </div>
                 <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-slate-800 transition-colors">
                   <div className="flex items-center gap-1.5">
                     <Zap className="w-4 h-4 text-amber-500" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{bot.tools.length} tools active</span>
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{t('chatbots.toolsActive', { count: bot.tools.length })}</span>
                   </div>
                   <button 
                     onClick={() => setSelectedBot(bot)}
                     className="text-xs font-bold text-[#25D366] flex items-center gap-1 group-hover:gap-2 transition-all"
                   >
-                    Configure
+                    {t('chatbots.configure')}
                     <ChevronRight className="w-3 h-3" />
                   </button>
                 </div>
@@ -180,6 +182,7 @@ export default function Chatbots() {
 }
 
 function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
+  const { t } = useTranslation();
   const { activeWorkspace } = useApp();
   const [activeTab, setActiveTab] = useState('info');
   const [testMessages, setTestMessages] = useState<any[]>([]);
@@ -222,7 +225,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
       } catch (error) {
         console.error('Failed to fetch WhatsApp channels', error);
         setAvailableNumbers([]);
-        toast.error('Failed to load WhatsApp channels');
+        toast.error(t('chatbots.failedToLoadChannels'));
       } finally {
         setIsLoadingNumbers(false);
       }
@@ -265,10 +268,10 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
         setAssignedNumberIds(selectionToSave);
       }
 
-      toast.success('Chatbot settings saved');
+      toast.success(t('chatbots.savedSuccess'));
     } catch (error) {
       console.error('Failed to save chatbot', error);
-      toast.error('Failed to save settings');
+      toast.error(t('chatbots.savedFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -298,7 +301,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
       setTestMessages(prev => [...prev, botMsg]);
     } catch (error) {
       console.error('AI Test Error:', error);
-      toast.error('Failed to get AI response');
+      toast.error(t('chatbots.failedToGetAiResponse'));
     } finally {
       setIsBotTyping(false);
     }
@@ -320,7 +323,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Enabled</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('chatbots.enabled')}</span>
             <Switch.Root 
               checked={enabled}
               onCheckedChange={setEnabled}
@@ -334,7 +337,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
             disabled={isSaving}
             className="px-4 py-1.5 bg-[#25D366] text-white text-xs font-bold rounded-lg hover:bg-[#128C7E] transition-all disabled:opacity-50"
           >
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            {isSaving ? t('chatbots.saving') : t('chatbots.saveChanges')}
           </button>
         </div>
       </div>
@@ -350,17 +353,17 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                 activeTab === 'info' ? "text-[#25D366]" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               )}
             >
-              Bot Info
+              {t('chatbots.botInfo')}
               {activeTab === 'info' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#25D366]" />}
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('tools')}
               className={cn(
                 "px-6 py-4 text-sm font-medium relative transition-colors",
                 activeTab === 'tools' ? "text-[#25D366]" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               )}
             >
-              Tools
+              {t('chatbots.tools')}
               {activeTab === 'tools' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#25D366]" />}
             </button>
           </div>
@@ -369,7 +372,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
             {activeTab === 'info' ? (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Bot Name</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('chatbots.botName')}</label>
                   <input 
                     type="text" 
                     value={name}
@@ -378,36 +381,36 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Bot Instructions</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('chatbots.botInstructions')}</label>
                   <textarea 
                     rows={8}
                     value={instructions}
                     onChange={(e) => setInstructions(e.target.value)}
                     className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-[#25D366]/10 resize-none text-sm leading-relaxed text-gray-900 dark:text-white transition-colors"
-                    placeholder="Describe how the bot should behave..."
+                    placeholder={t('chatbots.instructionsDescPlaceholder')}
                   />
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Assigned WhatsApp Channels</label>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('chatbots.assignedWhatsAppChannels')}</label>
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Select the connected WhatsApp numbers this bot should reply on. Saving will switch AI auto-reply on for the selected channels.
+                        {t('chatbots.assignedChannelsDesc')}
                       </p>
                     </div>
                     <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:bg-slate-800 dark:text-gray-400">
-                      {assignedNumberIds.length} selected
+                      {t('chatbots.selected', { count: assignedNumberIds.length })}
                     </span>
                   </div>
                   <div className="space-y-3">
                     {isLoadingNumbers ? (
                       <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-400">
                         <Loader2 className="h-4 w-4 animate-spin text-[#25D366]" />
-                        Loading WhatsApp channels...
+                        {t('chatbots.loadingChannels')}
                       </div>
                     ) : availableNumbers.length === 0 ? (
                       <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-400">
-                        No WhatsApp channels are connected in this workspace yet.
+                        {t('chatbots.noChannelsConnected')}
                       </div>
                     ) : (
                       availableNumbers.map((number) => {
@@ -438,7 +441,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                                   </span>
                                   {assignedElsewhere && (
                                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
-                                      Currently {number.chatbot.name}
+                                      {t('chatbots.currentlyAssigned', { name: number.chatbot.name })}
                                     </span>
                                   )}
                                 </div>
@@ -448,8 +451,8 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                                 </div>
                                 <p className="text-[11px] text-gray-400 dark:text-gray-500">
                                   {isSelected
-                                    ? "This bot will answer on this WhatsApp channel after you save."
-                                    : "Tick to connect this WhatsApp channel to the bot."}
+                                    ? t('chatbots.willAnswerAfterSave')
+                                    : t('chatbots.tickToConnect')}
                                 </p>
                               </div>
                             </div>
@@ -462,7 +465,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                                     : "bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400",
                                 )}
                               >
-                                {isSelected ? "Selected" : "Not assigned"}
+                                {isSelected ? t('chatbots.selectedLabel') : t('chatbots.notAssigned')}
                               </span>
                               <CheckCircle2
                                 className={cn(
@@ -479,9 +482,9 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-3">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Instructions automatically appended by us</label>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('chatbots.appendedInstructions')}</label>
                     <span className="inline-flex items-center rounded-full bg-[#25D366]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#25D366]">
-                      Always on
+                      {t('chatbots.alwaysOn')}
                     </span>
                   </div>
                   <textarea
@@ -492,24 +495,24 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Default Language</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('chatbots.defaultLanguage')}</label>
                   <select 
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
                     className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white transition-colors"
                   >
-                    <option value="en">English</option>
-                    <option value="ar">Arabic</option>
+                    <option value="en">{t('chatbots.english')}</option>
+                    <option value="ar">{t('chatbots.arabic')}</option>
                   </select>
                 </div>
               </>
             ) : (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Active Tools</h3>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('chatbots.activeTools')}</h3>
                   <button className="flex items-center gap-1.5 text-xs font-bold text-[#25D366] uppercase">
                     <Plus className="w-3 h-3" />
-                    Add Tool
+                    {t('chatbots.addTool')}
                   </button>
                 </div>
                 <div className="space-y-4">
@@ -523,7 +526,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                           <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{tool.name}</h4>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{tool.description}</p>
                           <div className="mt-2">
-                            <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-[10px] font-bold rounded uppercase">Enabled</span>
+                            <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-[10px] font-bold rounded uppercase">{t('common.enabled')}</span>
                           </div>
                         </div>
                       </div>
@@ -541,14 +544,14 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
         {/* Right: Test Panel */}
         <div className="flex-1 flex flex-col bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
           <div className="h-12 px-6 flex items-center border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 transition-colors">
-            <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Test Your Bot</h3>
+            <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('chatbots.testYourBot')}</h3>
           </div>
           
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {testMessages.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-50">
                 <MessageSquare className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" />
-                <p className="text-sm text-gray-500 dark:text-gray-400">Send a message to start testing your bot's responses.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('chatbots.testBotEmpty')}</p>
               </div>
             )}
             {testMessages.map((msg) => (
@@ -591,7 +594,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                 type="text"
                 value={testInput}
                 onChange={(e) => setTestInput(e.target.value)}
-                placeholder="Type a test message..."
+                placeholder={t('chatbots.testMessagePlaceholder')}
                 className="flex-1 bg-gray-50 dark:bg-slate-800 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#25D366]/20 outline-none text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 transition-colors"
               />
               <button 

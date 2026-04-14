@@ -1,12 +1,13 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Zap, 
-  ShoppingBag, 
-  MessageSquare, 
-  Users, 
-  Globe, 
+import { useTranslation } from 'react-i18next';
+import {
+  Zap,
+  ShoppingBag,
+  MessageSquare,
+  Users,
+  Globe,
   Database,
   ArrowUpRight,
   CheckCircle2
@@ -15,64 +16,65 @@ import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 
 export default function Integrations() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const integrations = [
     {
       id: 'shopify',
       name: 'Shopify',
-      description: 'Sync orders and send automated WhatsApp notifications for abandoned carts and order updates.',
+      description: t('integrations.shopifyDesc'),
       icon: ShoppingBag,
       color: 'bg-emerald-50 text-emerald-600',
       connected: true,
-      category: 'E-commerce'
+      category: t('integrations.ecommerce')
     },
     {
       id: 'hubspot',
       name: 'HubSpot',
-      description: 'Automatically log WhatsApp conversations as activities in your HubSpot CRM.',
+      description: t('integrations.hubspotDesc'),
       icon: Database,
       color: 'bg-orange-50 text-orange-600',
       connected: false,
-      category: 'CRM'
+      category: t('integrations.crm')
     },
     {
       id: 'slack',
       name: 'Slack',
-      description: 'Get notified in Slack when a new WhatsApp message arrives or a campaign finishes.',
+      description: t('integrations.slackDesc'),
       icon: MessageSquare,
       color: 'bg-purple-50 text-purple-600',
       connected: false,
-      category: 'Communication'
+      category: t('integrations.communication')
     },
     {
       id: 'zapier',
       name: 'Zapier',
-      description: 'Connect WhatsApp with 5,000+ apps to automate your entire business workflow.',
+      description: t('integrations.zapierDesc'),
       icon: Zap,
       color: 'bg-orange-50 text-orange-600',
       connected: true,
-      category: 'Automation'
+      category: t('integrations.automation')
     },
     {
       id: 'google-sheets',
       name: 'Google Sheets',
-      description: 'Export contacts and message logs automatically to Google Sheets for custom reporting.',
+      description: t('integrations.googleSheetsDesc'),
       icon: Globe,
       color: 'bg-green-50 text-green-600',
       connected: false,
-      category: 'Productivity'
+      category: t('integrations.productivity')
     },
   ];
 
   const handleConnect = (id: string) => {
-    toast.info(`${id} integration is coming soon!`);
+    toast.info(t('integrations.comingSoon', { id }));
   };
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-10">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Integrations</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Connect your favorite tools to supercharge your WhatsApp operations.</p>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('integrations.title')}</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">{t('integrations.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -92,14 +94,14 @@ export default function Integrations() {
               {app.connected ? (
                 <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] font-bold uppercase tracking-wider">
                   <CheckCircle2 className="w-3 h-3" />
-                  Connected
+                  {t('integrations.connected')}
                 </div>
               ) : (
                 <button 
                   onClick={() => handleConnect(app.id)}
                   className="text-xs font-semibold text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors flex items-center gap-1"
                 >
-                  Connect
+                  {t('integrations.connect')}
                   <ArrowUpRight className="w-3 h-3" />
                 </button>
               )}
@@ -122,7 +124,7 @@ export default function Integrations() {
                 onClick={() => handleConnect(app.id)}
                 className="text-sm font-medium text-[#25D366] hover:underline"
               >
-                View Settings
+                {t('integrations.viewSettings')}
               </button>
               <div className="flex -space-x-2">
                 {[1, 2, 3].map((i) => (
@@ -141,9 +143,9 @@ export default function Integrations() {
           <div className="w-14 h-14 rounded-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <Zap className="w-6 h-6 text-gray-400 group-hover:text-[#25D366]" />
           </div>
-          <h3 className="font-bold text-gray-900 dark:text-white mb-1">Request Integration</h3>
+          <h3 className="font-bold text-gray-900 dark:text-white mb-1">{t('integrations.requestIntegration')}</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 max-w-[180px]">
-            Don't see the tool you use? Let us know and we'll build it.
+            {t('integrations.requestIntegrationDesc')}
           </p>
         </motion.div>
       </div>

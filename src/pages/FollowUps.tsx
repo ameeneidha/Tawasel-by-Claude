@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
+import { useTranslation } from 'react-i18next';
 import { RefreshCw, Plus, Trash2, Edit3, X, Loader2, ToggleLeft, ToggleRight, Clock, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
@@ -31,6 +32,7 @@ interface Template {
 
 export default function FollowUps() {
   const { activeWorkspace } = useApp();
+  const { t } = useTranslation();
   const [sequences, setSequences] = useState<FollowUpSequence[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,7 @@ export default function FollowUps() {
       setSequences(seqRes.data);
       setTemplates(tplRes.data.filter((t: Template) => t.status === 'APPROVED'));
     } catch (e) {
-      toast.error('Failed to load data');
+      toast.error(t('followUps.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -96,25 +98,25 @@ export default function FollowUps() {
   }
 
   async function saveSequence() {
-    if (!name.trim()) { toast.error('Name is required'); return; }
-    if (steps.some(s => !s.templateName)) { toast.error('All steps need a template'); return; }
+    if (!name.trim()) { toast.error(t('followUps.nameRequired')); return; }
+    if (steps.some(s => !s.templateName)) { toast.error(t('followUps.allStepsNeedTemplate')); return; }
 
     try {
       if (editingSeq) {
         await axios.patch(`/api/follow-up-sequences/${editingSeq.id}`, {
           name, triggerType, steps
         });
-        toast.success('Sequence updated');
+        toast.success(t('followUps.sequenceUpdated'));
       } else {
         await axios.post('/api/follow-up-sequences', {
           name, triggerType, steps, workspaceId
         });
-        toast.success('Sequence created');
+        toast.success(t('followUps.sequenceCreated'));
       }
       setShowModal(false);
       loadData();
     } catch (e: any) {
-      toast.error(e.response?.data?.error || 'Failed to save sequence');
+      toast.error(e.response?.data?.error || t('followUps.failedToSave'));
     }
   }
 
@@ -122,16 +124,16 @@ export default function FollowUps() {
     try {
       await axios.patch(`/api/follow-up-sequences/${seq.id}`, { enabled: !seq.enabled });
       loadData();
-    } catch { toast.error('Failed to toggle'); }
+    } catch { toast.error(t('followUps.failedToToggle')); }
   }
 
   async function deleteSequence(id: string) {
-    if (!confirm('Delete this sequence? Active enrollments will be cancelled.')) return;
+    if (!confirm(t('followUps.deleteConfirm'))) return;
     try {
       await axios.delete(`/api/follow-up-sequences/${id}`);
-      toast.success('Sequence deleted');
+      toast.success(t('followUps.sequenceDeleted'));
       loadData();
-    } catch { toast.error('Failed to delete'); }
+    } catch { toast.error(t('followUps.failedToDelete')); }
   }
 
   function formatDelay(hours: number) {
@@ -155,22 +157,22 @@ export default function FollowUps() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <RefreshCw className="w-6 h-6 text-[#25D366]" />
-            Follow-up Sequences
+            {t('followUps.title')}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            Auto-send WhatsApp templates when leads don't reply
+            {t('followUps.autoSendTemplates')}
           </p>
         </div>
         <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white rounded-lg hover:bg-[#20bd5a] transition-colors">
-          <Plus className="w-4 h-4" /> New Sequence
+          <Plus className="w-4 h-4" /> {t('followUps.newSequence')}
         </button>
       </div>
 
       {sequences.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <RefreshCw className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p className="font-medium">No follow-up sequences yet</p>
-          <p className="text-sm mt-1">Create sequences to automatically follow up with unresponsive leads</p>
+          <p className="font-medium">{t('followUps.noSequencesTitle')}</p>
+          <p className="text-sm mt-1">{t('followUps.noSequencesDesc')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -190,11 +192,15 @@ export default function FollowUps() {
                     <h3 className="font-semibold text-gray-900 dark:text-white">{seq.name}</h3>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full">
-                        {seq.triggerType === 'AD_LEAD' ? 'Ad Leads' : seq.triggerType === 'NEW_LEAD' ? 'New Leads' : 'Manual'}
+                        {seq.triggerType === 'AD_LEAD' ? t('followUps.adLeads') : seq.triggerType === 'NEW_LEAD' ? t('followUps.newLeads') : t('followUps.manual')}
                       </span>
-                      <span className="text-xs text-gray-400">{seq.steps.length} step{seq.steps.length !== 1 && 's'}</span>
+                      <span className="text-xs text-gray-400">
+                        {seq.steps.length === 1
+                          ? t('followUps.stepsCount', { count: seq.steps.length })
+                          : t('followUps.stepsCountPlural', { count: seq.steps.length })}
+                      </span>
                       {seq._count && (
-                        <span className="text-xs text-gray-400">{seq._count.enrollments} enrolled</span>
+                        <span className="text-xs text-gray-400">{t('followUps.enrolled', { count: seq._count.enrollments })}</span>
                       )}
                     </div>
                   </div>
@@ -236,7 +242,7 @@ export default function FollowUps() {
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b dark:border-slate-700">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                {editingSeq ? 'Edit Sequence' : 'New Follow-up Sequence'}
+                {editingSeq ? t('followUps.editSequence') : t('followUps.newFollowUpSequence')}
               </h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
@@ -244,33 +250,33 @@ export default function FollowUps() {
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sequence Name</label>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Ad Lead Follow-up"
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('followUps.sequenceName')}</label>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder={t('followUps.sequenceNamePlaceholder')}
                   className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-slate-900 dark:border-slate-600 dark:text-white" />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trigger</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('followUps.triggerLabel')}</label>
                 <select value={triggerType} onChange={e => setTriggerType(e.target.value)}
                   className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-slate-900 dark:border-slate-600 dark:text-white">
-                  <option value="NEW_LEAD">New Lead (any new contact)</option>
-                  <option value="AD_LEAD">Ad Lead (Click-to-WhatsApp ads only)</option>
-                  <option value="MANUAL">Manual (enroll from Inbox)</option>
+                  <option value="NEW_LEAD">{t('followUps.triggerNewLead')}</option>
+                  <option value="AD_LEAD">{t('followUps.triggerAdLead')}</option>
+                  <option value="MANUAL">{t('followUps.triggerManual')}</option>
                 </select>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Steps</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('followUps.steps')}</label>
                   <button onClick={addStep} className="text-xs text-[#25D366] hover:text-[#20bd5a] flex items-center gap-1">
-                    <Plus className="w-3 h-3" /> Add Step
+                    <Plus className="w-3 h-3" /> {t('followUps.addStep')}
                   </button>
                 </div>
                 <div className="space-y-3">
                   {steps.map((step, i) => (
                     <div key={i} className="border rounded-lg p-3 dark:border-slate-600">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Step {i + 1}</span>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('followUps.step', { number: i + 1 })}</span>
                         {steps.length > 1 && (
                           <button onClick={() => removeStep(i)} className="text-gray-400 hover:text-red-500">
                             <Trash2 className="w-3 h-3" />
@@ -279,17 +285,17 @@ export default function FollowUps() {
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-xs text-gray-500 dark:text-gray-400">Wait (hours)</label>
+                          <label className="text-xs text-gray-500 dark:text-gray-400">{t('followUps.waitHours')}</label>
                           <input type="number" min={1} value={step.delayHours}
                             onChange={e => updateStep(i, 'delayHours', Number(e.target.value))}
                             className="w-full border rounded px-2 py-1 text-sm dark:bg-slate-900 dark:border-slate-600 dark:text-white" />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500 dark:text-gray-400">Template</label>
+                          <label className="text-xs text-gray-500 dark:text-gray-400">{t('followUps.template')}</label>
                           <select value={step.templateName}
                             onChange={e => updateStep(i, 'templateName', e.target.value)}
                             className="w-full border rounded px-2 py-1 text-sm dark:bg-slate-900 dark:border-slate-600 dark:text-white">
-                            <option value="">Select template...</option>
+                            <option value="">{t('followUps.selectTemplate')}</option>
                             {templates.map(t => (
                               <option key={t.id} value={t.name}>{t.name} ({t.language})</option>
                             ))}
@@ -303,10 +309,10 @@ export default function FollowUps() {
             </div>
             <div className="flex justify-end gap-2 p-5 border-t dark:border-slate-700">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">
-                Cancel
+                {t('common.cancel')}
               </button>
               <button onClick={saveSequence} className="px-4 py-2 text-sm bg-[#25D366] text-white rounded-lg hover:bg-[#20bd5a]">
-                {editingSeq ? 'Update' : 'Create'}
+                {editingSeq ? t('followUps.update') : t('common.create')}
               </button>
             </div>
           </div>

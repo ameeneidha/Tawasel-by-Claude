@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
   Bot,
@@ -146,11 +147,11 @@ type MetricCardProps = {
   helper: string;
 };
 
-const RANGE_OPTIONS: Array<{ value: DashboardRange; label: string }> = [
-  { value: 'today', label: 'Today' },
-  { value: '7d', label: '7 Days' },
-  { value: '30d', label: '30 Days' },
-  { value: 'custom', label: 'Custom' },
+const getRangeOptions = (t: (key: string) => string): Array<{ value: DashboardRange; label: string }> => [
+  { value: 'today', label: t('dashboard.rangeToday') },
+  { value: '7d', label: t('dashboard.range7d') },
+  { value: '30d', label: t('dashboard.range30d') },
+  { value: 'custom', label: t('dashboard.rangeCustom') },
 ];
 
 const formatCurrency = (value: number) =>
@@ -163,8 +164,8 @@ const formatCurrency = (value: number) =>
 const formatPercent = (value: number) => `${Number(value || 0).toFixed(1)}%`;
 const formatMinutes = (value: number) => `${Number(value || 0).toFixed(1)} min`;
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return 'Just now';
+const formatDateTime = (value?: string | null, fallback = 'Just now') => {
+  if (!value) return fallback;
   return new Intl.DateTimeFormat('en-AE', {
     month: 'short',
     day: 'numeric',
@@ -175,6 +176,8 @@ const formatDateTime = (value?: string | null) => {
 
 export default function Dashboard() {
   const { activeWorkspace } = useApp();
+  const { t } = useTranslation();
+  const RANGE_OPTIONS = getRangeOptions(t);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -213,12 +216,12 @@ export default function Dashboard() {
         if (elapsed < 350) {
           await new Promise((resolve) => setTimeout(resolve, 350 - elapsed));
         }
-        toast.success('Dashboard refreshed');
+        toast.success(t('dashboard.dashboardRefreshed'));
       }
     } catch (error) {
       console.error('Failed to load dashboard summary', error);
       if (mode === 'refresh') {
-        toast.error('Could not refresh the dashboard');
+        toast.error(t('dashboard.refreshFailed'));
       }
     } finally {
       setIsLoading(false);
@@ -233,7 +236,7 @@ export default function Dashboard() {
   if (!activeWorkspace) {
     return (
       <div className="h-full flex items-center justify-center bg-[#F8F9FA] dark:bg-slate-950 text-gray-500 dark:text-gray-400">
-        Select a workspace to load the dashboard.
+        {t('dashboard.selectWorkspace')}
       </div>
     );
   }
@@ -247,14 +250,14 @@ export default function Dashboard() {
   }
 
   const topMetrics: MetricCardProps[] = [
-    { label: 'New Leads', value: summary.overview.newLeads, icon: TrendingUp, tone: 'emerald', helper: `Created in ${summary.meta.range === 'today' ? 'today' : 'selected period'}` },
-    { label: 'Open Chats', value: summary.overview.openChats, icon: MessageSquare, tone: 'blue', helper: 'Current active conversations' },
-    { label: 'Overdue Chats', value: summary.overview.overdueChats, icon: AlertTriangle, tone: summary.overview.overdueChats > 0 ? 'red' : 'emerald', helper: 'Need agent attention now' },
-    { label: 'Avg First Reply', value: formatMinutes(summary.overview.avgFirstReplyMinutes), icon: Clock3, tone: 'amber', helper: 'Customer first-response speed' },
-    { label: 'Deals Won', value: summary.overview.dealsWon, icon: CheckCircle2, tone: 'emerald', helper: 'Won stage changes in range' },
-    { label: 'Pipeline Value', value: formatCurrency(summary.overview.pipelineValue), icon: Wallet, tone: 'violet', helper: 'Needs deal values on contacts' },
-    { label: 'Unread Messages', value: summary.overview.unreadMessages, icon: MessageSquare, tone: 'amber', helper: 'Inbound messages still unread' },
-    { label: 'Bot Handled', value: formatPercent(summary.overview.botHandledRate), icon: Bot, tone: 'teal', helper: 'AI-only resolved conversations' },
+    { label: t('dashboard.newLeads'), value: summary.overview.newLeads, icon: TrendingUp, tone: 'emerald', helper: t('dashboard.helperNewLeads', { period: summary.meta.range === 'today' ? t('dashboard.helperNewLeadsToday') : t('dashboard.helperNewLeadsSelected') }) },
+    { label: t('dashboard.openChats'), value: summary.overview.openChats, icon: MessageSquare, tone: 'blue', helper: t('dashboard.helperOpenChats') },
+    { label: t('dashboard.overdueChats'), value: summary.overview.overdueChats, icon: AlertTriangle, tone: summary.overview.overdueChats > 0 ? 'red' : 'emerald', helper: t('dashboard.helperOverdueChats') },
+    { label: t('dashboard.avgFirstReply'), value: formatMinutes(summary.overview.avgFirstReplyMinutes), icon: Clock3, tone: 'amber', helper: t('dashboard.helperAvgFirstReply') },
+    { label: t('dashboard.dealsWon'), value: summary.overview.dealsWon, icon: CheckCircle2, tone: 'emerald', helper: t('dashboard.helperDealsWon') },
+    { label: t('dashboard.pipelineValue'), value: formatCurrency(summary.overview.pipelineValue), icon: Wallet, tone: 'violet', helper: t('dashboard.helperPipelineValue') },
+    { label: t('dashboard.unreadMessages'), value: summary.overview.unreadMessages, icon: MessageSquare, tone: 'amber', helper: t('dashboard.helperUnreadMessages') },
+    { label: t('dashboard.botHandled'), value: formatPercent(summary.overview.botHandledRate), icon: Bot, tone: 'teal', helper: t('dashboard.helperBotHandled') },
   ];
 
   return (
@@ -265,11 +268,11 @@ export default function Dashboard() {
             <div>
               <div className="flex items-center gap-2 text-[#25D366] mb-1">
                 <Gauge className="w-5 h-5" />
-                <span className="text-xs font-bold uppercase tracking-[0.2em]">Business Dashboard</span>
+                <span className="text-xs font-bold uppercase tracking-[0.2em]">{t('dashboard.businessDashboard')}</span>
               </div>
-              <h1 className="text-3xl font-semibold text-gray-900 dark:text-white">Tawasel Performance Center</h1>
+              <h1 className="text-3xl font-semibold text-gray-900 dark:text-white">{t('dashboard.performanceCenter')}</h1>
               <p className="text-gray-500 dark:text-gray-400 mt-1">
-                Revenue, conversations, campaigns, and workspace health for {activeWorkspace.name}.
+                {t('dashboard.performanceSubtitle', { name: activeWorkspace.name })}
               </p>
             </div>
 
@@ -281,7 +284,7 @@ export default function Dashboard() {
               className="relative z-20 inline-flex shrink-0 cursor-pointer pointer-events-auto items-center gap-2 rounded-xl border border-gray-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-[#25D366]/40 disabled:cursor-wait disabled:opacity-70 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-200"
             >
               <RefreshCw className={cn('w-4 h-4', isRefreshing && 'animate-spin')} />
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              {isRefreshing ? t('dashboard.refreshing') : t('dashboard.refresh')}
             </button>
           </div>
 
@@ -313,23 +316,23 @@ export default function Dashboard() {
 
               <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3 flex-1">
                 <select value={filters.agentId} onChange={(event) => setFilters((prev) => ({ ...prev, agentId: event.target.value }))} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
-                  <option value="">All agents</option>
+                  <option value="">{t('dashboard.allAgents')}</option>
                   {summary.meta.availableFilters.agents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}
                 </select>
                 <select value={filters.channelType} onChange={(event) => setFilters((prev) => ({ ...prev, channelType: event.target.value }))} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
-                  <option value="">All channels</option>
-                  <option value="WHATSAPP">WhatsApp</option>
+                  <option value="">{t('dashboard.allChannels')}</option>
+                  <option value="WHATSAPP">{t('dashboard.whatsapp')}</option>
                 </select>
                 <select value={filters.leadSource} onChange={(event) => setFilters((prev) => ({ ...prev, leadSource: event.target.value }))} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
-                  <option value="">All lead sources</option>
+                  <option value="">{t('dashboard.allLeadSources')}</option>
                   {summary.meta.availableFilters.leadSources.map((source) => <option key={source} value={source}>{source}</option>)}
                 </select>
                 <select value={filters.priority} onChange={(event) => setFilters((prev) => ({ ...prev, priority: event.target.value }))} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
-                  <option value="">All priorities</option>
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                  <option value="URGENT">Urgent</option>
+                  <option value="">{t('dashboard.allPriorities')}</option>
+                  <option value="LOW">{t('dashboard.priorityLow')}</option>
+                  <option value="MEDIUM">{t('dashboard.priorityMedium')}</option>
+                  <option value="HIGH">{t('dashboard.priorityHigh')}</option>
+                  <option value="URGENT">{t('dashboard.priorityUrgent')}</option>
                 </select>
               </div>
             </div>
@@ -352,7 +355,7 @@ export default function Dashboard() {
 
               <div className="grid 2xl:grid-cols-[1.25fr_0.95fr] gap-6">
                 <SectionCard>
-                  <SectionHeader title="Sales & Pipeline" description="See where revenue is building and where leads are getting stuck." />
+                  <SectionHeader title={t('dashboard.salesPipeline')} description={t('dashboard.salesPipelineDesc')} />
                   <div className="space-y-4">
                     {summary.pipeline.stages.map((stage) => {
                       const maxCount = Math.max(...summary.pipeline.stages.map((item) => item.count), 1);
@@ -361,7 +364,7 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between text-sm">
                             <div>
                               <p className="font-semibold text-gray-900 dark:text-white">{stage.label}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">{stage.count} lead{stage.count === 1 ? '' : 's'} - {formatCurrency(stage.value)}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{stage.count} {stage.count === 1 ? t('dashboard.lead') : t('dashboard.leads')} - {formatCurrency(stage.value)}</p>
                             </div>
                             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{stage.count}</p>
                           </div>
@@ -374,25 +377,25 @@ export default function Dashboard() {
                   </div>
 
                   <div className="mt-6 grid sm:grid-cols-3 gap-3">
-                    <StatPill label="Win Rate" value={formatPercent(summary.pipeline.winRate)} />
-                    <StatPill label="Stale Leads" value={summary.pipeline.staleLeadCount} tone={summary.pipeline.staleLeadCount > 0 ? 'warning' : 'neutral'} />
-                    <StatPill label="Lost Deals" value={summary.pipeline.lostDeals} tone={summary.pipeline.lostDeals > 0 ? 'warning' : 'neutral'} />
+                    <StatPill label={t('dashboard.winRate')} value={formatPercent(summary.pipeline.winRate)} />
+                    <StatPill label={t('dashboard.staleLeads')} value={summary.pipeline.staleLeadCount} tone={summary.pipeline.staleLeadCount > 0 ? 'warning' : 'neutral'} />
+                    <StatPill label={t('dashboard.lostDeals')} value={summary.pipeline.lostDeals} tone={summary.pipeline.lostDeals > 0 ? 'warning' : 'neutral'} />
                   </div>
                 </SectionCard>
 
                 <SectionCard>
-                  <SectionHeader title="Inbox & SLA" description="Response speed and unread pressure across your support workload." />
+                  <SectionHeader title={t('dashboard.inboxSla')} description={t('dashboard.inboxSlaDesc')} />
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <StatTile label="SLA Compliance" value={formatPercent(summary.inbox.slaComplianceRate)} />
-                    <StatTile label="Waiting for Customer" value={summary.inbox.waitingForCustomer} />
-                    <StatTile label="Waiting for Internal" value={summary.inbox.waitingForInternal} />
-                    <StatTile label="Unread Messages" value={summary.inbox.unreadMessages} />
+                    <StatTile label={t('dashboard.slaCompliance')} value={formatPercent(summary.inbox.slaComplianceRate)} />
+                    <StatTile label={t('dashboard.waitingForCustomer')} value={summary.inbox.waitingForCustomer} />
+                    <StatTile label={t('dashboard.waitingForInternal')} value={summary.inbox.waitingForInternal} />
+                    <StatTile label={t('dashboard.unreadMessages')} value={summary.inbox.unreadMessages} />
                   </div>
 
                   <div className="mt-6">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">Lead Source Mix</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{summary.pipeline.sourceBreakdown.length} source{summary.pipeline.sourceBreakdown.length === 1 ? '' : 's'}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{t('dashboard.leadSourceMix')}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{summary.pipeline.sourceBreakdown.length} {summary.pipeline.sourceBreakdown.length === 1 ? t('dashboard.source') : t('dashboard.sources')}</p>
                     </div>
                     <div className="space-y-3">
                       {summary.pipeline.sourceBreakdown.length > 0 ? summary.pipeline.sourceBreakdown.map((item) => {
@@ -409,7 +412,7 @@ export default function Dashboard() {
                             </div>
                           </div>
                         );
-                      }) : <EmptyState message="Lead source data will appear here once contacts are coming in." />}
+                      }) : <EmptyState message={t('dashboard.leadSourceEmpty')} />}
                     </div>
                   </div>
                 </SectionCard>
@@ -417,7 +420,7 @@ export default function Dashboard() {
 
               <div className="grid 2xl:grid-cols-[1.1fr_0.9fr] gap-6">
                 <SectionCard>
-                  <SectionHeader title="Team Performance" description="Which agents are carrying the workload and who needs support." />
+                  <SectionHeader title={t('dashboard.teamPerformance')} description={t('dashboard.teamPerformanceDesc')} />
                   <div className="space-y-3">
                     {summary.team.workload.length > 0 ? summary.team.workload.map((member) => (
                       <div key={member.id} className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 px-4 py-3">
@@ -427,25 +430,25 @@ export default function Dashboard() {
                             <p className="text-xs text-gray-500 dark:text-gray-400">{member.role}</p>
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 min-w-[260px]">
-                            <MiniMetric label="Open" value={member.openChats} />
-                            <MiniMetric label="Overdue" value={member.overdueChats} tone={member.overdueChats > 0 ? 'danger' : 'neutral'} />
-                            <MiniMetric label="Resolved" value={member.resolvedConversations} />
-                            <MiniMetric label="Avg Reply" value={formatMinutes(member.avgFirstReplyMinutes)} />
+                            <MiniMetric label={t('dashboard.open')} value={member.openChats} />
+                            <MiniMetric label={t('dashboard.overdue')} value={member.overdueChats} tone={member.overdueChats > 0 ? 'danger' : 'neutral'} />
+                            <MiniMetric label={t('dashboard.resolved')} value={member.resolvedConversations} />
+                            <MiniMetric label={t('dashboard.avgReply')} value={formatMinutes(member.avgFirstReplyMinutes)} />
                           </div>
                         </div>
                       </div>
-                    )) : <EmptyState message="Team workload will appear as soon as conversations are assigned." />}
+                    )) : <EmptyState message={t('dashboard.teamEmpty')} />}
                   </div>
                 </SectionCard>
 
                 <SectionCard>
-                  <SectionHeader title="AI & Channel Health" description="Automation ROI, connected lines, and subscription usage." />
+                  <SectionHeader title={t('dashboard.aiChannelHealth')} description={t('dashboard.aiChannelHealthDesc')} />
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <StatTile label="Enabled Bots" value={summary.chatbot.enabledBots} icon={Bot} />
-                    <StatTile label="AI Messages" value={summary.chatbot.aiMessagesSent} icon={Bot} />
-                    <StatTile label="Bot Handled" value={formatPercent(summary.chatbot.botHandledRate)} icon={Bot} />
-                    <StatTile label="Handoff Rate" value={formatPercent(summary.chatbot.handoffRate)} icon={Users} />
-                    <StatTile label="WhatsApp Online" value={summary.channels.whatsappConnected} icon={Hash} />
+                    <StatTile label={t('dashboard.enabledBots')} value={summary.chatbot.enabledBots} icon={Bot} />
+                    <StatTile label={t('dashboard.aiMessagesSent')} value={summary.chatbot.aiMessagesSent} icon={Bot} />
+                    <StatTile label={t('dashboard.botHandledRate')} value={formatPercent(summary.chatbot.botHandledRate)} icon={Bot} />
+                    <StatTile label={t('dashboard.handoffRate')} value={formatPercent(summary.chatbot.handoffRate)} icon={Users} />
+                    <StatTile label={t('dashboard.whatsappOnline')} value={summary.channels.whatsappConnected} icon={Hash} />
                   </div>
 
                   <div className="mt-6 space-y-3">
@@ -469,32 +472,32 @@ export default function Dashboard() {
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-3 mt-6">
-                    <StatPill label="AI Spend" value={`AED ${summary.channels.aiSpend.toFixed(3)}`} />
-                    <StatPill label="Credit Balance" value={`AED ${summary.channels.creditBalance.toFixed(3)}`} />
+                    <StatPill label={t('dashboard.aiSpend')} value={`AED ${summary.channels.aiSpend.toFixed(3)}`} />
+                    <StatPill label={t('dashboard.creditBalance')} value={`AED ${summary.channels.creditBalance.toFixed(3)}`} />
                   </div>
                 </SectionCard>
               </div>
 
               {/* Ad Performance & Conversion Funnel */}
               <SectionCard>
-                <SectionHeader title="Ad Performance & Conversion" description="Track leads from ads and measure your conversion funnel." />
+                <SectionHeader title={t('dashboard.adPerformanceConversion')} description={t('dashboard.adPerformanceConversionDesc')} />
                 <div className="grid sm:grid-cols-4 gap-3 mb-5">
-                  <StatPill label="Ad Leads" value={summary.adPerformance?.totalAdLeads ?? 0} />
-                  <StatPill label="Contacted" value={summary.adPerformance?.conversionFunnel?.contacted ?? 0} />
-                  <StatPill label="Qualified" value={summary.adPerformance?.conversionFunnel?.qualified ?? 0} />
-                  <StatPill label="Won" value={summary.adPerformance?.conversionFunnel?.won ?? 0} />
+                  <StatPill label={t('dashboard.adLeads')} value={summary.adPerformance?.totalAdLeads ?? 0} />
+                  <StatPill label={t('dashboard.contacted')} value={summary.adPerformance?.conversionFunnel?.contacted ?? 0} />
+                  <StatPill label={t('dashboard.qualified')} value={summary.adPerformance?.conversionFunnel?.qualified ?? 0} />
+                  <StatPill label={t('dashboard.won')} value={summary.adPerformance?.conversionFunnel?.won ?? 0} />
                 </div>
 
                 {/* Conversion Funnel */}
                 {summary.adPerformance?.conversionFunnel && summary.adPerformance.conversionFunnel.newLeads > 0 && (
                   <div className="mb-5">
-                    <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Conversion Funnel</h4>
+                    <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">{t('dashboard.conversionFunnel')}</h4>
                     <div className="space-y-2">
                       {[
-                        { label: 'New Leads', count: summary.adPerformance.conversionFunnel.newLeads, rate: 100 },
-                        { label: 'Contacted', count: summary.adPerformance.conversionFunnel.contacted, rate: summary.adPerformance.conversionFunnel.contactedRate },
-                        { label: 'Qualified', count: summary.adPerformance.conversionFunnel.qualified, rate: summary.adPerformance.conversionFunnel.qualifiedRate },
-                        { label: 'Won', count: summary.adPerformance.conversionFunnel.won, rate: summary.adPerformance.conversionFunnel.wonRate },
+                        { label: t('dashboard.newLeads'), count: summary.adPerformance.conversionFunnel.newLeads, rate: 100 },
+                        { label: t('dashboard.contacted'), count: summary.adPerformance.conversionFunnel.contacted, rate: summary.adPerformance.conversionFunnel.contactedRate },
+                        { label: t('dashboard.qualified'), count: summary.adPerformance.conversionFunnel.qualified, rate: summary.adPerformance.conversionFunnel.qualifiedRate },
+                        { label: t('dashboard.won'), count: summary.adPerformance.conversionFunnel.won, rate: summary.adPerformance.conversionFunnel.wonRate },
                       ].map((step) => (
                         <div key={step.label} className="flex items-center gap-3">
                           <span className="text-xs w-20 text-gray-500 dark:text-gray-400">{step.label}</span>
@@ -518,7 +521,7 @@ export default function Dashboard() {
                 {/* Ad Source Breakdown */}
                 {summary.adPerformance?.adSourceBreakdown?.length > 0 && (
                   <div className="mb-5">
-                    <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Leads by Ad Campaign</h4>
+                    <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">{t('dashboard.leadsByAdCampaign')}</h4>
                     <div className="space-y-2">
                       {summary.adPerformance.adSourceBreakdown.map((item) => (
                         <div key={item.source} className="flex items-center justify-between">
@@ -533,7 +536,7 @@ export default function Dashboard() {
                 {/* Response Time by Source */}
                 {summary.adPerformance?.responseTimeBySource?.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Avg Response Time by Source</h4>
+                    <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">{t('dashboard.avgResponseTimeBySource')}</h4>
                     <div className="space-y-2">
                       {summary.adPerformance.responseTimeBySource.slice(0, 5).map((item) => (
                         <div key={item.source} className="flex items-center justify-between">
@@ -551,25 +554,25 @@ export default function Dashboard() {
               </SectionCard>
 
               <SectionCard>
-                <SectionHeader title="Broadcast & Campaigns" description="See which campaigns landed, got read, and generated replies." />
+                <SectionHeader title={t('dashboard.broadcastCampaigns')} description={t('dashboard.broadcastCampaignsDesc')} />
                 <div className="grid sm:grid-cols-4 gap-3 mb-5">
-                  <StatPill label="Campaigns" value={summary.campaigns.totals.campaigns} />
-                  <StatPill label="Delivered" value={summary.campaigns.totals.delivered} />
-                  <StatPill label="Read" value={summary.campaigns.totals.read} />
-                  <StatPill label="Replied" value={summary.campaigns.totals.replied} />
+                  <StatPill label={t('dashboard.campaigns')} value={summary.campaigns.totals.campaigns} />
+                  <StatPill label={t('dashboard.delivered')} value={summary.campaigns.totals.delivered} />
+                  <StatPill label={t('dashboard.read')} value={summary.campaigns.totals.read} />
+                  <StatPill label={t('dashboard.replied')} value={summary.campaigns.totals.replied} />
                 </div>
 
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[760px] text-left">
                     <thead>
                       <tr className="border-b border-gray-100 dark:border-slate-800 text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                        <th className="py-3 pr-4">Campaign</th>
-                        <th className="py-3 pr-4">Sender</th>
-                        <th className="py-3 pr-4">Recipients</th>
-                        <th className="py-3 pr-4">Delivered</th>
-                        <th className="py-3 pr-4">Read</th>
-                        <th className="py-3 pr-4">Replied</th>
-                        <th className="py-3">Created</th>
+                        <th className="py-3 pr-4">{t('dashboard.campaign')}</th>
+                        <th className="py-3 pr-4">{t('dashboard.sender')}</th>
+                        <th className="py-3 pr-4">{t('dashboard.recipients')}</th>
+                        <th className="py-3 pr-4">{t('dashboard.delivered')}</th>
+                        <th className="py-3 pr-4">{t('dashboard.read')}</th>
+                        <th className="py-3 pr-4">{t('dashboard.replied')}</th>
+                        <th className="py-3">{t('dashboard.created')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
@@ -584,12 +587,12 @@ export default function Dashboard() {
                           <td className="py-3 pr-4 text-sm text-gray-900 dark:text-white">{campaign.deliveredCount} <span className="text-xs text-gray-500 dark:text-gray-400">({formatPercent(campaign.deliveryRate)})</span></td>
                           <td className="py-3 pr-4 text-sm text-gray-900 dark:text-white">{campaign.readCount} <span className="text-xs text-gray-500 dark:text-gray-400">({formatPercent(campaign.readRate)})</span></td>
                           <td className="py-3 pr-4 text-sm text-gray-900 dark:text-white">{campaign.repliedCount} <span className="text-xs text-gray-500 dark:text-gray-400">({formatPercent(campaign.replyRate)})</span></td>
-                          <td className="py-3 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(campaign.createdAt)}</td>
+                          <td className="py-3 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(campaign.createdAt, t('dashboard.justNow'))}</td>
                         </tr>
                       )) : (
                         <tr>
                           <td colSpan={7} className="py-10">
-                            <EmptyState message="Broadcast performance will appear here after campaigns are launched." />
+                            <EmptyState message={t('dashboard.broadcastEmpty')} />
                           </td>
                         </tr>
                       )}
@@ -601,7 +604,7 @@ export default function Dashboard() {
 
             <div className="xl:sticky xl:top-8 space-y-6">
               <SectionCard>
-                <SectionHeader title="Alerts & Action Center" description="What needs attention right now." />
+                <SectionHeader title={t('dashboard.alertsActionCenter')} description={t('dashboard.alertsActionCenterDesc')} />
                 <div className="space-y-3">
                   {summary.alerts.length > 0 ? summary.alerts.map((alert) => (
                     <Link key={alert.id} to={alert.href} className={cn('block rounded-2xl border px-4 py-3 transition-colors', alert.severity === 'critical' && 'border-red-200 bg-red-50/80 dark:border-red-900/30 dark:bg-red-950/40', alert.severity === 'warning' && 'border-amber-200 bg-amber-50/80 dark:border-amber-900/30 dark:bg-amber-950/30', alert.severity === 'info' && 'border-blue-200 bg-blue-50/80 dark:border-blue-900/30 dark:bg-blue-950/30')}>
@@ -615,12 +618,12 @@ export default function Dashboard() {
                         </div>
                       </div>
                     </Link>
-                  )) : <EmptyState message="No urgent alerts right now. This workspace looks healthy." />}
+                  )) : <EmptyState message={t('dashboard.alertsEmpty')} />}
                 </div>
               </SectionCard>
 
               <SectionCard>
-                <SectionHeader title="Lost Deal Reasons" description="Why opportunities are falling out of the funnel." />
+                <SectionHeader title={t('dashboard.lostDealReasons')} description={t('dashboard.lostDealReasonsDesc')} />
                 <div className="space-y-3">
                   {summary.pipeline.lostReasons.length > 0 ? summary.pipeline.lostReasons.map((reason) => {
                     const total = summary.pipeline.lostReasons.reduce((sum, item) => sum + item.count, 0) || 1;
@@ -636,7 +639,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                     );
-                  }) : <EmptyState message="Lost reason reporting will appear after the team starts tagging lost deals." />}
+                  }) : <EmptyState message={t('dashboard.lostReasonsEmpty')} />}
                 </div>
               </SectionCard>
             </div>

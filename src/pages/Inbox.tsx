@@ -39,6 +39,7 @@ import ActivationChecklist from '../components/ActivationChecklist';
 import { toast } from 'sonner';
 import ContactListPicker from '../components/ContactListPicker';
 import AppTooltip from '../components/AppTooltip';
+import { useTranslation } from 'react-i18next';
 import {
   DEFAULT_PIPELINE_STAGE_KEY,
   getFallbackPipelineStageKey,
@@ -165,6 +166,7 @@ const getConversationContactLabel = (contact?: Conversation['contact']) => {
 };
 
 function MessageMedia({ message }: { message: Message }) {
+  const { t } = useTranslation();
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(message.mediaId));
   const [error, setError] = useState<string | null>(null);
@@ -227,7 +229,7 @@ function MessageMedia({ message }: { message: Message }) {
       {isLoading && (
         <div className="flex items-center gap-2 text-xs text-gray-400">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Loading media...
+          {t('inbox.loadingMedia')}
         </div>
       )}
 
@@ -259,7 +261,7 @@ function MessageMedia({ message }: { message: Message }) {
             className="inline-flex items-center gap-2 text-xs font-semibold text-[#25D366]"
           >
             <Mic className="h-3.5 w-3.5" />
-            Download audio
+            {t('inbox.downloadAudio')}
           </a>
         </div>
       )}
@@ -310,6 +312,7 @@ function QuoteThumbnail({ message }: { message: Message }) {
 }
 
 export default function Inbox() {
+  const { t } = useTranslation();
   const { activeWorkspace, workspaces, setActiveWorkspace, user, hasFullAccess, hasVerifiedEmail } = useApp();
   const currentUserDisplayName = getDisplayName(user?.name, user?.email);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -851,25 +854,25 @@ export default function Inbox() {
         return {
           rail: 'before:bg-yellow-500',
           pill: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-          label: 'Waiting for customer'
+          label: t('inbox.statusWaitingForCustomer')
         };
       case 'WAITING_FOR_INTERNAL':
         return {
           rail: 'before:bg-purple-500',
           pill: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-          label: 'Waiting for internal'
+          label: t('inbox.statusWaitingForInternal')
         };
       case 'RESOLVED':
         return {
           rail: 'before:bg-green-500',
           pill: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-          label: 'Resolved'
+          label: t('inbox.statusResolved')
         };
       default:
         return {
           rail: 'before:bg-slate-200 dark:before:bg-slate-700',
           pill: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-          label: 'Open'
+          label: t('inbox.statusOpen')
         };
     }
   };
@@ -904,17 +907,17 @@ export default function Inbox() {
         <div className="w-20 h-20 bg-gray-100 dark:bg-slate-900 rounded-full flex items-center justify-center text-gray-300 dark:text-gray-700 mb-4">
           <Users className="w-10 h-10" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No workspace selected</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('inbox.noWorkspaceSelected')}</h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mt-2 mb-8">
-          {workspaces.length > 0 
-            ? "Please select one of your workspaces below to view your inbox."
-            : "You don't have any workspaces yet. Please create one to get started."}
+          {workspaces.length > 0
+            ? t('inbox.selectWorkspacePrompt')
+            : t('inbox.noWorkspacesYet')}
         </p>
         
         {workspaces.length === 0 && (
           <div className="mb-8 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 rounded-2xl text-amber-700 dark:text-amber-400 text-xs max-w-xs">
-            <p className="font-bold mb-1">Having trouble?</p>
-            <p className="mb-3">If you can't create a workspace, the system might need a quick repair.</p>
+            <p className="font-bold mb-1">{t('inbox.havingTrouble')}</p>
+            <p className="mb-3">{t('inbox.repairHint')}</p>
             <button 
               onClick={async () => {
                 try {
@@ -926,7 +929,7 @@ export default function Inbox() {
               }}
               className="px-4 py-2 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition-all"
             >
-              Run Quick Repair
+              {t('inbox.runQuickRepair')}
             </button>
           </div>
         )}
@@ -945,7 +948,7 @@ export default function Inbox() {
                 <div>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">{ws.name}</p>
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    {ws.plan === 'NONE' ? 'NO PLAN SELECTED' : `${ws.plan} Plan`}
+                    {ws.plan === 'NONE' ? t('inbox.noPlanSelected') : t('inbox.planLabel', { plan: ws.plan })}
                   </p>
                 </div>
               </button>
@@ -957,7 +960,7 @@ export default function Inbox() {
               <div className="w-10 h-10 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 rounded-xl flex items-center justify-center text-gray-400 dark:text-gray-600 group-hover:text-[#25D366]">
                 <Plus className="w-5 h-5" />
               </div>
-              <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 group-hover:text-[#25D366]">New Workspace</p>
+              <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 group-hover:text-[#25D366]">{t('inbox.newWorkspace')}</p>
             </button>
           </div>
         ) : (
@@ -968,14 +971,14 @@ export default function Inbox() {
                 className="flex items-center gap-2 px-6 py-3 bg-[#25D366] text-white font-bold rounded-2xl hover:bg-[#128C7E] transition-all shadow-lg cursor-pointer mx-auto"
               >
                 <Plus className="w-5 h-5" />
-                Create Your First Workspace
+                {t('inbox.createFirstWorkspace')}
               </button>
             ) : (
               <form onSubmit={handleCreateWorkspace} className="bg-gray-50 dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800">
                 <input
                   autoFocus
                   type="text"
-                  placeholder="Workspace Name (e.g. My Business)"
+                  placeholder={t('inbox.workspaceNamePlaceholder')}
                   value={newWorkspaceName}
                   onChange={(e) => setNewWorkspaceName(e.target.value)}
                   className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#25D366]/20 mb-4"
@@ -986,14 +989,14 @@ export default function Inbox() {
                     onClick={() => setIsCreatingWorkspace(false)}
                     className="flex-1 px-4 py-2 text-sm font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={!newWorkspaceName.trim() || isCreating}
                     className="flex-1 px-4 py-2 text-sm font-bold bg-[#25D366] text-white rounded-xl hover:bg-[#128C7E] transition-colors disabled:opacity-50"
                   >
-                    {isCreating ? 'Creating...' : 'Create'}
+                    {isCreating ? t('inbox.creating') : t('common.create')}
                   </button>
                 </div>
               </form>
@@ -1014,17 +1017,17 @@ export default function Inbox() {
         {isRestrictedMode && (
           <div className="mx-4 mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
             {hasVerifiedEmail
-              ? 'Inbox is view-only until you subscribe to a plan in Billing.'
-              : 'Verify your email first, then choose a plan in Billing to unlock replies and CRM actions.'}
+              ? t('inbox.viewOnlySubscribe')
+              : t('inbox.verifyEmailFirst')}
           </div>
         )}
         <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-[#25D366] rounded-full" />
-            <span className="font-medium text-sm dark:text-gray-200">Active</span>
+            <span className="font-medium text-sm dark:text-gray-200">{t('inbox.active')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <AppTooltip content="Search conversations" side="bottom">
+            <AppTooltip content={t('inbox.searchConversations')} side="bottom">
               <button
                 onClick={() => setIsSearchOpen((prev) => !prev)}
                 className={cn(
@@ -1035,7 +1038,7 @@ export default function Inbox() {
                 <Search className="w-4 h-4" />
               </button>
             </AppTooltip>
-            <AppTooltip content="Filter conversations" side="bottom">
+            <AppTooltip content={t('inbox.filterConversations')} side="bottom">
               <button
                 onClick={() => setShowFilters((prev) => !prev)}
                 className={cn(
@@ -1058,7 +1061,7 @@ export default function Inbox() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search name, number, or latest message..."
+                placeholder={t('inbox.searchPlaceholder')}
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none transition-colors focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             )}
@@ -1070,9 +1073,9 @@ export default function Inbox() {
                   onChange={(e) => setChannelFilter(e.target.value as 'ALL' | 'WHATSAPP' | 'INSTAGRAM')}
                   className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700 outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200"
                 >
-                  <option value="ALL">All channels</option>
-                  <option value="WHATSAPP">WhatsApp</option>
-                  <option value="INSTAGRAM">Instagram</option>
+                  <option value="ALL">{t('inbox.allChannels')}</option>
+                  <option value="WHATSAPP">{t('inbox.whatsapp')}</option>
+                  <option value="INSTAGRAM">{t('inbox.instagram')}</option>
                 </select>
                 <select
                   value={statusFilter}

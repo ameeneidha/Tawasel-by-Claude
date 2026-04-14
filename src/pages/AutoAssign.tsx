@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
+import { useTranslation } from 'react-i18next';
 import { Route, Plus, Trash2, Edit3, X, Loader2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
@@ -24,6 +25,7 @@ interface TeamMember {
 
 export default function AutoAssign() {
   const { activeWorkspace } = useApp();
+  const { t } = useTranslation();
   const [rules, setRules] = useState<AssignmentRule[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ export default function AutoAssign() {
       setRules(rulesRes.data);
       setTeam(teamRes.data);
     } catch (e) {
-      toast.error('Failed to load data');
+      toast.error(t('autoAssign.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -86,7 +88,7 @@ export default function AutoAssign() {
 
   async function saveRule() {
     if (!name.trim() || selectedAgents.length === 0) {
-      toast.error('Name and at least one agent required');
+      toast.error(t('autoAssign.nameAndAgentRequired'));
       return;
     }
     const conditions: any = {};
@@ -98,17 +100,17 @@ export default function AutoAssign() {
         await axios.patch(`/api/assignment-rules/${editingRule.id}`, {
           name, strategy, conditions, agentIds: selectedAgents, priority
         });
-        toast.success('Rule updated');
+        toast.success(t('autoAssign.ruleUpdated'));
       } else {
         await axios.post('/api/assignment-rules', {
           name, strategy, conditions, agentIds: selectedAgents, priority, workspaceId
         });
-        toast.success('Rule created');
+        toast.success(t('autoAssign.ruleCreated'));
       }
       setShowModal(false);
       loadData();
     } catch (e: any) {
-      toast.error(e.response?.data?.error || 'Failed to save rule');
+      toast.error(e.response?.data?.error || t('autoAssign.failedToSave'));
     }
   }
 
@@ -116,16 +118,16 @@ export default function AutoAssign() {
     try {
       await axios.patch(`/api/assignment-rules/${rule.id}`, { enabled: !rule.enabled });
       loadData();
-    } catch { toast.error('Failed to toggle rule'); }
+    } catch { toast.error(t('autoAssign.failedToToggle')); }
   }
 
   async function deleteRule(id: string) {
-    if (!confirm('Delete this rule?')) return;
+    if (!confirm(t('autoAssign.deleteConfirm'))) return;
     try {
       await axios.delete(`/api/assignment-rules/${id}`);
-      toast.success('Rule deleted');
+      toast.success(t('autoAssign.ruleDeleted'));
       loadData();
-    } catch { toast.error('Failed to delete'); }
+    } catch { toast.error(t('autoAssign.failedToDelete')); }
   }
 
   function agentName(id: string) {
@@ -147,22 +149,22 @@ export default function AutoAssign() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Route className="w-6 h-6 text-[#25D366]" />
-            Auto-Assign Rules
+            {t('autoAssign.title')}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            Automatically assign incoming conversations to team members
+            {t('autoAssign.autoAssignConversations')}
           </p>
         </div>
         <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white rounded-lg hover:bg-[#20bd5a] transition-colors">
-          <Plus className="w-4 h-4" /> New Rule
+          <Plus className="w-4 h-4" /> {t('autoAssign.newRule')}
         </button>
       </div>
 
       {rules.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <Route className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p className="font-medium">No assignment rules yet</p>
-          <p className="text-sm mt-1">Create rules to auto-assign new conversations to your team</p>
+          <p className="font-medium">{t('autoAssign.noRulesTitle')}</p>
+          <p className="text-sm mt-1">{t('autoAssign.noRulesDesc')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -188,10 +190,10 @@ export default function AutoAssign() {
                           {rule.strategy.replace('_', ' ')}
                         </span>
                         {rule.strategy === 'KEYWORD' && conds.keyword && (
-                          <span className="text-xs text-gray-500">Keyword: "{conds.keyword}"</span>
+                          <span className="text-xs text-gray-500">{t('autoAssign.keywordDisplay', { value: conds.keyword })}</span>
                         )}
                         {rule.strategy === 'LEAD_SOURCE' && conds.leadSourcePrefix && (
-                          <span className="text-xs text-gray-500">Source: "{conds.leadSourcePrefix}"</span>
+                          <span className="text-xs text-gray-500">{t('autoAssign.sourceDisplay', { value: conds.leadSourcePrefix })}</span>
                         )}
                         <span className="text-xs text-gray-400">
                           → {agents.map(a => agentName(a)).join(', ')}
@@ -200,7 +202,7 @@ export default function AutoAssign() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">Priority: {rule.priority}</span>
+                    <span className="text-xs text-gray-400">{t('autoAssign.priorityDisplay', { value: rule.priority })}</span>
                     <button onClick={() => openEdit(rule)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20">
                       <Edit3 className="w-4 h-4" />
                     </button>
@@ -221,7 +223,7 @@ export default function AutoAssign() {
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-xl">
             <div className="flex items-center justify-between p-5 border-b dark:border-slate-700">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                {editingRule ? 'Edit Rule' : 'New Assignment Rule'}
+                {editingRule ? t('autoAssign.editRule') : t('autoAssign.newAssignmentRule')}
               </h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
@@ -229,40 +231,40 @@ export default function AutoAssign() {
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rule Name</label>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Round Robin Sales Team"
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('autoAssign.ruleName')}</label>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder={t('autoAssign.ruleNamePlaceholder')}
                   className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-slate-900 dark:border-slate-600 dark:text-white" />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Strategy</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('autoAssign.strategy')}</label>
                 <select value={strategy} onChange={e => setStrategy(e.target.value)}
                   className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-slate-900 dark:border-slate-600 dark:text-white">
-                  <option value="ROUND_ROBIN">Round Robin (all new conversations)</option>
-                  <option value="LEAD_SOURCE">By Lead Source (ad campaigns)</option>
-                  <option value="KEYWORD">By Keyword (message content)</option>
+                  <option value="ROUND_ROBIN">{t('autoAssign.roundRobinAll')}</option>
+                  <option value="LEAD_SOURCE">{t('autoAssign.byLeadSource')}</option>
+                  <option value="KEYWORD">{t('autoAssign.byKeyword')}</option>
                 </select>
               </div>
 
               {strategy === 'KEYWORD' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Keyword</label>
-                  <input value={condKeyword} onChange={e => setCondKeyword(e.target.value)} placeholder="e.g. pricing"
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('autoAssign.keywordLabel')}</label>
+                  <input value={condKeyword} onChange={e => setCondKeyword(e.target.value)} placeholder={t('autoAssign.keywordPlaceholder')}
                     className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-slate-900 dark:border-slate-600 dark:text-white" />
                 </div>
               )}
 
               {strategy === 'LEAD_SOURCE' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lead Source Contains</label>
-                  <input value={condLeadSource} onChange={e => setCondLeadSource(e.target.value)} placeholder="e.g. Ad:"
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('autoAssign.leadSourceContains')}</label>
+                  <input value={condLeadSource} onChange={e => setCondLeadSource(e.target.value)} placeholder={t('autoAssign.leadSourcePlaceholder')}
                     className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-slate-900 dark:border-slate-600 dark:text-white" />
-                  <p className="text-xs text-gray-400 mt-1">Matches contacts whose lead source contains this text</p>
+                  <p className="text-xs text-gray-400 mt-1">{t('autoAssign.leadSourceHint')}</p>
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assign To (select agents)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('autoAssign.assignToAgents')}</label>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {team.map(m => (
                     <label key={m.userId} className="flex items-center gap-2 cursor-pointer">
@@ -281,17 +283,17 @@ export default function AutoAssign() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority (higher = checked first)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('autoAssign.priorityLabel')}</label>
                 <input type="number" value={priority} onChange={e => setPriority(Number(e.target.value))}
                   className="w-24 border rounded-lg px-3 py-2 text-sm dark:bg-slate-900 dark:border-slate-600 dark:text-white" />
               </div>
             </div>
             <div className="flex justify-end gap-2 p-5 border-t dark:border-slate-700">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">
-                Cancel
+                {t('common.cancel')}
               </button>
               <button onClick={saveRule} className="px-4 py-2 text-sm bg-[#25D366] text-white rounded-lg hover:bg-[#20bd5a]">
-                {editingRule ? 'Update Rule' : 'Create Rule'}
+                {editingRule ? t('autoAssign.updateRule') : t('autoAssign.createRule')}
               </button>
             </div>
           </div>

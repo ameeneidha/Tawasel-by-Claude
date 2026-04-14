@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, KeyRound, Loader2, Mail } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function ForgotPassword() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -21,11 +23,11 @@ export default function ForgotPassword() {
 
     try {
       const res = await axios.post('/api/auth/forgot-password', { email });
-      setMessage(res.data?.message || 'If the account exists, a password reset email has been sent.');
+      setMessage(res.data?.message || t('auth.resetDefaultMessage'));
       setEmailSent(Boolean(res.data?.emailSent));
       setResetUrl(res.data?.resetUrl || '');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Could not start password reset');
+      setError(err.response?.data?.error || t('auth.resetFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -38,15 +40,15 @@ export default function ForgotPassword() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#25D366]/10">
             <KeyRound className="h-6 w-6 text-[#25D366]" />
           </div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Reset your password</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('auth.forgotPasswordTitle')}</h1>
           <p className="mt-2 text-gray-500 dark:text-gray-400">
-            Enter your email and we&apos;ll send a secure reset link for you.
+            {t('auth.forgotPasswordDesc')}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('auth.emailAddress')}</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
               <input

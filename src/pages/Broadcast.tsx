@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
-import { 
-  Radio, 
-  Plus, 
-  Users, 
+import {
+  Radio,
+  Plus,
+  Users,
   Image as ImageIcon,
   ArrowRight,
   MoreHorizontal,
@@ -17,6 +17,7 @@ import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { PipelineStage } from '../lib/pipelineStages';
+import { useTranslation } from 'react-i18next';
 
 interface ContactList {
   id: string;
@@ -73,6 +74,7 @@ interface CampaignDetail extends Campaign {
 }
 
 function CampaignPreviewCard({ campaign }: { campaign: Pick<Campaign, 'name' | 'messageBody' | 'headerImageData' | 'scheduledAt'> }) {
+  const { t } = useTranslation();
   return (
     <div className="mx-auto max-w-sm rounded-[28px] bg-[#EDE7DF] p-4">
       <div className="overflow-hidden rounded-[22px] bg-white shadow-sm">
@@ -89,10 +91,10 @@ function CampaignPreviewCard({ campaign }: { campaign: Pick<Campaign, 'name' | '
         )}
         <div className="px-4 py-3">
           <p className="text-sm text-gray-800 dark:text-gray-200">
-            {campaign.messageBody?.trim() || 'No saved message body for this broadcast.'}
+            {campaign.messageBody?.trim() || t('broadcast.noMessageBody')}
           </p>
           <p className="mt-2 text-right text-[10px] text-gray-400 dark:text-gray-500">
-            {campaign.scheduledAt ? format(new Date(campaign.scheduledAt), 'HH:mm') : 'Now'}
+            {campaign.scheduledAt ? format(new Date(campaign.scheduledAt), 'HH:mm') : t('broadcast.now')}
           </p>
         </div>
       </div>
@@ -102,6 +104,7 @@ function CampaignPreviewCard({ campaign }: { campaign: Pick<Campaign, 'name' | '
 
 export default function Broadcast() {
   const { activeWorkspace } = useApp();
+  const { t } = useTranslation();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [contactLists, setContactLists] = useState<ContactList[]>([]);
   const [numbers, setNumbers] = useState<WhatsAppChannel[]>([]);
@@ -193,9 +196,9 @@ export default function Broadcast() {
       setSelectedCampaign(res.data);
     } catch (error) {
       if (showLoader && axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.error || 'Could not load campaign details');
+        toast.error(error.response?.data?.error || t('broadcast.detailsError'));
       } else if (showLoader) {
-        toast.error('Could not load campaign details');
+        toast.error(t('broadcast.detailsError'));
       }
     } finally {
       if (showLoader) {
@@ -213,15 +216,15 @@ export default function Broadcast() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Broadcast Campaigns</h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">Manage and schedule bulk message campaigns.</p>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('broadcast.title')}</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">{t('broadcast.subtitleAlt')}</p>
           </div>
-          <button 
+          <button
             onClick={() => setIsCreating(true)}
             className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white font-medium rounded-xl hover:bg-[#128C7E] transition-all shadow-sm"
           >
             <Plus className="w-5 h-5" />
-            New Broadcast
+            {t('broadcast.newBroadcast')}
           </button>
         </div>
 
@@ -244,9 +247,9 @@ export default function Broadcast() {
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#25D366]/10 text-[#25D366]">
                 <Radio className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No broadcast campaigns yet</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('broadcast.noCampaigns')}</h3>
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Launch your first campaign and it will appear here with sender, audience, and recipient counts.
+                {t('broadcast.noCampaignsDescAlt')}
               </p>
             </div>
           ) : (
@@ -270,7 +273,7 @@ export default function Broadcast() {
                     type="button"
                     onClick={() => setPreviewCampaign(campaign)}
                     className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                    title="Preview broadcast"
+                    title={t('broadcast.previewBroadcast')}
                   >
                     <MoreHorizontal className="w-5 h-5" />
                   </button>
@@ -285,24 +288,24 @@ export default function Broadcast() {
                     {campaign.status}
                   </span>
                   <span className="text-[10px] text-gray-400 dark:text-gray-500">
-                    {campaign.scheduledAt ? format(new Date(campaign.scheduledAt), 'MMM dd, yyyy') : 'No date'}
+                    {campaign.scheduledAt ? format(new Date(campaign.scheduledAt), 'MMM dd, yyyy') : t('broadcast.noDate')}
                   </span>
                 </div>
                 <div className="grid grid-cols-4 gap-2 mb-4">
                   <div className="text-center p-2 bg-gray-50 dark:bg-slate-800 rounded-lg transition-colors">
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">Recipients</p>
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">{t('broadcast.recipients')}</p>
                     <p className="text-xs font-bold text-gray-900 dark:text-white">{campaign._count?.recipients || 0}</p>
                   </div>
                   <div className="text-center p-2 bg-gray-50 dark:bg-slate-800 rounded-lg transition-colors">
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">Delivered</p>
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">{t('broadcast.delivered')}</p>
                     <p className="text-xs font-bold text-gray-900 dark:text-white">{campaign.deliveredCount || 0}</p>
                   </div>
                   <div className="text-center p-2 bg-gray-50 dark:bg-slate-800 rounded-lg transition-colors">
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">Read</p>
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">{t('broadcast.read')}</p>
                     <p className="text-xs font-bold text-gray-900 dark:text-white">{campaign.readCount || 0}</p>
                   </div>
                   <div className="text-center p-2 bg-gray-50 dark:bg-slate-800 rounded-lg transition-colors">
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">Replied</p>
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">{t('broadcast.replied')}</p>
                     <p className="text-xs font-bold text-gray-900 dark:text-white">{campaign.repliedCount || 0}</p>
                   </div>
                 </div>
@@ -314,7 +317,7 @@ export default function Broadcast() {
                 <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-slate-800 transition-colors">
                   <div className="flex items-center gap-1.5">
                     <Users className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{campaign._count?.recipients || 0} recipients</span>
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{campaign._count?.recipients || 0} {t('broadcast.recipients').toLowerCase()}</span>
                   </div>
                   <button
                     type="button"
@@ -322,7 +325,7 @@ export default function Broadcast() {
                     disabled={isLoadingDetails}
                     className="text-xs font-bold text-[#25D366] flex items-center gap-1 group-hover:gap-2 transition-all disabled:opacity-50"
                   >
-                    View Details
+                    {t('broadcast.viewDetails')}
                     <ArrowRight className="w-3 h-3" />
                   </button>
                 </div>
@@ -354,28 +357,28 @@ export default function Broadcast() {
 
             <div className="grid grid-cols-4 gap-3 px-6 py-5">
               <div className="rounded-2xl bg-gray-50 p-4 dark:bg-slate-800">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Recipients</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">{t('broadcast.recipients')}</p>
                 <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{selectedCampaign._count?.recipients || 0}</p>
               </div>
               <div className="rounded-2xl bg-gray-50 p-4 dark:bg-slate-800">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Delivered</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">{t('broadcast.delivered')}</p>
                 <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{selectedCampaign.deliveredCount}</p>
               </div>
               <div className="rounded-2xl bg-gray-50 p-4 dark:bg-slate-800">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Read</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">{t('broadcast.read')}</p>
                 <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{selectedCampaign.readCount}</p>
               </div>
               <div className="rounded-2xl bg-gray-50 p-4 dark:bg-slate-800">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Replied</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">{t('broadcast.replied')}</p>
                 <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{selectedCampaign.repliedCount}</p>
               </div>
             </div>
 
             <div className="border-t border-gray-100 px-6 py-5 dark:border-slate-800">
               <div className="mb-3 flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Broadcast Preview</h4>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{t('broadcast.broadcastPreview')}</h4>
                 <span className="text-xs text-gray-400 dark:text-gray-500">
-                  {selectedCampaign.scheduledAt ? format(new Date(selectedCampaign.scheduledAt), 'MMM dd, yyyy HH:mm') : 'No date'}
+                  {selectedCampaign.scheduledAt ? format(new Date(selectedCampaign.scheduledAt), 'MMM dd, yyyy HH:mm') : t('broadcast.noDate')}
                 </span>
               </div>
               <CampaignPreviewCard campaign={selectedCampaign} />
@@ -383,15 +386,15 @@ export default function Broadcast() {
 
             <div className="border-t border-gray-100 px-6 py-5 dark:border-slate-800">
               <div className="mb-3 flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Recipients</h4>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{t('broadcast.recipients')}</h4>
                 <span className="text-xs text-gray-400 dark:text-gray-500">
-                  {selectedCampaign.scheduledAt ? format(new Date(selectedCampaign.scheduledAt), 'MMM dd, yyyy HH:mm') : 'No date'}
+                  {selectedCampaign.scheduledAt ? format(new Date(selectedCampaign.scheduledAt), 'MMM dd, yyyy HH:mm') : t('broadcast.noDate')}
                 </span>
               </div>
               <div className="max-h-80 overflow-y-auto rounded-2xl border border-gray-100 dark:border-slate-800">
                 {selectedCampaign.recipients.length === 0 ? (
                   <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                    No recipients saved for this campaign yet.
+                    {t('broadcast.noRecipients')}
                   </div>
                 ) : (
                   selectedCampaign.recipients.map((recipient) => (
@@ -417,7 +420,7 @@ export default function Broadcast() {
           <div className="w-full max-w-lg rounded-3xl border border-gray-100 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5 dark:border-slate-800">
               <div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Broadcast Preview</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{t('broadcast.broadcastPreview')}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   {previewCampaign.name}
                 </p>
@@ -458,6 +461,7 @@ function BroadcastBuilder({
   contacts: Contact[];
   pipelineStages: PipelineStage[];
 }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const [isLaunching, setIsLaunching] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
@@ -509,18 +513,18 @@ function BroadcastBuilder({
   const estimatedCredits = totalRecipients;
   const canContinueFromSetup = Boolean(campaignName.trim() && senderId && audienceSelection);
   const selectedTemplateObj = waTemplates.find(t => t.name === selectedTemplate);
-  const previewMessage = selectedTemplateObj?.content || 'Select a template to see the preview';
+  const previewMessage = selectedTemplateObj?.content || t('broadcast.selectTemplatePreview');
   const reviewItems = [
-    { label: 'Campaign Name', value: campaignName.trim() || 'Not set' },
+    { label: t('broadcast.campaignName'), value: campaignName.trim() || t('broadcast.notSet') },
     {
-      label: 'Sender',
-      value: selectedSender ? `${selectedSender.name} (${selectedSender.phoneNumber})` : 'No sender selected',
+      label: t('broadcast.sender'),
+      value: selectedSender ? `${selectedSender.name} (${selectedSender.phoneNumber})` : t('broadcast.noSenderSelected'),
     },
     {
-      label: 'Audience',
+      label: t('broadcast.audience'),
       value: selectedAudience
-        ? `${selectedAudience.label} ${selectedAudience.type === 'PIPELINE' ? '(Pipeline)' : '(Custom List)'}`
-        : 'No audience selected',
+        ? `${selectedAudience.label} ${selectedAudience.type === 'PIPELINE' ? `(${t('broadcast.pipeline')})` : `(${t('broadcast.customList')})`}`
+        : t('broadcast.noAudienceSelected'),
     },
   ];
 
@@ -543,13 +547,13 @@ function BroadcastBuilder({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setUploadError('Please upload a JPG or PNG image.');
+      setUploadError(t('broadcast.uploadImageError'));
       event.target.value = '';
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setUploadError('Header image must be 5MB or smaller.');
+      setUploadError(t('broadcast.imageSizeError'));
       event.target.value = '';
       return;
     }
@@ -566,7 +570,7 @@ function BroadcastBuilder({
 
   const handleLaunchCampaign = async () => {
     if (!workspaceId || !campaignName.trim() || !senderId || !selectedAudience) {
-      toast.error('Choose a sender and audience before launching the campaign');
+      toast.error(t('broadcast.setupError'));
       return;
     }
 
@@ -589,13 +593,13 @@ function BroadcastBuilder({
         headers: { 'x-workspace-id': workspaceId },
       });
 
-      toast.success(sendMode === 'SCHEDULE' ? 'Campaign scheduled' : 'Campaign launched and sent');
+      toast.success(sendMode === 'SCHEDULE' ? t('broadcast.campaignScheduled') : t('broadcast.campaignLaunched'));
       onCreated(response.data);
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.error || 'Could not launch campaign');
+        toast.error(error.response?.data?.error || t('broadcast.launchError'));
       } else {
-        toast.error('Could not launch campaign');
+        toast.error(t('broadcast.launchError'));
       }
     } finally {
       setIsLaunching(false);
@@ -604,7 +608,7 @@ function BroadcastBuilder({
 
   const handleSendTestMessage = async () => {
     if (!workspaceId || !campaignName.trim() || !senderId || !testPhoneNumber.trim()) {
-      toast.error('Add a campaign name, sender, and test phone number first');
+      toast.error(t('broadcast.testSetupError'));
       return;
     }
 
@@ -623,12 +627,12 @@ function BroadcastBuilder({
       await axios.post('/api/campaigns/test', formData, {
         headers: { 'x-workspace-id': workspaceId },
       });
-      toast.success('Test message sent');
+      toast.success(t('broadcast.testSent'));
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.error || 'Could not send test message');
+        toast.error(error.response?.data?.error || t('broadcast.testError'));
       } else {
-        toast.error('Could not send test message');
+        toast.error(t('broadcast.testError'));
       }
     } finally {
       setIsSendingTest(false);
@@ -641,9 +645,15 @@ function BroadcastBuilder({
     if (targetStep === 3) return canContinueFromSetup;
     return false;
   };
-  
+
+  const stepLabels: Record<number, string> = {
+    1: t('broadcast.stepSetup'),
+    2: t('broadcast.stepContent'),
+    3: t('broadcast.stepReview'),
+  };
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden transition-colors"
@@ -665,7 +675,7 @@ function BroadcastBuilder({
               canNavigateToStep(s) ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/40" : ""
             )}
           >
-            Step {s}: {s === 1 ? 'Setup' : s === 2 ? 'Content' : 'Review'}
+            {t('broadcast.step')} {s}: {stepLabels[s]}
             {step === s && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#25D366]" />}
           </button>
         ))}
@@ -675,23 +685,23 @@ function BroadcastBuilder({
         {step === 1 && (
           <div className="space-y-6 max-w-xl mx-auto">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Campaign Name</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('broadcast.campaignName')}</label>
               <input
                 type="text"
                 value={campaignName}
                 onChange={(e) => setCampaignName(e.target.value)}
                 className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#25D366]/20 outline-none text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 transition-colors"
-                placeholder="e.g. Ramadan Offer 2024"
+                placeholder={t('broadcast.campaignNamePlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">From Sender</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('broadcast.fromSender')}</label>
               <select
                 value={senderId}
                 onChange={(e) => setSenderId(e.target.value)}
                 className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg outline-none text-gray-900 dark:text-white transition-colors"
               >
-                {activeNumbers.length === 0 && <option value="">No active WhatsApp channels</option>}
+                {activeNumbers.length === 0 && <option value="">{t('broadcast.noActiveChannels')}</option>}
                 {activeNumbers.map((number) => (
                   <option key={number.id} value={number.id}>
                     {number.name} ({number.phoneNumber})
@@ -699,19 +709,19 @@ function BroadcastBuilder({
                 ))}
               </select>
               <p className="text-xs text-gray-400 dark:text-gray-500">
-                Only active WhatsApp channels can be used as broadcast senders.
+                {t('broadcast.senderHint')}
               </p>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">To Contact List / Segment</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('broadcast.toContactList')}</label>
               <select
                 value={audienceSelection}
                 onChange={(e) => setAudienceSelection(e.target.value)}
                 className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg outline-none text-gray-900 dark:text-white transition-colors"
               >
-                <option value="">Select a pipeline segment or custom list</option>
+                <option value="">{t('broadcast.selectSegment')}</option>
                 {pipelineOptions.length > 0 && (
-                  <optgroup label="Pipeline Segments">
+                  <optgroup label={t('broadcast.pipelineSegments')}>
                     {pipelineOptions.map((option) => (
                       <option key={`pipeline-${option.id}`} value={`PIPELINE:${option.id}`}>
                         {option.label} ({option.count})
@@ -720,7 +730,7 @@ function BroadcastBuilder({
                   </optgroup>
                 )}
                 {customListOptions.length > 0 && (
-                  <optgroup label="Custom Lists">
+                  <optgroup label={t('broadcast.customLists')}>
                     {customListOptions.map((option) => (
                       <option key={`list-${option.id}`} value={`LIST:${option.id}`}>
                         {option.label} ({option.count})
@@ -731,7 +741,7 @@ function BroadcastBuilder({
               </select>
               {audienceOptions.length === 0 && (
                 <p className="text-xs text-amber-600 dark:text-amber-300">
-                  Add phone contacts to a custom list or pipeline stage in Contacts first, then use them here for broadcasts.
+                  {t('broadcast.audienceHint')}
                 </p>
               )}
             </div>
@@ -742,18 +752,18 @@ function BroadcastBuilder({
           <div className="grid grid-cols-2 gap-8">
             <div className="space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Template</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('broadcast.selectTemplate')}</label>
                 <select
                   value={selectedTemplate}
                   onChange={(e) => setSelectedTemplate(e.target.value)}
                   className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg outline-none text-gray-900 dark:text-white transition-colors"
                 >
                   {waTemplates.length === 0 && (
-                    <option value="">No approved templates — sync from Templates page</option>
+                    <option value="">{t('broadcast.noApprovedTemplates')}</option>
                   )}
-                  {waTemplates.map(t => (
-                    <option key={t.id} value={t.name}>
-                      {t.name} ({t.language})
+                  {waTemplates.map(t_item => (
+                    <option key={t_item.id} value={t_item.name}>
+                      {t_item.name} ({t_item.language})
                     </option>
                   ))}
                 </select>
@@ -773,9 +783,9 @@ function BroadcastBuilder({
                 >
                   <ImageIcon className="w-8 h-8 text-gray-300 dark:text-gray-600 mb-2" />
                   <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                    {headerImage ? 'Replace Header Image' : 'Upload Header Image (Optional)'}
+                    {headerImage ? t('broadcast.replaceHeaderImage') : t('broadcast.uploadHeaderImage')}
                   </p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Max size 5MB. JPG, PNG supported.</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{t('broadcast.maxSize')}</p>
                 </button>
                 {headerImage && (
                   <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300">
@@ -792,7 +802,7 @@ function BroadcastBuilder({
                       }}
                       className="font-semibold text-red-500 hover:text-red-600"
                     >
-                      Remove
+                      {t('broadcast.remove')}
                     </button>
                   </div>
                 )}
@@ -801,18 +811,18 @@ function BroadcastBuilder({
                 )}
               </div>
               <div className="space-y-4">
-                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Variable Mapping</h4>
+                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('broadcast.variableMapping')}</h4>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-mono bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded text-gray-600 dark:text-gray-400 transition-colors">{"{{1}}"}</span>
                   <select className="flex-1 text-xs px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white transition-colors">
-                    <option>Contact Name</option>
-                    <option>Company Name</option>
+                    <option>{t('broadcast.contactName')}</option>
+                    <option>{t('broadcast.companyName')}</option>
                   </select>
                 </div>
               </div>
             </div>
             <div className="space-y-4">
-              <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Message Preview</h4>
+              <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('broadcast.messagePreview')}</h4>
               <div className="bg-[#E5DDD5] dark:bg-slate-800/50 p-4 rounded-2xl min-h-[300px] flex flex-col transition-colors">
                 <div className="bg-white dark:bg-slate-900 p-3 rounded-xl rounded-tl-none shadow-sm max-w-[85%] transition-colors">
                   <div className="w-full aspect-video bg-gray-100 dark:bg-slate-800 rounded-lg mb-2 flex items-center justify-center overflow-hidden transition-colors">
@@ -849,17 +859,17 @@ function BroadcastBuilder({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-xl transition-colors">
-                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Total Recipients</p>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">{t('broadcast.totalRecipients')}</p>
                 <p className="text-xl font-semibold text-gray-900 dark:text-white">{totalRecipients.toLocaleString()}</p>
               </div>
               <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-xl transition-colors">
-                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Estimated Credits</p>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">{t('broadcast.estimatedCredits')}</p>
                 <p className="text-xl font-semibold text-gray-900 dark:text-white">{estimatedCredits.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Schedule Options</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('broadcast.scheduleOptions')}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
@@ -873,8 +883,8 @@ function BroadcastBuilder({
                 >
                   <CheckCircle2 className="w-5 h-5 text-[#25D366]" />
                   <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">Send Now</p>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Start sending immediately</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{t('broadcast.sendNow')}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('broadcast.sendImmediately')}</p>
                   </div>
                 </button>
                 <button
@@ -889,25 +899,25 @@ function BroadcastBuilder({
                 >
                   <Clock className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                   <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">Schedule</p>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Pick a date and time</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{t('broadcast.schedule')}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('broadcast.pickDateTime')}</p>
                   </div>
                 </button>
               </div>
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Test Message</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('broadcast.testMessage')}</h4>
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
                 <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-                  Send the current broadcast preview to one WhatsApp number to check exactly how it will be received.
+                  {t('broadcast.testMessageDesc')}
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <input
                     type="text"
                     value={testPhoneNumber}
                     onChange={(e) => setTestPhoneNumber(e.target.value)}
-                    placeholder="Test phone number, e.g. +971528456511"
+                    placeholder={t('broadcast.testPhonePlaceholder')}
                     className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                   />
                   <button
@@ -916,7 +926,7 @@ function BroadcastBuilder({
                     disabled={isSendingTest}
                     className="rounded-xl border border-[#25D366] px-4 py-2 text-sm font-semibold text-[#25D366] transition-colors hover:bg-[#25D366]/10 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {isSendingTest ? 'Sending Test...' : 'Send Test Message'}
+                    {isSendingTest ? t('broadcast.sendingTest') : t('broadcast.sendTestMessage')}
                   </button>
                 </div>
               </div>
@@ -925,13 +935,13 @@ function BroadcastBuilder({
         )}
 
         <div className="mt-12 flex items-center justify-between pt-6 border-t border-gray-100 dark:border-slate-800 transition-colors">
-          <button 
+          <button
             onClick={step === 1 ? onCancel : () => setStep(step - 1)}
             className="px-6 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
           >
-            {step === 1 ? 'Cancel' : 'Back'}
+            {step === 1 ? t('broadcast.cancel') : t('broadcast.back')}
           </button>
-          <button 
+          <button
             onClick={() => {
               if (step === 1 && !canContinueFromSetup) return;
               if (step < 3) {
@@ -943,7 +953,7 @@ function BroadcastBuilder({
             disabled={(step === 1 && !canContinueFromSetup) || isLaunching}
             className="px-8 py-2.5 bg-[#25D366] text-white font-semibold rounded-xl hover:bg-[#128C7E] transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {step === 3 ? (isLaunching ? 'Launching...' : 'Launch Campaign') : 'Next Step'}
+            {step === 3 ? (isLaunching ? t('broadcast.launching') : t('broadcast.launchCampaign')) : t('broadcast.nextStep')}
           </button>
         </div>
       </div>

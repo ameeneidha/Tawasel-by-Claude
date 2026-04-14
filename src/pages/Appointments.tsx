@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../contexts/AppContext';
 import {
   CalendarCheck,
@@ -110,6 +111,7 @@ function toInputDate(d: Date) {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function Appointments() {
+  const { t } = useTranslation();
   const { activeWorkspace } = useApp();
   const wsId = activeWorkspace?.id;
 
@@ -153,7 +155,7 @@ export default function Appointments() {
       setStaff(staffRes.data);
       setContacts(contactRes.data);
     } catch {
-      toast.error('Failed to load appointments data');
+      toast.error(t('appointments.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -190,46 +192,46 @@ export default function Appointments() {
     try {
       await axios.patch(`/api/appointments/${id}`, { status });
       setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
-      toast.success(`Appointment ${status.toLowerCase()}`);
+      toast.success(t('appointments.appointmentStatusUpdated', { status: status.toLowerCase() }));
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to update');
+      toast.error(err.response?.data?.error || t('appointments.failedToUpdate'));
     }
   };
 
   const deleteAppointment = async (id: string) => {
-    if (!confirm('Cancel this appointment?')) return;
+    if (!confirm(t('appointments.confirmCancelAppointment'))) return;
     try {
       await axios.delete(`/api/appointments/${id}`);
       setAppointments((prev) => prev.filter((a) => a.id !== id));
-      toast.success('Appointment deleted');
+      toast.success(t('appointments.appointmentDeleted'));
     } catch {
-      toast.error('Failed to delete appointment');
+      toast.error(t('appointments.failedToDeleteAppointment'));
     }
   };
 
   // ─── Service CRUD ──────────────────────────────────────────────────────
 
   const deleteService = async (id: string) => {
-    if (!confirm('Delete this service?')) return;
+    if (!confirm(t('appointments.confirmDeleteService'))) return;
     try {
       await axios.delete(`/api/services/${id}`);
       setServices((prev) => prev.filter((s) => s.id !== id));
-      toast.success('Service deleted');
+      toast.success(t('appointments.serviceDeleted'));
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to delete');
+      toast.error(err.response?.data?.error || t('appointments.failedToDelete'));
     }
   };
 
   // ─── Staff CRUD ────────────────────────────────────────────────────────
 
   const deleteStaffMember = async (id: string) => {
-    if (!confirm('Delete this staff member?')) return;
+    if (!confirm(t('appointments.confirmDeleteStaff'))) return;
     try {
       await axios.delete(`/api/staff/${id}`);
       setStaff((prev) => prev.filter((s) => s.id !== id));
-      toast.success('Staff member deleted');
+      toast.success(t('appointments.staffDeleted'));
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to delete');
+      toast.error(err.response?.data?.error || t('appointments.failedToDelete'));
     }
   };
 
@@ -246,7 +248,7 @@ export default function Appointments() {
   if (!wsId) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
-        Select a workspace to manage appointments
+        {t('appointments.selectWorkspace')}
       </div>
     );
   }
@@ -266,28 +268,28 @@ export default function Appointments() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <CalendarCheck className="w-6 h-6 text-[#25D366]" />
-            Appointments
+            {t('appointments.title')}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Manage bookings, services, and staff
+            {t('appointments.subtitle')}
           </p>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 dark:border-gray-700">
-        {(['appointments', 'services', 'staff'] as Tab[]).map((t) => (
+        {(['appointments', 'services', 'staff'] as Tab[]).map((tabKey) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
             className={cn(
-              'px-4 py-2.5 text-sm font-medium capitalize transition-colors border-b-2 -mb-px',
-              tab === t
+              'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
+              tab === tabKey
                 ? 'border-[#25D366] text-[#25D366]'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
             )}
           >
-            {t}
+            {t(`appointments.tabs.${tabKey}`)}
           </button>
         ))}
       </div>
@@ -314,7 +316,7 @@ export default function Appointments() {
                 onClick={() => setFilterDate(toInputDate(new Date()))}
                 className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
               >
-                Today
+                {t('appointments.today')}
               </button>
             </div>
 
@@ -323,7 +325,7 @@ export default function Appointments() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-800 dark:text-white"
             >
-              <option value="ALL">All statuses</option>
+              <option value="ALL">{t('appointments.allStatuses')}</option>
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>{s.replace('_', ' ')}</option>
               ))}
@@ -334,7 +336,7 @@ export default function Appointments() {
               onChange={(e) => setFilterStaff(e.target.value)}
               className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-800 dark:text-white"
             >
-              <option value="ALL">All staff</option>
+              <option value="ALL">{t('appointments.allStaff')}</option>
               {staff.filter((s) => s.enabled).map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
@@ -346,7 +348,7 @@ export default function Appointments() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search appointments..."
+                placeholder={t('appointments.searchPlaceholder')}
                 className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white"
               />
             </div>
@@ -356,7 +358,7 @@ export default function Appointments() {
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
-              Book Appointment
+              {t('appointments.bookAppointment')}
             </button>
           </div>
 
@@ -364,20 +366,20 @@ export default function Appointments() {
           {filtered.length === 0 ? (
             <div className="text-center py-16 text-gray-500 dark:text-gray-400">
               <CalendarCheck className="w-12 h-12 mx-auto mb-3 opacity-40" />
-              <p className="font-medium">No appointments found</p>
-              <p className="text-sm mt-1">Try adjusting your filters or book a new appointment</p>
+              <p className="font-medium">{t('appointments.noAppointmentsFound')}</p>
+              <p className="text-sm mt-1">{t('appointments.noAppointmentsHint')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium">Time</th>
-                    <th className="text-left px-4 py-3 font-medium">Customer</th>
-                    <th className="text-left px-4 py-3 font-medium">Service</th>
-                    <th className="text-left px-4 py-3 font-medium">Staff</th>
-                    <th className="text-left px-4 py-3 font-medium">Status</th>
-                    <th className="text-right px-4 py-3 font-medium">Actions</th>
+                    <th className="text-left px-4 py-3 font-medium">{t('appointments.time')}</th>
+                    <th className="text-left px-4 py-3 font-medium">{t('appointments.customer')}</th>
+                    <th className="text-left px-4 py-3 font-medium">{t('appointments.service')}</th>
+                    <th className="text-left px-4 py-3 font-medium">{t('appointments.staffLabel')}</th>
+                    <th className="text-left px-4 py-3 font-medium">{t('appointments.status')}</th>
+                    <th className="text-right px-4 py-3 font-medium">{t('appointments.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -390,7 +392,7 @@ export default function Appointments() {
                         <div className="text-xs text-gray-500">{formatDate(appt.startTime)}</div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="text-gray-900 dark:text-white">{appt.contact?.name || 'Unknown'}</div>
+                        <div className="text-gray-900 dark:text-white">{appt.contact?.name || t('appointments.unknown')}</div>
                         <div className="text-xs text-gray-500">{appt.contact?.phoneNumber}</div>
                       </td>
                       <td className="px-4 py-3">
@@ -439,21 +441,21 @@ export default function Appointments() {
       {tab === 'services' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500 dark:text-gray-400">{services.length} service(s)</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t('appointments.serviceCount', { count: services.length })}</p>
             <button
               onClick={() => { setEditingService(null); setShowServiceModal(true); }}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-medium"
             >
               <Plus className="w-4 h-4" />
-              Add Service
+              {t('appointments.addService')}
             </button>
           </div>
 
           {services.length === 0 ? (
             <div className="text-center py-16 text-gray-500 dark:text-gray-400">
               <Scissors className="w-12 h-12 mx-auto mb-3 opacity-40" />
-              <p className="font-medium">No services yet</p>
-              <p className="text-sm mt-1">Add your first service to start booking</p>
+              <p className="font-medium">{t('appointments.noServicesYet')}</p>
+              <p className="text-sm mt-1">{t('appointments.noServicesHint')}</p>
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
+import { useTranslation } from 'react-i18next';
 import {
   Link2, Copy, Check, Plus, Trash2, Smartphone, Globe, Info,
   ExternalLink, QrCode, ArrowRight, Sparkles
@@ -42,6 +43,7 @@ interface SavedCampaign {
 
 export default function Campaigns() {
   const { activeWorkspace } = useApp();
+  const { t } = useTranslation();
   const workspaceId = activeWorkspace?.id;
 
   const [numbers, setNumbers] = useState<WhatsAppNumber[]>([]);
@@ -102,7 +104,7 @@ export default function Campaigns() {
   async function copyToClipboard(text: string, id: string) {
     await navigator.clipboard.writeText(text);
     setCopied(id);
-    toast.success('Copied to clipboard!');
+    toast.success(t('campaigns.copiedToClipboard'));
     setTimeout(() => setCopied(null), 2000);
   }
 
@@ -119,14 +121,14 @@ export default function Campaigns() {
       createdAt: new Date().toISOString(),
     };
     setSavedCampaigns(prev => [newCampaign, ...prev]);
-    toast.success('Campaign link created!');
+    toast.success(t('campaigns.campaignLinkCreated'));
     setCampaignName('');
     setSelectedPlatform('');
   }
 
   function deleteCampaign(id: string) {
     setSavedCampaigns(prev => prev.filter(c => c.id !== id));
-    toast.success('Campaign removed');
+    toast.success(t('campaigns.campaignRemoved'));
   }
 
   if (loading) {
@@ -145,10 +147,10 @@ export default function Campaigns() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <Link2 className="w-7 h-7 text-[#25D366]" />
-              Campaign Link Generator
+              {t('campaigns.linkGenerator')}
             </h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1">
-              Create trackable WhatsApp links for your ads on any platform
+              {t('campaigns.createTrackableLinks')}
             </p>
           </div>
           <button
@@ -161,7 +163,7 @@ export default function Campaigns() {
             )}
           >
             <Info className="w-4 h-4" />
-            How It Works
+            {t('campaigns.howItWorks')}
           </button>
         </div>
 
@@ -170,29 +172,29 @@ export default function Campaigns() {
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl p-6 border border-blue-100 dark:border-blue-900/50">
             <h3 className="font-semibold text-blue-900 dark:text-blue-300 flex items-center gap-2 mb-4">
               <Sparkles className="w-5 h-5" />
-              How Campaign Tracking Works
+              {t('campaigns.howTrackingWorks')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {[
                 {
                   step: '1',
-                  title: 'Create a Link',
-                  desc: 'Pick your ad platform, name your campaign, and get a unique WhatsApp link with a tracking code.'
+                  title: t('campaigns.step1Title'),
+                  desc: t('campaigns.step1Desc')
                 },
                 {
                   step: '2',
-                  title: 'Use in Your Ad',
-                  desc: 'Paste the generated link as your ad\'s CTA button or URL. Works with any ad platform.'
+                  title: t('campaigns.step2Title'),
+                  desc: t('campaigns.step2Desc')
                 },
                 {
                   step: '3',
-                  title: 'Customer Clicks',
-                  desc: 'Customer clicks the ad → WhatsApp opens with a pre-filled message containing the campaign code.'
+                  title: t('campaigns.step3Title'),
+                  desc: t('campaigns.step3Desc')
                 },
                 {
                   step: '4',
-                  title: 'Auto-Tagged',
-                  desc: 'Tawasel detects the code, tags the lead with the platform & campaign name. Track ROI per ad!'
+                  title: t('campaigns.step4Title'),
+                  desc: t('campaigns.step4Desc')
                 },
               ].map((item) => (
                 <div key={item.step} className="flex flex-col items-center text-center">
@@ -206,9 +208,9 @@ export default function Campaigns() {
             </div>
 
             <div className="mt-5 p-4 bg-white dark:bg-slate-800 rounded-lg border border-blue-100 dark:border-slate-700">
-              <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-2">Campaign Code Reference</h4>
+              <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-2">{t('campaigns.codeReference')}</h4>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                Each platform has a 2-letter prefix. The code is automatically added to the customer's first message.
+                {t('campaigns.codeReferenceDesc')}
               </p>
               <div className="flex flex-wrap gap-2">
                 {PLATFORMS.map(p => (
@@ -224,8 +226,8 @@ export default function Campaigns() {
                 ))}
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
-                Example: A Snapchat summer sale ad → code <code className="bg-gray-100 dark:bg-slate-700 px-1 rounded">SC-SUMMER-SALE</code> →
-                lead tagged as <span className="text-[#25D366] font-medium">"Snapchat: SUMMER-SALE"</span>
+                {t('campaigns.codeExample')} <code className="bg-gray-100 dark:bg-slate-700 px-1 rounded">SC-SUMMER-SALE</code> {' '}
+                {t('campaigns.codeExampleTagged')} <span className="text-[#25D366] font-medium">"Snapchat: SUMMER-SALE"</span>
               </p>
             </div>
           </div>
@@ -235,13 +237,13 @@ export default function Campaigns() {
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6 space-y-5">
           <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Plus className="w-5 h-5 text-[#25D366]" />
-            Create Campaign Link
+            {t('campaigns.createCampaignLink')}
           </h2>
 
           {/* Step 1: Platform */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              1. Select Ad Platform
+              {t('campaigns.selectAdPlatform')}
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
               {PLATFORMS.map(p => (
@@ -266,22 +268,22 @@ export default function Campaigns() {
           {/* Step 2: Campaign Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              2. Campaign Name
+              {t('campaigns.campaignName')}
             </label>
             <input
               type="text"
               value={campaignName}
               onChange={e => setCampaignName(e.target.value)}
-              placeholder="e.g. SUMMER-SALE, CAR-SERVICE, NEW-COLLECTION"
+              placeholder={t('campaigns.campaignNamePlaceholder')}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
             />
-            <p className="text-xs text-gray-400 mt-1">Use letters, numbers, and hyphens. This identifies your campaign in analytics.</p>
+            <p className="text-xs text-gray-400 mt-1">{t('campaigns.campaignNameHint')}</p>
           </div>
 
           {/* Step 3: Phone Number */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              3. WhatsApp Number
+              {t('campaigns.whatsappNumber')}
             </label>
             {numbers.length > 0 ? (
               <select
@@ -297,7 +299,7 @@ export default function Campaigns() {
               </select>
             ) : (
               <p className="text-sm text-amber-600 dark:text-amber-400">
-                No WhatsApp numbers connected. Go to Channels to connect one first.
+                {t('campaigns.noNumbersConnected')}
               </p>
             )}
           </div>
@@ -305,16 +307,16 @@ export default function Campaigns() {
           {/* Step 4: Greeting Message */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              4. Pre-filled Message
+              {t('campaigns.prefilledMessage')}
             </label>
             <textarea
               value={greeting}
               onChange={e => setGreeting(e.target.value)}
               rows={2}
-              placeholder="The message customers will see when they open WhatsApp"
+              placeholder={t('campaigns.prefilledMessagePlaceholder')}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-[#25D366] resize-none"
             />
-            <p className="text-xs text-gray-400 mt-1">This is what the customer sees in the message box. The campaign code is added automatically at the end.</p>
+            <p className="text-xs text-gray-400 mt-1">{t('campaigns.prefilledMessageHint')}</p>
           </div>
 
           {/* Preview & Generated Link */}
@@ -323,7 +325,7 @@ export default function Campaigns() {
               {/* Phone Preview */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Preview — What the customer sees on WhatsApp
+                  {t('campaigns.previewLabel')}
                 </label>
                 <div className="bg-[#e5ddd5] dark:bg-[#0b141a] rounded-xl p-4 max-w-sm">
                   <div className="bg-[#dcf8c6] dark:bg-[#005c4b] rounded-lg px-3 py-2 ml-auto max-w-[85%] shadow-sm">
@@ -337,7 +339,7 @@ export default function Campaigns() {
               {/* Campaign Code */}
               <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Campaign Code:</span>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('campaigns.campaignCode')}</span>
                   <code className="px-3 py-1.5 bg-white dark:bg-slate-900 rounded-md border border-gray-200 dark:border-slate-600 font-mono text-sm font-bold text-[#25D366]">
                     {campaignCode}
                   </code>
@@ -353,7 +355,7 @@ export default function Campaigns() {
               {/* Generated Link */}
               <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900/50">
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-1">Generated Link:</span>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-1">{t('campaigns.generatedLink')}</span>
                   <code className="text-xs text-green-800 dark:text-green-300 break-all block">
                     {generatedLink}
                   </code>
@@ -369,7 +371,7 @@ export default function Campaigns() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors shrink-0"
-                  title="Test link"
+                  title={t('campaigns.testLink')}
                 >
                   <ExternalLink className="w-4 h-4 text-green-600" />
                 </a>
@@ -381,7 +383,7 @@ export default function Campaigns() {
                 className="w-full py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2"
               >
                 <Plus className="w-4 h-4" />
-                Save Campaign Link
+                {t('campaigns.saveCampaignLink')}
               </button>
             </div>
           )}
@@ -392,9 +394,9 @@ export default function Campaigns() {
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
             <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
               <span className="text-xl">{platformInfo?.icon}</span>
-              How to Use This Link on {platformInfo?.name}
+              {t('campaigns.howToUseOn', { platform: platformInfo?.name })}
             </h3>
-            {getPlatformGuide(selectedPlatform)}
+            {getPlatformGuide(selectedPlatform, t)}
           </div>
         )}
 
@@ -402,7 +404,7 @@ export default function Campaigns() {
         {savedCampaigns.length > 0 && (
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
             <h2 className="font-semibold text-gray-900 dark:text-white mb-4">
-              Saved Campaign Links ({savedCampaigns.length})
+              {t('campaigns.savedCampaignLinks', { count: savedCampaigns.length })}
             </h2>
             <div className="space-y-3">
               {savedCampaigns.map(campaign => {
@@ -445,7 +447,7 @@ export default function Campaigns() {
   );
 }
 
-function getPlatformGuide(platform: string) {
+function getPlatformGuide(platform: string, t: (key: string) => string) {
   const guides: Record<string, { steps: string[]; tip: string }> = {
     SC: {
       steps: [
@@ -586,7 +588,7 @@ function getPlatformGuide(platform: string) {
       </ol>
       <div className="flex items-start gap-2 mt-3 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-100 dark:border-amber-900/30">
         <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-        <p className="text-xs text-amber-800 dark:text-amber-300"><span className="font-medium">Pro Tip:</span> {guide.tip}</p>
+        <p className="text-xs text-amber-800 dark:text-amber-300"><span className="font-medium">{t('campaigns.proTip')}</span> {guide.tip}</p>
       </div>
     </div>
   );

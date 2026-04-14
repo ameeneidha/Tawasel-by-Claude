@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../contexts/AppContext';
 import { Loader2, Search, Plus, Users, Tags, CheckSquare, Square, Upload, Download } from 'lucide-react';
 import { toast } from 'sonner';
@@ -123,6 +124,7 @@ const guessColumnMapping = (headers: string[]) => {
 };
 
 export default function Contacts() {
+  const { t } = useTranslation();
   const { activeWorkspace, hasFullAccess } = useApp();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [lists, setLists] = useState<ContactList[]>([]);
@@ -182,7 +184,7 @@ export default function Contacts() {
       .catch((loadError: any) => {
         const message =
           loadError?.response?.data?.error ||
-          'Could not load contacts for this workspace right now.';
+          t('contacts.couldNotLoad');
         setError(message);
       })
       .finally(() => setIsLoading(false));
@@ -270,9 +272,9 @@ export default function Contacts() {
       });
       setShowContactModal(false);
       await fetchLists();
-      toast.success('Contact saved');
+      toast.success(t('contacts.contactSaved'));
     } catch (error) {
-      toast.error('Could not save contact');
+      toast.error(t('contacts.couldNotSaveContact'));
     } finally {
       setSaving(false);
     }
@@ -294,9 +296,9 @@ export default function Contacts() {
       setSelectedContactIds([]);
       setShowListModal(false);
       await fetchContacts();
-      toast.success('Contact list created');
+      toast.success(t('contacts.listCreated'));
     } catch (error) {
-      toast.error('Could not create contact list');
+      toast.error(t('contacts.couldNotCreateList'));
     } finally {
       setSaving(false);
     }
@@ -322,9 +324,9 @@ export default function Contacts() {
       await Promise.all([fetchContacts(), fetchLists()]);
       setBulkListNames([]);
       setSelectedContactIds([]);
-      toast.success(action === 'add' ? 'Contacts added to list' : 'Contacts removed from list');
+      toast.success(action === 'add' ? t('contacts.contactsAddedToList') : t('contacts.contactsRemovedFromList'));
     } catch (error) {
-      toast.error(action === 'add' ? 'Could not add contacts to list' : 'Could not remove contacts from list');
+      toast.error(action === 'add' ? t('contacts.couldNotAddToList') : t('contacts.couldNotRemoveFromList'));
     } finally {
       setIsBulkUpdating(false);
     }
@@ -365,7 +367,7 @@ export default function Contacts() {
       const parsed = parseCsvText(text);
 
       if (parsed.length < 2) {
-        setImportError('Add a CSV with a header row and at least one data row.');
+        setImportError(t('contacts.csvNeedHeaderAndData'));
         setImportFileName(file.name);
         setImportHeaders([]);
         setImportRows([]);
@@ -389,7 +391,7 @@ export default function Contacts() {
         );
 
       if (rows.length === 0) {
-        setImportError('The CSV file only contains empty rows.');
+        setImportError(t('contacts.csvOnlyEmptyRows'));
         setImportFileName(file.name);
         setImportHeaders([]);
         setImportRows([]);
@@ -402,7 +404,7 @@ export default function Contacts() {
       setImportMapping(guessColumnMapping(headers));
       setImportError('');
     } catch (error) {
-      setImportError('Could not read this CSV file. Try a standard UTF-8 CSV export.');
+      setImportError(t('contacts.csvReadError'));
       setImportFileName(file.name);
       setImportHeaders([]);
       setImportRows([]);
@@ -456,12 +458,12 @@ export default function Contacts() {
       resetImportState();
 
       const { created, updated, skipped, errors } = response.data;
-      toast.success(`CSV imported: ${created} created, ${updated} updated, ${skipped} skipped`);
+      toast.success(t('contacts.csvImportSuccess', { created, updated, skipped }));
       if (Array.isArray(errors) && errors.length > 0) {
         toast.info(errors[0]);
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.error || 'Could not import contacts from CSV');
+      toast.error(error?.response?.data?.error || t('contacts.couldNotImport'));
     } finally {
       setIsImporting(false);
     }
@@ -482,9 +484,9 @@ export default function Contacts() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-slate-800">
             <Users className="h-6 w-6" />
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">No workspace selected</h1>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{t('contacts.noWorkspaceSelected')}</h1>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Pick a workspace from the account menu first, then open Contacts again.
+            {t('contacts.pickWorkspaceFirst')}
           </p>
         </div>
       </div>
@@ -504,7 +506,7 @@ export default function Contacts() {
             className="mb-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#128C7E] disabled:opacity-60"
           >
             <Plus className="h-4 w-4" />
-            New Contact List
+            {t('contacts.newContactList')}
           </button>
 
           <div className="space-y-2">
@@ -517,7 +519,7 @@ export default function Contacts() {
                   : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-slate-800"
               )}
             >
-              <span>All Contacts</span>
+              <span>{t('contacts.allContacts')}</span>
               <span className="text-xs font-bold">{contacts.filter((contact) => contact.phoneNumber).length}</span>
             </button>
             {lists.map((list) => (
@@ -541,9 +543,9 @@ export default function Contacts() {
         <main className="flex-1 overflow-auto p-6">
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Contacts</h1>
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('contacts.title')}</h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Save customers here, group them into lists, and use those lists later for broadcasts.
+                {t('contacts.subtitle')}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -552,7 +554,7 @@ export default function Contacts() {
                 onClick={openImportModal}
                 className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300 disabled:opacity-60"
               >
-                Import Contacts
+                {t('contacts.importContacts')}
               </button>
               <button
                 disabled={!hasFullAccess}
@@ -563,7 +565,7 @@ export default function Contacts() {
                 className="flex items-center gap-2 rounded-2xl bg-[#25D366] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-[#128C7E] disabled:opacity-60"
               >
                 <Plus className="h-4 w-4" />
-                New Contact
+                {t('contacts.newContact')}
               </button>
             </div>
           </div>
@@ -574,12 +576,12 @@ export default function Contacts() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Filter by name, number, list, or source..."
+                placeholder={t('contacts.searchPlaceholder')}
                 className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm text-gray-900 outline-none focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
               />
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              {filteredContacts.length} records
+              {t('contacts.records', { count: filteredContacts.length })}
             </div>
           </div>
 
@@ -593,13 +595,13 @@ export default function Contacts() {
                   setError(null);
                   Promise.all([fetchContacts(), fetchLists()])
                     .catch((loadError: any) => {
-                      setError(loadError?.response?.data?.error || 'Could not load contacts for this workspace right now.');
+                      setError(loadError?.response?.data?.error || t('contacts.couldNotLoad'));
                     })
                     .finally(() => setIsLoading(false));
                 }}
                 className="rounded-xl border border-red-200 px-3 py-1 text-xs font-semibold transition-colors hover:bg-red-100 dark:border-red-900/40 dark:hover:bg-red-900/30"
               >
-                Retry
+                {t('common.retry')}
               </button>
             </div>
           )}
@@ -609,10 +611,10 @@ export default function Contacts() {
               <div className="mb-3 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {selectedContactIds.length} contacts selected
+                    {t('contacts.contactsSelected', { count: selectedContactIds.length })}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Add them to a list or remove them from an existing list.
+                    {t('contacts.bulkListHint')}
                   </p>
                 </div>
                 <button
@@ -623,7 +625,7 @@ export default function Contacts() {
                   }}
                   className="text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 >
-                  Clear selection
+                  {t('contacts.clearSelection')}
                 </button>
               </div>
 
@@ -633,7 +635,7 @@ export default function Contacts() {
                   value={bulkListNames}
                   onChange={setBulkListNames}
                   disabled={!hasFullAccess || isBulkUpdating}
-                  placeholder="Type or pick list names like Abu Dhabi, VIP, Follow Up"
+                  placeholder={t('contacts.bulkListPlaceholder')}
                 />
                 <button
                   type="button"
@@ -641,7 +643,7 @@ export default function Contacts() {
                   onClick={() => applyBulkListAction('add')}
                   className="rounded-2xl bg-[#25D366] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#128C7E] disabled:opacity-50"
                 >
-                  {isBulkUpdating ? 'Saving...' : 'Add To List'}
+                  {isBulkUpdating ? t('contacts.saving') : t('contacts.addToList')}
                 </button>
                 <button
                   type="button"
@@ -649,7 +651,7 @@ export default function Contacts() {
                   onClick={() => applyBulkListAction('remove')}
                   className="rounded-2xl border border-red-200 px-4 py-3 text-sm font-bold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-900/20"
                 >
-                  Remove From List
+                  {t('contacts.removeFromList')}
                 </button>
               </div>
             </div>
@@ -675,11 +677,11 @@ export default function Contacts() {
                       )}
                     </button>
                   </th>
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Phone Number</th>
-                  <th className="px-4 py-3">Lead Source</th>
-                  <th className="px-4 py-3">Contact Lists</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">{t('contacts.nameColumn')}</th>
+                  <th className="px-4 py-3">{t('contacts.phoneColumn')}</th>
+                  <th className="px-4 py-3">{t('contacts.leadSourceColumn')}</th>
+                  <th className="px-4 py-3">{t('contacts.contactListsColumn')}</th>
+                  <th className="px-4 py-3">{t('contacts.statusColumn')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -696,7 +698,7 @@ export default function Contacts() {
                     </td>
                     <td className="px-4 py-4 font-medium">{contact.name || '-'}</td>
                     <td className="px-4 py-4">{contact.phoneNumber || '-'}</td>
-                    <td className="px-4 py-4">{contact.leadSource || 'Direct Search'}</td>
+                    <td className="px-4 py-4">{contact.leadSource || t('contacts.directSearch')}</td>
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap gap-2">
                         {contact.listMemberships?.length ? contact.listMemberships.map((membership) => (
@@ -706,7 +708,7 @@ export default function Contacts() {
                           >
                             {membership.list.name}
                           </span>
-                        )) : <span className="text-xs text-gray-400">No list</span>}
+                        )) : <span className="text-xs text-gray-400">{t('contacts.noList')}</span>}
                       </div>
                     </td>
                     <td className="px-4 py-4">

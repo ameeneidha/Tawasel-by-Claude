@@ -16,6 +16,7 @@ import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import * as Tabs from '@radix-ui/react-tabs';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 type WhatsAppTemplate = {
   id: string;
@@ -45,6 +46,7 @@ const EMPTY_EDITOR_STATE: TemplateEditorState = {
 
 export default function Templates() {
   const { activeWorkspace } = useApp();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'whatsapp' | 'session'>('whatsapp');
   const [waTemplates, setWaTemplates] = useState<WhatsAppTemplate[]>([]);
   const [sessionTemplates, setSessionTemplates] = useState<SessionTemplate[]>([]);
@@ -87,7 +89,7 @@ export default function Templates() {
         const synced = syncResponse.data.synced || 0;
         setWaTemplates(Array.isArray(syncResponse.data.templates) ? syncResponse.data.templates : []);
         setSessionTemplates(Array.isArray(sessionResponse.data) ? sessionResponse.data : []);
-        toast.success(`Synced ${synced} template${synced !== 1 ? 's' : ''} from WhatsApp`);
+        toast.success(t('broadcast.syncedTemplates', { count: synced }));
       } else {
         const [waResponse, sessionResponse] = await Promise.all([
           axios.get(`/api/templates/whatsapp?workspaceId=${activeWorkspace.id}`),
@@ -97,7 +99,7 @@ export default function Templates() {
         setSessionTemplates(Array.isArray(sessionResponse.data) ? sessionResponse.data : []);
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Could not load templates');
+      toast.error(error.response?.data?.error || t('templates.couldNotLoad'));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -153,7 +155,7 @@ export default function Templates() {
 
   const handleSaveTemplate = async () => {
     if (!activeWorkspace?.id) {
-      toast.error('Choose a workspace before creating templates');
+      toast.error(t('templates.chooseWorkspace'));
       return;
     }
 
@@ -161,12 +163,12 @@ export default function Templates() {
     const content = editingTemplate.content.trim();
 
     if (name.length < 2) {
-      toast.error('Template name must be at least 2 characters');
+      toast.error(t('templates.nameMinLength'));
       return;
     }
 
     if (!content) {
-      toast.error('Template content is required');
+      toast.error(t('templates.contentRequired'));
       return;
     }
 
@@ -182,7 +184,7 @@ export default function Templates() {
         setSessionTemplates((current) =>
           current.map((template) => (template.id === editingTemplate.id ? response.data : template))
         );
-        toast.success('Template updated');
+        toast.success(t('templates.templateUpdated'));
       } else {
         const response = await axios.post('/api/templates/session', {
           workspaceId: activeWorkspace.id,
@@ -193,19 +195,19 @@ export default function Templates() {
         setSessionTemplates((current) =>
           [...current, response.data].sort((a, b) => a.name.localeCompare(b.name))
         );
-        toast.success('Template created');
+        toast.success(t('templates.templateCreated'));
       }
 
       closeEditor();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Could not save template');
+      toast.error(error.response?.data?.error || t('templates.couldNotSave'));
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteTemplate = async (template: SessionTemplate) => {
-    const confirmed = window.confirm(`Delete "${template.name}"?`);
+    const confirmed = window.confirm(t('templates.deleteConfirm', { name: template.name }));
     if (!confirmed) {
       return;
     }
@@ -213,15 +215,15 @@ export default function Templates() {
     try {
       await axios.delete(`/api/templates/session/${template.id}`);
       setSessionTemplates((current) => current.filter((item) => item.id !== template.id));
-      toast.success('Template deleted');
+      toast.success(t('templates.templateDeleted'));
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Could not delete template');
+      toast.error(error.response?.data?.error || t('templates.couldNotDelete'));
     }
   };
 
   const handleDuplicateTemplate = async (template: SessionTemplate) => {
     if (!activeWorkspace?.id) {
-      toast.error('Choose a workspace before duplicating templates');
+      toast.error(t('templates.chooseWorkspaceDuplicate'));
       return;
     }
 
@@ -235,18 +237,18 @@ export default function Templates() {
       setSessionTemplates((current) =>
         [...current, response.data].sort((a, b) => a.name.localeCompare(b.name))
       );
-      toast.success('Template duplicated');
+      toast.success(t('templates.templateDuplicated'));
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Could not duplicate template');
+      toast.error(error.response?.data?.error || t('templates.couldNotDuplicate'));
     }
   };
 
   const handleCopyTemplate = async (template: { content: string }) => {
     try {
       await navigator.clipboard.writeText(template.content);
-      toast.success('Template copied');
+      toast.success(t('templates.templateCopied'));
     } catch {
-      toast.error('Could not copy template');
+      toast.error(t('templates.couldNotCopy'));
     }
   };
 
@@ -260,9 +262,9 @@ export default function Templates() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Message Templates</h1>
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('templates.title')}</h1>
               <p className="mt-1 text-gray-500 dark:text-gray-400">
-                Manage reusable message structures for your business.
+                {t('templates.subtitleAlt')}
               </p>
             </div>
             <Tabs.List className="flex gap-1 rounded-xl border border-gray-100 bg-white p-1 transition-colors dark:border-slate-800 dark:bg-slate-900">
@@ -270,13 +272,13 @@ export default function Templates() {
                 value="whatsapp"
                 className="rounded-lg px-4 py-1.5 text-sm font-medium text-gray-500 transition-all data-[state=active]:bg-[#25D366] data-[state=active]:text-white dark:text-gray-400"
               >
-                WhatsApp
+                {t('templates.whatsappTab')}
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="session"
                 className="rounded-lg px-4 py-1.5 text-sm font-medium text-gray-500 transition-all data-[state=active]:bg-[#25D366] data-[state=active]:text-white dark:text-gray-400"
               >
-                Session
+                {t('templates.sessionTab')}
               </Tabs.Trigger>
             </Tabs.List>
           </div>
@@ -289,7 +291,7 @@ export default function Templates() {
                   type="text"
                   value={whatsAppSearch}
                   onChange={(event) => setWhatsAppSearch(event.target.value)}
-                  placeholder="Search WhatsApp templates..."
+                  placeholder={t('templates.searchWhatsApp')}
                   className="w-full rounded-xl border border-gray-100 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:ring-2 focus:ring-[#25D366]/10 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:placeholder:text-gray-600"
                 />
               </div>
@@ -300,15 +302,15 @@ export default function Templates() {
                 className="flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 disabled:cursor-wait disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300 dark:hover:bg-slate-800"
               >
                 <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
-                Sync from WhatsApp
+                {t('templates.syncFromWhatsApp')}
               </button>
             </div>
 
             <TemplatesGrid
               isLoading={isLoading}
               isEmpty={filteredWaTemplates.length === 0}
-              emptyTitle="No WhatsApp templates yet"
-              emptyDescription="Sync approved WhatsApp templates from Meta to see them here."
+              emptyTitle={t('templates.noWhatsAppTemplates')}
+              emptyDescription={t('templates.noWhatsAppTemplatesDesc')}
             >
               {filteredWaTemplates.map((template) => (
                 <React.Fragment key={template.id}>
@@ -330,7 +332,7 @@ export default function Templates() {
                   type="text"
                   value={sessionSearch}
                   onChange={(event) => setSessionSearch(event.target.value)}
-                  placeholder="Search session templates..."
+                  placeholder={t('templates.searchSession')}
                   className="w-full rounded-xl border border-gray-100 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:ring-2 focus:ring-[#25D366]/10 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:placeholder:text-gray-600"
                 />
               </div>
@@ -341,15 +343,15 @@ export default function Templates() {
                 className="flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2 font-medium text-white shadow-sm transition-all hover:bg-[#128C7E] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Plus className="h-4 w-4" />
-                New Template
+                {t('templates.newTemplate')}
               </button>
             </div>
 
             <TemplatesGrid
               isLoading={isLoading}
               isEmpty={filteredSessionTemplates.length === 0}
-              emptyTitle="No session templates yet"
-              emptyDescription="Create quick-reply session templates for your team and reuse them in the inbox."
+              emptyTitle={t('templates.noSessionTemplates')}
+              emptyDescription={t('templates.noSessionTemplatesDesc')}
             >
               {filteredSessionTemplates.map((template) => (
                 <React.Fragment key={template.id}>
@@ -378,10 +380,10 @@ export default function Templates() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {editingTemplate.id ? 'Edit session template' : 'Create session template'}
+                  {editingTemplate.id ? t('templates.editSessionTemplate') : t('templates.createSessionTemplate')}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Save reusable replies for common WhatsApp conversations.
+                  {t('templates.editorSubtitle')}
                 </p>
               </div>
               <button
@@ -396,7 +398,7 @@ export default function Templates() {
             <div className="mt-6 space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                  Template name
+                  {t('templates.templateName')}
                 </label>
                 <input
                   type="text"
@@ -405,7 +407,7 @@ export default function Templates() {
                     setEditingTemplate((current) => ({ ...current, name: event.target.value }))
                   }
                   maxLength={80}
-                  placeholder="Example: Pricing Follow Up"
+                  placeholder={t('templates.templateNamePlaceholder')}
                   className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:ring-2 focus:ring-[#25D366]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                 />
               </div>
@@ -413,7 +415,7 @@ export default function Templates() {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-4">
                   <label className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                    Message content
+                    {t('templates.messageContent')}
                   </label>
                   <span className="text-xs text-gray-400 dark:text-gray-500">
                     {editingTemplate.content.length}/2000
@@ -428,7 +430,7 @@ export default function Templates() {
                     }))
                   }
                   rows={7}
-                  placeholder="Type the reusable message your team should send."
+                  placeholder={t('templates.messagePlaceholder')}
                   className="w-full resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm leading-6 text-gray-900 outline-none transition-colors focus:ring-2 focus:ring-[#25D366]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                 />
               </div>
@@ -441,7 +443,7 @@ export default function Templates() {
                 disabled={isSaving}
                 className="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-300 dark:hover:bg-slate-800"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -450,7 +452,7 @@ export default function Templates() {
                 className="inline-flex items-center gap-2 rounded-2xl bg-[#25D366] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#128C7E] disabled:cursor-wait disabled:opacity-60"
               >
                 <Save className="h-4 w-4" />
-                {isSaving ? 'Saving...' : editingTemplate.id ? 'Save Changes' : 'Create Template'}
+                {isSaving ? t('templates.saving') : editingTemplate.id ? t('templates.saveChanges') : t('templates.createTemplate')}
               </button>
             </div>
           </motion.div>
@@ -518,10 +520,12 @@ function TemplateCard({
   onDelete?: () => void;
   onDuplicate?: () => void;
 }) {
+  const { t } = useTranslation();
+
   const content =
     typeof template.content === 'string' && template.content.trim().length > 0
       ? template.content
-      : 'No content added yet.';
+      : t('templates.noContent');
 
   return (
     <motion.div
@@ -535,11 +539,11 @@ function TemplateCard({
         </div>
         {type === 'whatsapp' ? (
           <span className="rounded bg-green-50 px-2 py-0.5 text-[10px] font-bold uppercase text-green-600 dark:bg-green-900/20 dark:text-green-400">
-            {'status' in template ? template.status || 'Approved' : 'Approved'}
+            {'status' in template ? template.status || t('templates.approved') : t('templates.approved')}
           </span>
         ) : (
           <span className="rounded bg-[#25D366]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#128C7E]">
-            Session
+            {t('templates.session')}
           </span>
         )}
       </div>
@@ -553,7 +557,7 @@ function TemplateCard({
       <div className="flex items-center justify-between border-t border-gray-50 pt-4 transition-colors dark:border-slate-800">
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-            {type === 'whatsapp' ? (template as WhatsAppTemplate).category : 'Session'}
+            {type === 'whatsapp' ? (template as WhatsAppTemplate).category : t('templates.session')}
           </span>
         </div>
         <div className="flex items-center gap-2">

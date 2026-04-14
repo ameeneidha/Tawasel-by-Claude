@@ -4,8 +4,10 @@ import axios from 'axios';
 import { Check, Eye, EyeOff, Loader2, Lock, Mail, User } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { formatLimitValue, getPlanPrice, PLANS, PlanType, type BillingCycle } from '../constants/plans';
+import { useTranslation } from 'react-i18next';
 
 export default function Register() {
+  const { t } = useTranslation();
   const { user, setUser } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -42,10 +44,10 @@ export default function Register() {
   }, [navigate, skipAutoRedirect, user]);
 
   const passwordChecks = [
-    { label: 'At least 8 characters', valid: password.length >= 8 },
-    { label: 'One uppercase letter', valid: /[A-Z]/.test(password) },
-    { label: 'One lowercase letter', valid: /[a-z]/.test(password) },
-    { label: 'One number', valid: /\d/.test(password) },
+    { label: t('auth.passwordStrengthMin'), valid: password.length >= 8 },
+    { label: t('auth.passwordStrengthUpper'), valid: /[A-Z]/.test(password) },
+    { label: t('auth.passwordStrengthLower'), valid: /[a-z]/.test(password) },
+    { label: t('auth.passwordStrengthNumber'), valid: /\d/.test(password) },
   ];
 
   const isPasswordValid = passwordChecks.every((item) => item.valid) && password.length <= 72;
@@ -59,22 +61,22 @@ export default function Register() {
     setError('');
 
     if (!isNameValid) {
-      setError('Full name must be between 2 and 80 characters.');
+      setError(t('auth.nameValidation'));
       return;
     }
 
     if (!isEmailValid) {
-      setError('Please enter a valid email address.');
+      setError(t('auth.emailValidation'));
       return;
     }
 
     if (!isPasswordValid) {
-      setError('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
+      setError(t('auth.passwordValidation'));
       return;
     }
 
     if (!doPasswordsMatch) {
-      setError('Passwords do not match.');
+      setError(t('auth.passwordMismatch'));
       return;
     }
 
@@ -98,7 +100,7 @@ export default function Register() {
         },
       });
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed');
+      setError(err.response?.data?.error || t('auth.registrationFailed'));
     }
     setIsSubmitting(false);
   };
@@ -110,48 +112,48 @@ export default function Register() {
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="rounded-[2rem] bg-slate-900 p-8 text-white lg:p-12">
           <div className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#86efac]">
-            Selected plan
+            {t('auth.selectedPlan')}
           </div>
           <h1 className="mt-6 text-4xl font-bold tracking-tight">{plan.name}</h1>
           <p className="mt-3 max-w-xl text-base text-slate-300">{plan.description}</p>
           <div className="mt-8 flex items-end gap-2">
             <span className="text-5xl font-bold">AED {getPlanPrice(plan, billingCycle)}</span>
-            <span className="pb-2 text-slate-400">/ month</span>
+            <span className="pb-2 text-slate-400">{t('auth.perMonth')}</span>
           </div>
           <p className="mt-2 text-sm text-[#86efac]">
             {billingCycle === 'annual'
-              ? `Annual pricing selected - billed AED ${plan.annualBilledPrice.toLocaleString()} yearly`
-              : 'Monthly pricing selected'}
+              ? t('auth.annualPricing', { amount: plan.annualBilledPrice.toLocaleString() })
+              : t('auth.monthlyPricing')}
           </p>
 
           <div className="mt-10 space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6">
             <div className="flex items-center justify-between text-sm text-slate-300">
-              <span>Audience</span>
+              <span>{t('auth.audience')}</span>
               <span className="max-w-[220px] text-right text-xs text-slate-400">{plan.shortLabel}</span>
             </div>
             <div className="flex items-center justify-between text-sm text-slate-300">
-              <span>Contacts included</span>
+              <span>{t('auth.contactsIncluded')}</span>
               <span>{formatLimitValue(plan.contactsLimit)}</span>
             </div>
             <div className="flex items-center justify-between text-sm text-slate-300">
-              <span>Broadcasts / month</span>
+              <span>{t('auth.broadcastsPerMonth')}</span>
               <span>{formatLimitValue(plan.broadcastLimit)}</span>
             </div>
             <div className="flex items-center justify-between text-sm text-slate-300">
-              <span>Team members</span>
+              <span>{t('auth.teamMembers')}</span>
               <span>{formatLimitValue(plan.userLimit)}</span>
             </div>
             <div className="flex items-center justify-between text-sm text-slate-300">
-              <span>WhatsApp numbers</span>
+              <span>{t('auth.whatsappNumbers')}</span>
               <span>{formatLimitValue(plan.whatsappLimit)}</span>
             </div>
             <div className="flex items-center justify-between text-sm text-slate-300">
-              <span>AI assistants</span>
+              <span>{t('auth.aiAssistants')}</span>
               <span>{formatLimitValue(plan.chatbotLimit)}</span>
             </div>
             <div className="flex items-center justify-between text-sm text-slate-300">
-              <span>Conversation history</span>
-              <span>{plan.historyMonths} months</span>
+              <span>{t('auth.conversationHistory')}</span>
+              <span>{plan.historyMonths} {t('auth.months')}</span>
             </div>
           </div>
 
@@ -166,14 +168,14 @@ export default function Register() {
         </section>
 
         <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm lg:p-10">
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Create your account</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">{t('auth.registerTitle')}</h2>
             <p className="mt-2 text-sm text-slate-500">
-              Create your account, confirm your email from the verification link, then continue to billing to activate the {plan.name} package for your workspace.
+              {t('auth.createAccountDesc', { plan: plan.name })}
             </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Full name</label>
+              <label className="text-sm font-medium text-slate-700">{t('auth.fullName')}</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -182,14 +184,14 @@ export default function Register() {
                   onChange={(e) => setName(e.target.value)}
                   autoComplete="name"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 outline-none transition focus:border-[#25D366] focus:bg-white"
-                  placeholder="John Doe"
+                  placeholder={t('auth.fullNamePlaceholder')}
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Email address</label>
+              <label className="text-sm font-medium text-slate-700">{t('auth.emailAddress')}</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -198,14 +200,14 @@ export default function Register() {
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 outline-none transition focus:border-[#25D366] focus:bg-white"
-                  placeholder="name@company.com"
+                  placeholder={t('auth.emailPlaceholderShort')}
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Password</label>
+              <label className="text-sm font-medium text-slate-700">{t('common.password')}</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -214,14 +216,14 @@ export default function Register() {
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-12 outline-none transition focus:border-[#25D366] focus:bg-white"
-                  placeholder="Create a strong password"
+                  placeholder={t('auth.passwordCreatePlaceholder')}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((value) => !value)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -239,12 +241,12 @@ export default function Register() {
                     <span className={item.valid ? 'text-slate-800' : 'text-slate-500'}>{item.label}</span>
                   </div>
                 ))}
-                <p className="text-[11px] text-slate-500">Maximum 72 characters.</p>
+                <p className="text-[11px] text-slate-500">{t('auth.passwordMaxChars')}</p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Confirm password</label>
+              <label className="text-sm font-medium text-slate-700">{t('auth.confirmPassword')}</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -253,21 +255,21 @@ export default function Register() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   autoComplete="new-password"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-12 outline-none transition focus:border-[#25D366] focus:bg-white"
-                  placeholder="Repeat your password"
+                  placeholder={t('auth.repeatPasswordPlaceholder')}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((value) => !value)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-                  aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+                  aria-label={showConfirmPassword ? t('auth.hidePasswordConfirmation') : t('auth.showPasswordConfirmation')}
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {confirmPassword ? (
                 <p className={`text-xs ${doPasswordsMatch ? 'text-[#128C7E]' : 'text-red-500'}`}>
-                  {doPasswordsMatch ? 'Passwords match.' : 'Passwords must match exactly.'}
+                  {doPasswordsMatch ? t('auth.passwordsMatch') : t('auth.passwordsMustMatch')}
                 </p>
               ) : null}
             </div>
@@ -284,14 +286,14 @@ export default function Register() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 font-semibold text-white transition hover:bg-[#128C7E] disabled:opacity-60"
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Create account
+              {t('auth.createAccount')}
             </button>
           </form>
 
           <p className="mt-6 text-sm text-slate-500">
-            Already have an account?{' '}
+            {t('auth.hasAccount')}{' '}
             <Link to="/login" className="font-medium text-[#25D366] hover:text-[#128C7E]">
-              Sign in
+              {t('auth.signIn')}
             </Link>
           </p>
         </section>

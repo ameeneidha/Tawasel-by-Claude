@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { useApp } from '../contexts/AppContext';
 import { getPlanConfig, PLANS, PlanType } from '../constants/plans';
@@ -65,6 +66,7 @@ const META_EMBEDDED_SIGNUP_ORIGINS = [
 ];
 
 export default function Channels() {
+  const { t } = useTranslation();
   const { activeWorkspace } = useApp();
   const [numbers, setNumbers] = useState<any[]>([]);
   const [igAccounts, setIgAccounts] = useState<any[]>([]);
@@ -104,12 +106,12 @@ export default function Channels() {
       const selectedPhone = phoneNumbers[0];
 
       if (!selectedPhone?.phoneNumberId || !selectedPhone?.displayPhoneNumber || !payload?.accessToken) {
-        toast.error('Meta did not return a usable WhatsApp phone number');
+        toast.error(t('channels.couldNotSaveChannel'));
         return;
       }
 
       if (payload.workspaceId && payload.workspaceId !== activeWorkspace.id) {
-        toast.error('This WhatsApp connection belongs to a different workspace');
+        toast.error(t('channels.couldNotSaveChannel'));
         return;
       }
 
@@ -130,14 +132,14 @@ export default function Channels() {
 
         await fetchChannels();
         setEmbeddedSignupSessionHints(null);
-        toast.success(`Connected ${selectedPhone.displayPhoneNumber}`);
+        toast.success(t('channels.connected', { phone: selectedPhone.displayPhoneNumber }));
 
         if (phoneNumbers.length > 1) {
-          toast.info('Multiple WhatsApp numbers were returned, so the first available number was connected.');
+          toast.info(t('channels.multipleNumbersInfo'));
         }
       } catch (error) {
         if (axios.isAxiosError(error)) {
-          toast.error(error.response?.data?.error || 'Could not save WhatsApp channel');
+          toast.error(error.response?.data?.error || t('channels.couldNotSaveChannel'));
         } else {
           toast.error('Could not save WhatsApp channel');
         }
@@ -223,7 +225,7 @@ export default function Channels() {
           }
         }
 
-        toast.error(payload?.error || 'WhatsApp Embedded Signup was not completed');
+        toast.error(payload?.error || t('channels.couldNotStartSignup'));
         return;
       }
 
@@ -264,24 +266,24 @@ export default function Channels() {
   };
 
   const handleDeleteNumber = async (id: string, label: string) => {
-    if (!confirm(`Are you sure you want to delete "${label}"? This cannot be undone.`)) return;
+    if (!confirm(t('channels.deleteNumber', { label }))) return;
     try {
       await axios.delete(`/api/numbers/${id}`, { headers: { 'x-workspace-id': activeWorkspace?.id } });
-      toast.success('Number deleted');
+      toast.success(t('channels.numberDeleted'));
       fetchChannels();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to delete number');
+      toast.error(err.response?.data?.error || t('channels.failedToDeleteNumber'));
     }
   };
 
   const handleConnectWhatsApp = async () => {
     if (waLimitReached) {
-      toast.error(`Limit reached for ${planInfo.name} plan`);
+      toast.error(t('channels.limitReached', { plan: planInfo.name }));
       return;
     }
 
     if (!activeWorkspace?.id) {
-      toast.error('Choose a workspace before connecting WhatsApp');
+      toast.error(t('channels.chooseWorkspace'));
       return;
     }
 
@@ -289,7 +291,7 @@ export default function Channels() {
       const missingKeys = embeddedSignupConfig.missingKeys?.length
         ? embeddedSignupConfig.missingKeys.join(', ')
         : 'Meta app credentials';
-      toast.error(`Embedded Signup is not configured yet. Missing: ${missingKeys}`);
+      toast.error(t('channels.embeddedSignupNotConfigured') + '. ' + t('channels.missingMetaKeys', { keys: missingKeys }));
       return;
     }
 
@@ -303,7 +305,7 @@ export default function Channels() {
 
     if (!popup) {
       setIsConnectingWhatsApp(false);
-      toast.error('Popup was blocked. Allow popups and try again.');
+      toast.error(t('channels.popupBlocked'));
       return;
     }
 

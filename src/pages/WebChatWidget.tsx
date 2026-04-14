@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { MessageSquare, Layout, Palette, Code, Eye, Copy, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function WebChatWidget() {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [config, setConfig] = useState({
     title: 'Chat with us',
@@ -32,8 +34,8 @@ export default function WebChatWidget() {
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-10">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Web Chat Widget</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Add a WhatsApp chat bubble to your website.</p>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('webChat.title')}</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">{t('webChat.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -42,12 +44,12 @@ export default function WebChatWidget() {
           <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800 space-y-6 transition-colors">
             <div className="flex items-center gap-2 mb-2">
               <Palette className="w-5 h-5 text-[#25D366]" />
-              <h2 className="font-semibold text-gray-900 dark:text-white">Appearance</h2>
+              <h2 className="font-semibold text-gray-900 dark:text-white">{t('webChat.appearance')}</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Widget Title</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('webChat.widgetTitle')}</label>
                 <input 
                   type="text"
                   value={config.title}
@@ -56,7 +58,7 @@ export default function WebChatWidget() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Primary Color</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('webChat.primaryColor')}</label>
                 <div className="flex gap-2">
                   <input 
                     type="color"
@@ -75,7 +77,7 @@ export default function WebChatWidget() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Welcome Message</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('webChat.welcomeMessage')}</label>
               <textarea 
                 rows={3}
                 value={config.welcomeMessage}
@@ -88,8 +90,8 @@ export default function WebChatWidget() {
               <div className="flex items-center gap-3">
                 <Layout className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Widget Position</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Where the bubble appears on your site</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{t('webChat.widgetPosition')}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('webChat.widgetPositionDesc')}</p>
                 </div>
               </div>
               <div className="flex bg-white dark:bg-slate-900 p-1 rounded-lg border border-gray-200 dark:border-slate-800 transition-colors">
@@ -100,7 +102,7 @@ export default function WebChatWidget() {
                     config.position === 'left' ? "bg-gray-900 dark:bg-slate-700 text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                   )}
                 >
-                  Left
+                  {t('webChat.left')}
                 </button>
                 <button 
                   onClick={() => setConfig({ ...config, position: 'right' })}
@@ -109,7 +111,7 @@ export default function WebChatWidget() {
                     config.position === 'right' ? "bg-gray-900 dark:bg-slate-700 text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                   )}
                 >
-                  Right
+                  {t('webChat.right')}
                 </button>
               </div>
             </div>
@@ -120,14 +122,14 @@ export default function WebChatWidget() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Code className="w-5 h-5 text-[#25D366]" />
-                <h2 className="font-semibold text-white">Embed Code</h2>
+                <h2 className="font-semibold text-white">{t('webChat.embedCode')}</h2>
               </div>
               <button 
                 onClick={handleCopy}
                 className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-all flex items-center gap-2 text-xs font-medium"
               >
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Copied!' : 'Copy Code'}
+                {copied ? t('webChat.copied') : t('webChat.copyCode')}
               </button>
             </div>
             <pre className="text-sm text-gray-400 font-mono overflow-x-auto p-4 bg-black/30 rounded-xl">
@@ -141,7 +143,7 @@ export default function WebChatWidget() {
           <div className="sticky top-8">
             <div className="flex items-center gap-2 mb-4">
               <Eye className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-              <h2 className="font-semibold text-gray-900 dark:text-white">Live Preview</h2>
+              <h2 className="font-semibold text-gray-900 dark:text-white">{t('webChat.livePreview')}</h2>
             </div>
             
             <div className="aspect-[9/16] bg-gray-100 dark:bg-slate-800 rounded-[2.5rem] border-[8px] border-gray-900 dark:border-slate-950 relative overflow-hidden shadow-2xl transition-colors">
