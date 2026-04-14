@@ -102,9 +102,11 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+let httpServer: ReturnType<typeof createServer>;
+
 async function startServer() {
   const app = express();
-  const httpServer = createServer(app);
+  httpServer = createServer(app);
   const io = new Server(httpServer, {
     cors: {
       origin: (origin, callback) => {
@@ -6199,3 +6201,31 @@ startServer().catch(err => {
   console.error("CRITICAL SERVER ERROR:", err);
   process.exit(1);
 });
+
+// ── Graceful Shutdown ─────────────────────────────────────────────
+function gracefulShutdown(signal: string) {
+  console.log(`[shutdown] ${signal} received, closing gracefully...`);
+
+  // Stop accepting new connections
+  httpServer.close(async () => {
+    console.log("[shutdown] HTTP server closed");
+
+    // Flush Sentry events
+    try { await Sentry.close(2000); } catch {}
+
+    // Disconnect Prisma
+    try { await prisma.$disconnect(); } catch {}
+
+    console.log("[shutdown] Cleanup complete, exiting");
+    process.exit(0);
+  });
+
+  // Force exit after 10s if connections won't close
+  setTimeout(() => {
+    console.error("[shutdown] Forced exit after 10s timeout");
+    process.exit(1);
+  }, 10000);
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
