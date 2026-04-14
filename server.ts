@@ -1,6 +1,16 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import * as Sentry from "@sentry/node";
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || "production",
+    tracesSampleRate: 0.2,
+  });
+}
+
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -6158,6 +6168,9 @@ async function startServer() {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }
+
+  // Sentry error handler — must be after all routes
+  Sentry.setupExpressErrorHandler(app);
 
   httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
