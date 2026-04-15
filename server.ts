@@ -121,20 +121,10 @@ async function startServer() {
   });
   const PORT = Number(process.env.PORT) || 3000;
 
-  app.use(
-    cors({
-      origin: (origin, callback) => {
-        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
-          return callback(null, true);
-        }
-        callback(new Error("Not allowed by CORS"));
-      },
-      methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization", "x-workspace-id"],
-      credentials: true,
-    })
-  );
-  app.options('*', cors({
+  // Scope CORS to API routes only — static assets (JS/CSS bundles, images)
+  // must never go through CORS, otherwise direct-IP page loads or unexpected
+  // Origin headers cause the browser to error on the bundle fetch.
+  const corsMiddleware = cors({
     origin: (origin, callback) => {
       if (!origin || ALLOWED_ORIGINS.includes(origin)) {
         return callback(null, true);
@@ -144,7 +134,11 @@ async function startServer() {
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-workspace-id"],
     credentials: true,
-  }));
+  });
+  app.use('/api', corsMiddleware);
+  app.use('/webhook', corsMiddleware);
+  app.options('/api/*', corsMiddleware);
+  app.options('/webhook/*', corsMiddleware);
 
   const syncWorkspaceSubscription = async (
     workspaceId: string,
