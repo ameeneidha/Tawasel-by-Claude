@@ -2,11 +2,14 @@
 
 ## Tech Stack
 - **Frontend**: React 19 + Vite + TypeScript + Tailwind CSS + Radix UI + Lucide icons + Sonner toasts
-- **Backend**: Express.js (server.ts) + Prisma ORM + SQLite
-- **Real-time**: Socket.io
+- **Backend**: Express.js (server.ts) + Prisma ORM + PostgreSQL 16
+- **Real-time**: Socket.io (cross-process events relayed via Redis pub/sub channel `socket-events`)
+- **Queue**: Redis + BullMQ — Meta webhooks enqueued on `meta-webhooks` queue, processed by separate `tawasel-worker` process
 - **AI**: OpenAI gpt-4.1-mini with function calling (tool use loop)
 - **Payments**: Stripe
 - **Channels**: WhatsApp (Meta Cloud API) + Instagram DMs
+- **Monitoring**: Sentry (@sentry/node) in both server and worker
+- **Process manager**: PM2 via `ecosystem.config.cjs` — runs `tawasel-app` + `tawasel-worker`
 
 ## Project Structure
 - `src/` — React frontend (Vite)
@@ -14,15 +17,18 @@
 - `src/components/` — Shared components (Sidebar, Topbar, etc.)
 - `src/contexts/SidebarContext.tsx` — Mobile sidebar open/close state
 - `src/constants/plans.ts` — Plan tier config (STARTER/GROWTH/PRO)
-- `server.ts` — Express API + Socket.io + all route handlers
-- `server/` — Backend services and middleware
+- `server.ts` — Express API + Socket.io + route handlers. Webhook endpoint is now a thin queue-and-respond.
+- `server/worker.ts` — BullMQ worker process. Consumes the `meta-webhooks` queue and relays Socket.io events via Redis pub/sub.
+- `server/lib/redis.ts` — Shared Redis connection + queue/channel name constants
+- `server/services/webhookProcessor.ts` — Extracted Meta webhook processing logic (WhatsApp + Instagram + AI + auto-assign + follow-ups + escalation). Takes a `WebhookContext { emit }` so it works in both the worker and inline fallback.
 - `server/services/ai.ts` — AI chatbot with OpenAI function calling (appointment booking tools)
 - `server/services/appointmentReminders.ts` — 24-hour WhatsApp reminder scheduler
 - `server/services/meta.ts` — WhatsApp/Instagram message sending
 - `server/middleware/auth.ts` — Auth + plan limit enforcement
 - `server/config.ts` — Plan limits configuration
-- `prisma/schema.prisma` — Database schema
-- `prisma/seed.ts` — Demo data seeder
+- `ecosystem.config.cjs` — PM2 ecosystem file declaring both server + worker
+- `prisma/schema.prisma` — Database schema (PostgreSQL)
+- `prisma/seed.ts` — Demo data seeder (uses TRUNCATE CASCADE for Postgres reset)
 
 ## Key Patterns
 - Multi-tenant: everything scoped by workspaceId
@@ -50,7 +56,10 @@ npx vite build       # Production build
 - Pro: pro@wabahub.local / password123
 
 ## Environment Variables Needed
-- DATABASE_URL (SQLite path)
+- DATABASE_URL (PostgreSQL connection string, e.g. `postgresql://tawasel:<password>@localhost:5432/tawasel_db?schema=public`)
+- REDIS_URL (defaults to `redis://127.0.0.1:6379`)
+- SENTRY_DSN (optional but recommended in production)
+- WEBHOOK_WORKER_CONCURRENCY (optional, default 10)
 - JWT_SECRET
 - OPENAI_API_KEY
 - META_ACCESS_TOKEN, META_PHONE_NUMBER_ID (WhatsApp)
@@ -58,6 +67,20 @@ npx vite build       # Production build
 - STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 - RESEND_API_KEY, EMAIL_FROM (e.g., `Tawasel <noreply@tawasel.io>`)
 - INSTAGRAM_ACCESS_TOKEN
+
+## Recently Completed (April 15, 2026) — Production Hardening
+- **PostgreSQL migration** — Prisma now uses `postgresql` provider on Postgres 16; seed rewritten with `TRUNCATE CASCADE`
+- **Hourly pg_dump backups** — cron-driven, 30-day retention, stored in `/root/backups/postgres`
+- **Sentry error tracking** — wired into server + worker, `setupExpressErrorHandler` catches Express errors
+- **Graceful shutdown** — SIGTERM/SIGINT closes HTTP, drains BullMQ queue, quits Redis, flushes Sentry, disconnects Prisma
+- **Redis + BullMQ async webhook pipeline**:
+  - `/webhook/meta` enqueues events on `meta-webhooks` queue and responds 200 in ~5ms (no more Meta retries on slow AI/DB)
+  - `server/worker.ts` — dedicated BullMQ worker process runs `processMetaWebhook()`
+  - `server/services/webhookProcessor.ts` — extracted ~700 lines of webhook logic, takes `WebhookContext { emit }` callback
+  - Cross-process Socket.io events relayed via Redis pub/sub channel `socket-events`
+  - Fallback: if queue is unavailable at request time, webhook is processed inline
+  - Retry: 5 attempts with exponential backoff, auto-cleanup of completed/failed jobs
+- **PM2 ecosystem.config.cjs** — declares `tawasel-app` and `tawasel-worker` with 15s `kill_timeout`
 
 ## Recently Completed Features
 - Campaign Link Generator (/app/campaigns) — create trackable wa.me links for any ad platform
@@ -108,8 +131,13 @@ npx vite build       # Production build
 ssh root@137.184.35.83
 cd /root/SaaSdeploy
 git pull origin main
+npm install                    # picks up bullmq + ioredis when new
 npx vite build
-pm2 restart tawasel-app
+# First time only: install Redis + register PM2 ecosystem
+# sudo apt install -y redis-server && sudo systemctl enable --now redis-server
+# pm2 delete tawasel-app 2>/dev/null; pm2 start ecosystem.config.cjs && pm2 save
+pm2 restart ecosystem.config.cjs   # restarts both tawasel-app and tawasel-worker
+pm2 logs tawasel-worker            # verify worker is consuming the queue
 ```
 
 ## Recently Completed (April 14, 2026)

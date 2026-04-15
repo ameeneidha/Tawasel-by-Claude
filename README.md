@@ -89,6 +89,15 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### April 15, 2026 — Production Hardening for 100 Workspaces
+
+- **PostgreSQL Migration**: Switched `prisma/schema.prisma` from `sqlite` to `postgresql`. Database now runs on Postgres 16 on the DigitalOcean droplet. Seed script rewritten to use `TRUNCATE ... CASCADE` instead of SQLite-specific resets.
+- **Automated Backups**: Hourly `pg_dump` via cron with 30-day retention. Dumps stored in `/root/backups/postgres` with `.pgpass` auth.
+- **Sentry Error Tracking**: `@sentry/node` initialized in both the API server and the webhook worker. All unhandled errors plus `Sentry.setupExpressErrorHandler(app)` capture Express failures. `SENTRY_DSN` env var required.
+- **Graceful Shutdown**: Server and worker both handle SIGTERM/SIGINT — close HTTP connections, drain BullMQ queue, quit Redis, flush Sentry, disconnect Prisma. Prevents dropped in-flight requests during `pm2 restart` / deploys.
+- **Redis + BullMQ Async Webhook Pipeline**: The `/webhook/meta` endpoint now enqueues incoming Meta events to a BullMQ queue (`meta-webhooks`) and responds `200` in ~5ms. A separate `tawasel-worker` process consumes the queue and runs the full processing pipeline (WhatsApp/Instagram messages, AI chatbot, auto-assign, follow-ups, escalation, broadcast receipts). Cross-process Socket.io events are relayed through a Redis pub/sub channel (`socket-events`) so the main server emits them to connected browser clients. Eliminates Meta webhook timeouts under load and decouples slow AI/DB work from the HTTP request path.
+- **PM2 Ecosystem File** (`ecosystem.config.cjs`): Declares both `tawasel-app` (API + Socket.io) and `tawasel-worker` (BullMQ consumer) with 15s `kill_timeout` so graceful shutdown has time to complete.
+
 ### April 14, 2026
 
 - **Arabic Translations**: Wired `react-i18next` into 20 core app pages so the Arabic language switcher fully localizes the main product surface — Dashboard, Inbox, Contacts, CRM Pipeline, Appointments, Compose, Broadcast, Templates, Channels, Chatbots, Campaigns, Team, Follow-ups, Auto-Assign, Integrations, Web Chat Widget, Home, Register, and Forgot Password. Remaining untranslated pages (FeatureRequest, ReportIssue, ResetPassword, VerifyEmail, SwitchAccount, Superadmin, and marketing/legal pages) are lower priority and will follow.

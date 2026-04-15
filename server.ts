@@ -23,6 +23,9 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import cors from 'cors';
 import Stripe from "stripe";
+import { Queue } from "bullmq";
+import IORedis from "ioredis";
+import { redisConnection, WEBHOOK_QUEUE_NAME, SOCKET_EVENTS_CHANNEL } from "./server/lib/redis.js";
 
 // ── Modular imports (extracted from this file) ─────────────────────
 import {
@@ -103,6 +106,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let httpServer: ReturnType<typeof createServer>;
+let webhookQueue: Queue | null = null;
+let socketEventSubscriber: IORedis | null = null;
 
 async function startServer() {
   const app = express();
@@ -120,6 +125,33 @@ async function startServer() {
     }
   });
   const PORT = Number(process.env.PORT) || 3000;
+
+  // ── BullMQ webhook queue + Redis pub/sub for Socket.io relay ─────
+  webhookQueue = new Queue(WEBHOOK_QUEUE_NAME, {
+    connection: redisConnection,
+    defaultJobOptions: {
+      attempts: 5,
+      backoff: { type: "exponential", delay: 2000 },
+      removeOnComplete: { age: 3600, count: 1000 },
+      removeOnFail: { age: 24 * 3600, count: 5000 },
+    },
+  });
+
+  socketEventSubscriber = new IORedis(process.env.REDIS_URL || "redis://127.0.0.1:6379", {
+    maxRetriesPerRequest: null,
+  });
+  await socketEventSubscriber.subscribe(SOCKET_EVENTS_CHANNEL);
+  socketEventSubscriber.on("message", (_channel, raw) => {
+    try {
+      const { room, event, data } = JSON.parse(raw);
+      if (room && event) {
+        io.to(room).emit(event, data);
+      }
+    } catch (e) {
+      console.error("[socket-relay] Failed to parse message:", e);
+    }
+  });
+  console.log(`[server] Subscribed to Redis channel "${SOCKET_EVENTS_CHANNEL}" for Socket.io relay`);
 
   // Scope CORS to API routes only — static assets (JS/CSS bundles, images)
   // must never go through CORS, otherwise direct-IP page loads or unexpected
@@ -1175,7 +1207,7 @@ async function startServer() {
     }
   });
 
-  app.post("/webhook/meta", async (req: any, res) => {
+  app.post("/webhook/meta", async (req, res) => {
     if (!verifyMetaSignature(req)) {
       return res.status(403).send("Forbidden");
     }
@@ -1186,679 +1218,20 @@ async function startServer() {
       entryCount: Array.isArray(body?.entry) ? body.entry.length : 0,
     });
 
-    // Process incoming messages from WhatsApp
-    if (body.object === "whatsapp_business_account") {
-      const entry = body.entry?.[0];
-      const changes = entry?.changes?.[0];
-      const value = changes?.value;
-      const message = value?.messages?.[0];
-      const statuses = value?.statuses || [];
-      const metadata = value?.metadata;
-
-      for (const receipt of statuses) {
-        const metaMessageId = receipt?.id;
-        if (!metaMessageId) {
-          continue;
-        }
-
-        let recipient = await prisma.broadcastRecipient.findFirst({
-          where: { metaMessageId }
-        });
-
-        if (!recipient && receipt?.recipient_id && metadata?.display_phone_number) {
-          const workspaceNumbers = await prisma.whatsAppNumber.findMany();
-          const displayDigits = normalizePhone(metadata.display_phone_number);
-          const receiptChannel = workspaceNumbers.find(
-            (candidate) =>
-              (candidate.metaPhoneNumberId && candidate.metaPhoneNumberId === metadata?.phone_number_id) ||
-              normalizePhone(candidate.phoneNumber) === displayDigits
-          );
-
-          if (receiptChannel) {
-            const fallbackRecipients = await prisma.broadcastRecipient.findMany({
-              where: {
-                campaign: { workspaceId: receiptChannel.workspaceId },
-                status: { in: ['SENT', 'DELIVERED'] }
-              },
-              include: {
-                campaign: {
-                  select: {
-                    scheduledAt: true
-                  }
-                }
-              }
-            });
-
-            const recipientDigits = normalizePhone(receipt.recipient_id);
-            recipient = fallbackRecipients
-              .filter((candidate) => normalizePhone(candidate.phoneNumber) === recipientDigits)
-              .sort((a, b) => {
-                const aTime = a.campaign.scheduledAt ? new Date(a.campaign.scheduledAt).getTime() : 0;
-                const bTime = b.campaign.scheduledAt ? new Date(b.campaign.scheduledAt).getTime() : 0;
-                return bTime - aTime;
-              })[0] ?? null;
-          }
-        }
-
-        if (!recipient) {
-          continue;
-        }
-
-        const nextStatus =
-          receipt.status === 'read'
-            ? 'READ'
-            : receipt.status === 'delivered'
-              ? 'DELIVERED'
-              : receipt.status === 'failed'
-                ? 'FAILED'
-                : receipt.status === 'sent'
-                  ? 'SENT'
-                  : null;
-
-        if (!nextStatus) {
-          continue;
-        }
-
-        await prisma.broadcastRecipient.update({
-          where: { id: recipient.id },
-          data: {
-            status: nextStatus,
-            metaMessageId
-          }
-        });
-
-        await refreshBroadcastCampaignStats(recipient.campaignId);
+    // Enqueue for async processing by the BullMQ worker.
+    // Respond 200 immediately so Meta does not retry.
+    try {
+      if (webhookQueue) {
+        await webhookQueue.add("meta-webhook", { body });
+      } else {
+        console.error("[webhook] webhookQueue not initialized, processing inline");
+        const { processMetaWebhook } = await import("./server/services/webhookProcessor.js");
+        processMetaWebhook(body, {
+          emit: (room, event, data) => io.to(room).emit(event, data),
+        }).catch((err) => console.error("[webhook-inline] failed:", err));
       }
-
-      // ── Update inbox message delivery status ──────────────────────
-      for (const receipt of statuses) {
-        const metaMsgId = receipt?.id;
-        if (!metaMsgId) continue;
-
-        const nextMsgStatus =
-          receipt.status === 'read'
-            ? 'READ'
-            : receipt.status === 'delivered'
-              ? 'DELIVERED'
-              : receipt.status === 'failed'
-                ? 'FAILED'
-                : receipt.status === 'sent'
-                  ? 'SENT'
-                  : null;
-
-        if (!nextMsgStatus) continue;
-
-        // Find message by metaMessageId
-        const inboxMsg = await prisma.message.findFirst({
-          where: { metaMessageId: metaMsgId },
-          include: { conversation: true }
-        });
-
-        if (inboxMsg) {
-          // Only upgrade status (SENT → DELIVERED → READ), never downgrade
-          const statusOrder: Record<string, number> = { SENT: 1, DELIVERED: 2, READ: 3, FAILED: 0 };
-          const currentOrder = statusOrder[inboxMsg.status] || 0;
-          const newOrder = statusOrder[nextMsgStatus] || 0;
-
-          if (newOrder > currentOrder || nextMsgStatus === 'FAILED') {
-            await prisma.message.update({
-              where: { id: inboxMsg.id },
-              data: { status: nextMsgStatus }
-            });
-
-            // Emit status update to frontend via Socket.io
-            io.to(inboxMsg.conversation.workspaceId).emit("message-status-updated", {
-              messageId: inboxMsg.id,
-              conversationId: inboxMsg.conversationId,
-              status: nextMsgStatus
-            });
-          }
-        }
-      }
-
-      if (message) {
-        const incomingPayload = buildIncomingWhatsAppMessagePayload(message);
-        if (!incomingPayload) {
-          return res.sendStatus(200);
-        }
-
-        // Extract Click-to-WhatsApp ad referral data
-        const referral = message?.referral || (value as any)?.referral;
-
-        const from = message.from;
-        const phoneNumberId = metadata?.phone_number_id;
-        const displayPhoneNumber = metadata?.display_phone_number;
-
-        // Meta returns display numbers without punctuation, so normalize before matching.
-        const numbers = await prisma.whatsAppNumber.findMany();
-        const displayDigits = normalizePhone(displayPhoneNumber);
-        const number = numbers.find(
-          (candidate) =>
-            (candidate.metaPhoneNumberId && candidate.metaPhoneNumberId === phoneNumberId) ||
-            normalizePhone(candidate.phoneNumber) === displayDigits
-        );
-
-        if (number) {
-          // Find or create contact
-          let contact = await prisma.contact.findFirst({
-            where: { 
-              workspaceId: number.workspaceId,
-              phoneNumber: from
-            }
-          });
-
-          // Build lead source from Click-to-WhatsApp ad referral OR campaign code in message
-          const CAMPAIGN_PREFIXES: Record<string, string> = {
-            'SC': 'Snapchat', 'GG': 'Google', 'TT': 'TikTok',
-            'FB': 'Facebook', 'IG': 'Instagram', 'TW': 'Twitter',
-            'YT': 'YouTube', 'LI': 'LinkedIn', 'EM': 'Email',
-            'WB': 'Website', 'QR': 'QR Code', 'RF': 'Referral',
-          };
-          const campaignCodeMatch = incomingPayload.content?.match(/\b([A-Z]{2})-([A-Z0-9_-]{2,30})\b/);
-          const campaignPlatform = campaignCodeMatch ? CAMPAIGN_PREFIXES[campaignCodeMatch[1]] : null;
-          const campaignCode = campaignCodeMatch ? campaignCodeMatch[0] : null;
-
-          const adLeadSource = referral
-            ? `Ad: ${referral.headline || referral.body || referral.source_type || 'Click-to-WhatsApp'}`
-            : campaignPlatform
-              ? `${campaignPlatform}: ${campaignCodeMatch![2]}`
-              : null;
-
-          if (!contact) {
-            contact = await prisma.contact.create({
-              data: {
-                name: value.contacts?.[0]?.profile?.name || from,
-                phoneNumber: from,
-                workspaceId: number.workspaceId,
-                lastActivityAt: new Date(),
-                ...(adLeadSource && {
-                  leadSource: adLeadSource,
-                  tags: campaignCode ? `campaign,${campaignCode}` : `ad-lead`,
-                  lastCampaignId: referral?.source_id || campaignCode || null,
-                }),
-              }
-            });
-
-            if (adLeadSource) {
-              await prisma.activityLog.create({
-                data: {
-                  type: 'LEAD_SOURCE',
-                  content: campaignCode
-                    ? `Lead from campaign: ${campaignPlatform} (${campaignCode})`
-                    : `Lead from ad: ${adLeadSource}`,
-                  contactId: contact.id,
-                  workspaceId: number.workspaceId,
-                }
-              });
-            }
-          } else {
-            contact = await prisma.contact.update({
-              where: { id: contact.id },
-              data: {
-                lastActivityAt: new Date(),
-                // Update lead source if not already set and this is from an ad/campaign
-                ...(adLeadSource && !contact.leadSource && {
-                  leadSource: adLeadSource,
-                  lastCampaignId: referral?.source_id || campaignCode || null,
-                }),
-              },
-            });
-          }
-
-          // Find or create conversation
-          let conversation = await prisma.conversation.findFirst({
-            where: { 
-              workspaceId: number.workspaceId,
-              contactId: contact.id,
-              channelType: 'WHATSAPP'
-            }
-          });
-
-          if (!conversation) {
-            conversation = await prisma.conversation.create({
-              data: {
-                workspaceId: number.workspaceId,
-                contactId: contact.id,
-                numberId: number.id,
-                channelType: 'WHATSAPP',
-                status: 'ACTIVE',
-                lastMessageAt: new Date()
-              }
-            });
-          } else {
-            conversation = await prisma.conversation.update({
-              where: { id: conversation.id },
-              data: { lastMessageAt: new Date() }
-            });
-          }
-
-          // Auto-assign via assignment rules (only for new/unassigned conversations)
-          if (!conversation.assignedToId) {
-            try {
-              const assignmentRules = await prisma.assignmentRule.findMany({
-                where: { workspaceId: number.workspaceId, enabled: true },
-                orderBy: { priority: 'desc' }
-              });
-
-              for (const rule of assignmentRules) {
-                const conditions = JSON.parse(rule.conditions || '{}');
-                const agentIds: string[] = JSON.parse(rule.agentIds || '[]');
-                if (agentIds.length === 0) continue;
-
-                let matches = false;
-
-                if (rule.strategy === 'ROUND_ROBIN') {
-                  matches = true;
-                } else if (rule.strategy === 'LEAD_SOURCE' && contact.leadSource) {
-                  const prefix = conditions.leadSourcePrefix || '';
-                  matches = prefix && contact.leadSource.toLowerCase().includes(prefix.toLowerCase());
-                } else if (rule.strategy === 'KEYWORD' && incomingPayload.content) {
-                  const kw = conditions.keyword || '';
-                  matches = kw && incomingPayload.content.toLowerCase().includes(kw.toLowerCase());
-                }
-
-                if (matches) {
-                  const assignToId = agentIds[rule.currentIndex % agentIds.length];
-                  await prisma.assignmentRule.update({
-                    where: { id: rule.id },
-                    data: { currentIndex: (rule.currentIndex + 1) % agentIds.length }
-                  });
-                  conversation = await prisma.conversation.update({
-                    where: { id: conversation.id },
-                    data: { assignedToId: assignToId }
-                  });
-                  await prisma.activityLog.create({
-                    data: {
-                      type: 'AUTOMATION',
-                      content: `Auto-assigned by rule "${rule.name}"`,
-                      conversationId: conversation.id,
-                      contactId: contact.id,
-                      workspaceId: number.workspaceId
-                    }
-                  });
-                  break; // First matching rule wins
-                }
-              }
-            } catch (e) {
-              console.error('[assignment-rules] Error:', e);
-            }
-          }
-
-          // Auto-enroll in follow-up sequences
-          {
-            const triggerTypes = ['NEW_LEAD'];
-            if (adLeadSource) triggerTypes.push('AD_LEAD');
-            try {
-              const sequences = await prisma.followUpSequence.findMany({
-                where: { workspaceId: number.workspaceId, enabled: true, triggerType: { in: triggerTypes } },
-                include: { steps: { orderBy: { position: 'asc' } } }
-              });
-              for (const seq of sequences) {
-                if (seq.steps.length === 0) continue;
-                const existing = await prisma.followUpEnrollment.findUnique({
-                  where: { sequenceId_contactId: { sequenceId: seq.id, contactId: contact.id } }
-                });
-                if (!existing) {
-                  const firstDelay = seq.steps[0].delayHours;
-                  await prisma.followUpEnrollment.create({
-                    data: {
-                      sequenceId: seq.id,
-                      contactId: contact.id,
-                      conversationId: conversation.id,
-                      workspaceId: number.workspaceId,
-                      nextStepDueAt: new Date(Date.now() + firstDelay * 60 * 60 * 1000)
-                    }
-                  });
-                }
-              }
-            } catch (e) {
-              console.error('[follow-up-enroll] Error:', e);
-            }
-          }
-
-          // Handle quote reply context from WhatsApp
-          let incomingReplyToId: string | null = null;
-          const quotedMetaId = message?.context?.id;
-          if (quotedMetaId) {
-            const quotedMsg = await prisma.message.findFirst({
-              where: { metaMessageId: quotedMetaId, conversationId: conversation.id }
-            });
-            if (quotedMsg) incomingReplyToId = quotedMsg.id;
-          }
-
-          const newMsg = await prisma.message.create({
-            data: {
-              conversationId: conversation.id,
-              content: incomingPayload.content,
-              type: incomingPayload.type,
-              mediaId: incomingPayload.type === 'TEXT' ? null : incomingPayload.mediaId,
-              mediaMimeType: incomingPayload.type === 'TEXT' ? null : incomingPayload.mediaMimeType,
-              mediaFilename: incomingPayload.type === 'TEXT' ? null : incomingPayload.mediaFilename,
-              direction: 'INCOMING',
-              senderType: 'USER',
-              metaMessageId: message?.id || null,
-              replyToId: incomingReplyToId,
-              status: 'READ',
-              readAt: null,
-            }
-          });
-
-          const repliedRecipient = await prisma.broadcastRecipient.findFirst({
-            where: {
-              phoneNumber: from,
-              status: { in: ['SENT', 'DELIVERED', 'READ'] },
-              campaign: {
-                workspaceId: number.workspaceId,
-                numberId: number.id,
-              }
-            },
-            include: {
-              campaign: {
-                select: {
-                  scheduledAt: true
-                }
-              }
-            },
-            orderBy: {
-              campaign: {
-                scheduledAt: 'desc'
-              }
-            }
-          });
-
-          if (repliedRecipient) {
-            await prisma.broadcastRecipient.update({
-              where: { id: repliedRecipient.id },
-              data: { status: 'REPLIED' }
-            });
-
-            await refreshBroadcastCampaignStats(repliedRecipient.campaignId);
-          }
-
-          // Broadcast via Socket.io
-          io.to(number.workspaceId).emit("new-message", newMsg);
-          io.to(number.workspaceId).emit("conversation-updated", conversation.id);
-
-          // Trigger AI Chatbot if enabled
-          if (!conversation.aiPaused && number.autoReply && number.chatbotId && incomingPayload.aiInput) {
-            const chatbot = await prisma.chatbot.findFirst({
-              where: {
-                id: number.chatbotId,
-                workspaceId: number.workspaceId,
-              }
-            });
-            if (chatbot && chatbot.enabled) {
-              const aiResult = await getAIResponse(chatbot, incomingPayload.aiInput, {
-                workspaceId: number.workspaceId,
-                contactId: contact.id,
-                conversationId: conversation.id,
-              });
-              if (aiResult.text) {
-                const whatsAppConfig = getWhatsAppChannelConfig(number);
-                try {
-                  // Send back to WhatsApp
-                  const aiMetaMsgId = await sendMetaMessage(from, aiResult.text, 'whatsapp', {
-                    accessToken: whatsAppConfig.accessToken,
-                    phoneNumberId: whatsAppConfig.phoneNumberId || phoneNumberId
-                  });
-
-                  // Save AI message with Meta message ID for delivery tracking
-                  const aiMsg = await prisma.message.create({
-                    data: {
-                      conversationId: conversation.id,
-                      content: aiResult.text,
-                      direction: 'OUTGOING',
-                      senderType: 'AI_BOT',
-                      senderName: chatbot.name,
-                      metaMessageId: aiMetaMsgId || null,
-                      status: 'SENT'
-                    }
-                  });
-
-                  io.to(number.workspaceId).emit("new-message", aiMsg);
-                } catch (error: any) {
-                  console.error("WhatsApp AI auto-reply failed:", error?.message || error);
-                  const failedAiMsg = await prisma.message.create({
-                    data: {
-                      conversationId: conversation.id,
-                      content: aiResult.text,
-                      direction: 'OUTGOING',
-                      senderType: 'AI_BOT',
-                      senderName: chatbot.name,
-                      status: 'FAILED'
-                    }
-                  });
-
-                  io.to(number.workspaceId).emit("new-message", failedAiMsg);
-                }
-              }
-
-              // Handle AI escalation to human agent
-              if (aiResult.escalated) {
-                console.log(`[AI Escalation] Conversation ${conversation.id} escalated: ${aiResult.escalationReason}`);
-
-                // Pause AI on this conversation
-                await prisma.conversation.update({
-                  where: { id: conversation.id },
-                  data: {
-                    aiPaused: true,
-                    internalStatus: "WAITING_FOR_INTERNAL",
-                    priority: conversation.priority === "LOW" || conversation.priority === "MEDIUM" ? "HIGH" : conversation.priority,
-                  },
-                });
-
-                // Log the escalation
-                await prisma.activityLog.create({
-                  data: {
-                    type: "AI_HANDOFF",
-                    content: `AI escalated to human agent. Reason: ${aiResult.escalationReason}`,
-                    contactId: contact.id,
-                    workspaceId: number.workspaceId,
-                    conversationId: conversation.id,
-                  },
-                });
-
-                // Emit escalation event for real-time notification
-                io.to(number.workspaceId).emit("ai-escalation", {
-                  conversationId: conversation.id,
-                  contactName: contact.name || contact.phoneNumber || "Unknown",
-                  reason: aiResult.escalationReason,
-                  timestamp: new Date().toISOString(),
-                });
-
-                io.to(number.workspaceId).emit("conversation-updated", conversation.id);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Process incoming messages from Instagram
-    if (body.object === "instagram") {
-      if (!INSTAGRAM_INTEGRATION_ENABLED) {
-        return res.sendStatus(200);
-      }
-      const entry = body.entry?.[0];
-      const messaging = entry?.messaging?.[0];
-      const senderId = messaging?.sender?.id;
-      const recipientId = messaging?.recipient?.id;
-      const message = messaging?.message;
-
-      if (message && message.text) {
-        const text = message.text;
-
-        // Find the Instagram account in our DB
-        const account = await prisma.instagramAccount.findUnique({
-          where: { instagramId: recipientId }
-        });
-
-        if (account) {
-          // Find or create contact
-          let contact = await prisma.contact.findFirst({
-            where: { 
-              workspaceId: account.workspaceId,
-              OR: [
-                { instagramScopedUserId: senderId },
-                { instagramId: senderId }
-              ]
-            }
-          });
-
-          if (!contact) {
-            contact = await prisma.contact.create({
-              data: {
-                name: getInstagramContactFallbackName(senderId),
-                instagramId: senderId,
-                instagramScopedUserId: senderId,
-                workspaceId: account.workspaceId,
-                lastActivityAt: new Date(),
-              }
-            });
-          } else {
-            contact = await prisma.contact.update({
-              where: { id: contact.id },
-              data: {
-                instagramId: contact.instagramId || senderId,
-                instagramScopedUserId: contact.instagramScopedUserId || senderId,
-                name: contact.name?.trim() || getInstagramContactFallbackName(senderId),
-                lastActivityAt: new Date(),
-              },
-            });
-          }
-
-          // Find or create conversation
-          let conversation = await prisma.conversation.findFirst({
-            where: { 
-              workspaceId: account.workspaceId,
-              contactId: contact.id,
-              channelType: 'INSTAGRAM'
-            }
-          });
-
-          if (!conversation) {
-            conversation = await prisma.conversation.create({
-              data: {
-                workspaceId: account.workspaceId,
-                contactId: contact.id,
-                instagramAccountId: account.id,
-                channelType: 'INSTAGRAM',
-                status: 'ACTIVE',
-                lastMessageAt: new Date()
-              }
-            });
-          }
-
-          const newMsg = await prisma.message.create({
-            data: {
-              conversationId: conversation.id,
-              content: text,
-              direction: 'INCOMING',
-              senderType: 'USER',
-              status: 'READ',
-              readAt: null,
-            }
-          });
-
-          // Broadcast via Socket.io
-          io.to(account.workspaceId).emit("new-message", newMsg);
-          io.to(account.workspaceId).emit("conversation-updated", conversation.id);
-
-          enqueueInstagramProfileHydration({
-            contactId: contact.id,
-            workspaceId: account.workspaceId,
-            instagramScopedUserId: senderId,
-            accessToken: account.accessToken || process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || "",
-          });
-
-          // Trigger AI Chatbot if enabled
-          if (!conversation.aiPaused && account.chatbotId) {
-            const chatbot = await prisma.chatbot.findFirst({
-              where: {
-                id: account.chatbotId,
-                workspaceId: account.workspaceId,
-              }
-            });
-            if (chatbot && chatbot.enabled) {
-              const aiResult = await getAIResponse(chatbot, text, {
-                workspaceId: account.workspaceId,
-                contactId: contact.id,
-                conversationId: conversation.id,
-              });
-              if (aiResult.text) {
-                try {
-                  // Send back to Instagram
-                  await sendMetaMessage(senderId, aiResult.text, 'instagram', {
-                    accessToken: account.accessToken || process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || "",
-                    instagramId: recipientId
-                  });
-
-                  // Save AI message
-                  const aiMsg = await prisma.message.create({
-                    data: {
-                      conversationId: conversation.id,
-                      content: aiResult.text,
-                      direction: 'OUTGOING',
-                      senderType: 'AI_BOT',
-                      senderName: chatbot.name,
-                      status: 'SENT'
-                    }
-                  });
-
-                  io.to(account.workspaceId).emit("new-message", aiMsg);
-                } catch (error: any) {
-                  console.error("Instagram AI auto-reply failed:", error?.message || error);
-                  const failedAiMsg = await prisma.message.create({
-                    data: {
-                      conversationId: conversation.id,
-                      content: aiResult.text,
-                      direction: 'OUTGOING',
-                      senderType: 'AI_BOT',
-                      senderName: chatbot.name,
-                      status: 'FAILED'
-                    }
-                  });
-
-                  io.to(account.workspaceId).emit("new-message", failedAiMsg);
-                }
-              }
-
-              // Handle AI escalation to human agent
-              if (aiResult.escalated) {
-                console.log(`[AI Escalation] Instagram conversation ${conversation.id} escalated: ${aiResult.escalationReason}`);
-
-                await prisma.conversation.update({
-                  where: { id: conversation.id },
-                  data: {
-                    aiPaused: true,
-                    internalStatus: "WAITING_FOR_INTERNAL",
-                    priority: conversation.priority === "LOW" || conversation.priority === "MEDIUM" ? "HIGH" : conversation.priority,
-                  },
-                });
-
-                await prisma.activityLog.create({
-                  data: {
-                    type: "AI_HANDOFF",
-                    content: `AI escalated to human agent. Reason: ${aiResult.escalationReason}`,
-                    contactId: contact.id,
-                    workspaceId: account.workspaceId,
-                    conversationId: conversation.id,
-                  },
-                });
-
-                io.to(account.workspaceId).emit("ai-escalation", {
-                  conversationId: conversation.id,
-                  contactName: contact.name || "Unknown",
-                  reason: aiResult.escalationReason,
-                  timestamp: new Date().toISOString(),
-                });
-
-                io.to(account.workspaceId).emit("conversation-updated", conversation.id);
-              }
-            }
-          }
-        }
-      }
+    } catch (err) {
+      console.error("[webhook] enqueue failed:", err);
     }
 
     res.sendStatus(200);
@@ -3177,7 +2550,7 @@ async function startServer() {
     res.json(numbers);
   });
 
-  app.delete("/api/numbers/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req, res) => {
+  app.delete("/api/numbers/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req: any, res) => {
     try {
       const { id } = req.params;
       const number = await prisma.whatsAppNumber.findUnique({ where: { id } });
@@ -6203,6 +5576,11 @@ function gracefulShutdown(signal: string) {
   // Stop accepting new connections
   httpServer.close(async () => {
     console.log("[shutdown] HTTP server closed");
+
+    // Close BullMQ queue + Redis socket subscriber
+    try { if (webhookQueue) await webhookQueue.close(); } catch {}
+    try { if (socketEventSubscriber) await socketEventSubscriber.quit(); } catch {}
+    try { await redisConnection.quit(); } catch {}
 
     // Flush Sentry events
     try { await Sentry.close(2000); } catch {}
