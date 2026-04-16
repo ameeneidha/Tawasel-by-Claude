@@ -84,7 +84,7 @@ export default function Compose() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-8 transition-colors"
+          className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 p-8 transition-colors"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">

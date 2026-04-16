@@ -395,7 +395,7 @@ export default function Channels() {
         {!isLoading && numbers.length === 0 && (
           <div className="mb-8 space-y-6">
             <ActivationChecklist />
-            <div className="rounded-3xl border border-dashed border-[#25D366]/30 bg-white p-6 shadow-sm dark:border-[#25D366]/15 dark:bg-slate-900">
+            <div className="rounded-2xl border border-dashed border-[#25D366]/30 bg-white p-6 shadow-sm dark:border-[#25D366]/15 dark:bg-slate-900">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Connect your first WhatsApp number</h2>
               <p className="mt-2 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
                 Start with one WhatsApp number so the inbox can receive live conversations. After that, assign a bot, import contacts, and launch your first campaign.
@@ -429,7 +429,7 @@ export default function Channels() {
                     key={num.id}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group"
+                    className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="p-2 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-400 rounded-xl transition-colors">
@@ -555,7 +555,7 @@ export default function Channels() {
                     key={account.id}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group"
+                    className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="p-2 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 text-pink-500 rounded-xl">

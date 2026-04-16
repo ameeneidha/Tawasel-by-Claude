@@ -19,6 +19,7 @@ import {
 import { toast } from 'sonner';
 import { useApp } from '../contexts/AppContext';
 import { cn } from '../lib/utils';
+import { SkeletonCard, SkeletonChartCard } from '../components/ui/Skeleton';
 
 type DashboardRange = 'today' | '7d' | '30d' | 'custom';
 
@@ -243,8 +244,30 @@ export default function Dashboard() {
 
   if (isLoading || !summary) {
     return (
-      <div className="h-full flex items-center justify-center bg-[#F8F9FA] dark:bg-slate-950">
-        <Loader2 className="w-8 h-8 text-[#25D366] animate-spin" />
+      <div className="h-full overflow-y-auto bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
+        <div className="max-w-[1600px] mx-auto p-8">
+          <div className="flex flex-col gap-6">
+            {/* Header skeleton */}
+            <div className="space-y-2">
+              <div className="animate-pulse rounded-xl bg-gray-200 dark:bg-slate-700 h-4 w-40" />
+              <div className="animate-pulse rounded-xl bg-gray-200 dark:bg-slate-700 h-8 w-64" />
+              <div className="animate-pulse rounded-xl bg-gray-200 dark:bg-slate-700 h-4 w-80" />
+            </div>
+
+            {/* Metric cards grid */}
+            <div className="grid md:grid-cols-2 2xl:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+
+            {/* Chart section skeletons */}
+            <div className="grid 2xl:grid-cols-2 gap-6">
+              <SkeletonChartCard />
+              <SkeletonChartCard />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -281,7 +304,7 @@ export default function Dashboard() {
               onClick={() => fetchDashboard('refresh')}
               disabled={isRefreshing}
               aria-label="Refresh dashboard metrics"
-              className="relative z-20 inline-flex shrink-0 cursor-pointer pointer-events-auto items-center gap-2 rounded-xl border border-gray-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-[#25D366]/40 disabled:cursor-wait disabled:opacity-70 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-200"
+              className="relative z-20 inline-flex shrink-0 cursor-pointer pointer-events-auto items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-[#25D366]/40 disabled:cursor-wait disabled:opacity-70 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-200"
             >
               <RefreshCw className={cn('w-4 h-4', isRefreshing && 'animate-spin')} />
               {isRefreshing ? t('dashboard.refreshing') : t('dashboard.refresh')}
@@ -423,7 +446,7 @@ export default function Dashboard() {
                   <SectionHeader title={t('dashboard.teamPerformance')} description={t('dashboard.teamPerformanceDesc')} />
                   <div className="space-y-3">
                     {summary.team.workload.length > 0 ? summary.team.workload.map((member) => (
-                      <div key={member.id} className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 px-4 py-3">
+                      <div key={member.id} className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 px-4 py-3">
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <p className="font-semibold text-gray-900 dark:text-white">{member.name}</p>
@@ -565,7 +588,7 @@ export default function Dashboard() {
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[760px] text-left">
                     <thead>
-                      <tr className="border-b border-gray-100 dark:border-slate-800 text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                      <tr className="border-b border-gray-200 dark:border-slate-800 text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
                         <th className="py-3 pr-4">{t('dashboard.campaign')}</th>
                         <th className="py-3 pr-4">{t('dashboard.sender')}</th>
                         <th className="py-3 pr-4">{t('dashboard.recipients')}</th>
@@ -677,7 +700,7 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon: Icon, tone,
 };
 
 function SectionCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn('rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-6 transition-colors', className)}>{children}</div>;
+  return <div className={cn('rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-6 transition-colors', className)}>{children}</div>;
 }
 
 function SectionHeader({ title, description }: { title: string; description: string }) {
@@ -691,13 +714,13 @@ function SectionHeader({ title, description }: { title: string; description: str
 
 function StatTile({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon?: React.ComponentType<{ className?: string }> }) {
   return (
-    <div className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50/80 dark:bg-slate-950/50 p-4">
+    <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-gray-50/80 dark:bg-slate-950/50 p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{label}</p>
           <p className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">{value}</p>
         </div>
-        {Icon ? <div className="rounded-xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-2 text-[#25D366]"><Icon className="w-4 h-4" /></div> : null}
+        {Icon ? <div className="rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-2 text-[#25D366]"><Icon className="w-4 h-4" /></div> : null}
       </div>
     </div>
   );
@@ -705,7 +728,7 @@ function StatTile({ label, value, icon: Icon }: { label: string; value: React.Re
 
 function StatPill({ label, value, tone = 'neutral' }: { label: string; value: React.ReactNode; tone?: 'neutral' | 'warning' }) {
   return (
-    <div className={cn('rounded-2xl px-4 py-3 border', tone === 'warning' ? 'border-amber-200 bg-amber-50/80 dark:border-amber-900/30 dark:bg-amber-950/20' : 'border-gray-100 bg-gray-50/80 dark:border-slate-800 dark:bg-slate-950/30')}>
+    <div className={cn('rounded-2xl px-4 py-3 border', tone === 'warning' ? 'border-amber-200 bg-amber-50/80 dark:border-amber-900/30 dark:bg-amber-950/20' : 'border-gray-200 bg-gray-50/80 dark:border-slate-800 dark:bg-slate-950/30')}>
       <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{label}</p>
       <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{value}</p>
     </div>
@@ -714,7 +737,7 @@ function StatPill({ label, value, tone = 'neutral' }: { label: string; value: Re
 
 function MiniMetric({ label, value, tone = 'neutral' }: { label: string; value: React.ReactNode; tone?: 'neutral' | 'danger' }) {
   return (
-    <div className={cn('rounded-xl border px-3 py-2 text-center', tone === 'danger' ? 'border-red-200 bg-red-50 dark:border-red-900/30 dark:bg-red-950/20' : 'border-gray-100 bg-gray-50 dark:border-slate-800 dark:bg-slate-950/40')}>
+    <div className={cn('rounded-xl border px-3 py-2 text-center', tone === 'danger' ? 'border-red-200 bg-red-50 dark:border-red-900/30 dark:bg-red-950/20' : 'border-gray-200 bg-gray-50 dark:border-slate-800 dark:bg-slate-950/40')}>
       <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{label}</p>
       <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{value}</p>
     </div>

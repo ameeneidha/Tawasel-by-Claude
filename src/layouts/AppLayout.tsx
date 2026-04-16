@@ -1,16 +1,49 @@
 import { Outlet, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import Topbar from '../components/Topbar';
 import { useApp } from '../contexts/AppContext';
 import { useSidebar } from '../contexts/SidebarContext';
 import { AlertCircle, CheckCircle2, CreditCard, Loader2, Lock, Menu } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+const routeTitleKeys: Record<string, string> = {
+  '/app/dashboard': 'sidebar.dashboard',
+  '/app/inbox': 'sidebar.inbox',
+  '/app/crm': 'sidebar.crmPipeline',
+  '/app/contacts': 'sidebar.contacts',
+  '/app/appointments': 'sidebar.appointments',
+  '/app/compose': 'sidebar.compose',
+  '/app/broadcast': 'sidebar.broadcast',
+  '/app/templates': 'sidebar.templates',
+  '/app/chatbots': 'sidebar.aiChatbots',
+  '/app/campaigns': 'sidebar.campaigns',
+  '/app/auto-assign': 'sidebar.autoAssign',
+  '/app/follow-ups': 'sidebar.followUps',
+  '/app/integrations': 'sidebar.integrations',
+  '/app/channels': 'sidebar.channels',
+  '/app/team': 'sidebar.team',
+  '/app/superadmin': 'sidebar.superadmin',
+  '/app/switch-account': 'sidebar.switchAccount',
+  '/app/feature-request': 'sidebar.featureRequest',
+  '/app/report-issue': 'sidebar.reportIssue',
+  '/app/web-chat-widget': 'sidebar.webChatWidget',
+  '/app/settings': 'common.settings',
+};
 
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isLoading, requestEmailVerification, hasVerifiedEmail, hasActiveSubscription, hasFullAccess, isSuperadmin, isImpersonating, impersonatingWorkspaceName, stopImpersonation } = useApp();
   const { toggle } = useSidebar();
+  const { t } = useTranslation();
   const [isVerifying, setIsVerifying] = useState(false);
+
+  // Resolve page title from current route
+  const pageTitleKey = Object.entries(routeTitleKeys).find(
+    ([path]) => location.pathname === path || location.pathname.startsWith(path + '/')
+  )?.[1] || 'sidebar.dashboard';
+  const pageTitle = t(pageTitleKey);
 
   if (isLoading) {
     return (
@@ -121,6 +154,9 @@ export default function AppLayout() {
             </button>
           </div>
         )}
+        <div className="hidden md:block">
+          <Topbar title={pageTitle} />
+        </div>
         <div className="flex-1 overflow-auto relative min-h-0">
           <Outlet />
         </div>

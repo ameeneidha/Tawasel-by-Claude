@@ -259,7 +259,7 @@ export default function Broadcast() {
                 key={campaign.id}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group"
+                className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className={cn(
@@ -338,8 +338,8 @@ export default function Broadcast() {
 
       {selectedCampaign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-          <div className="w-full max-w-2xl rounded-3xl border border-gray-100 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5 dark:border-slate-800">
+          <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5 dark:border-slate-800">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{selectedCampaign.name}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -374,7 +374,7 @@ export default function Broadcast() {
               </div>
             </div>
 
-            <div className="border-t border-gray-100 px-6 py-5 dark:border-slate-800">
+            <div className="border-t border-gray-200 px-6 py-5 dark:border-slate-800">
               <div className="mb-3 flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{t('broadcast.broadcastPreview')}</h4>
                 <span className="text-xs text-gray-400 dark:text-gray-500">
@@ -384,14 +384,14 @@ export default function Broadcast() {
               <CampaignPreviewCard campaign={selectedCampaign} />
             </div>
 
-            <div className="border-t border-gray-100 px-6 py-5 dark:border-slate-800">
+            <div className="border-t border-gray-200 px-6 py-5 dark:border-slate-800">
               <div className="mb-3 flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{t('broadcast.recipients')}</h4>
                 <span className="text-xs text-gray-400 dark:text-gray-500">
                   {selectedCampaign.scheduledAt ? format(new Date(selectedCampaign.scheduledAt), 'MMM dd, yyyy HH:mm') : t('broadcast.noDate')}
                 </span>
               </div>
-              <div className="max-h-80 overflow-y-auto rounded-2xl border border-gray-100 dark:border-slate-800">
+              <div className="max-h-80 overflow-y-auto rounded-2xl border border-gray-200 dark:border-slate-800">
                 {selectedCampaign.recipients.length === 0 ? (
                   <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                     {t('broadcast.noRecipients')}
@@ -400,7 +400,7 @@ export default function Broadcast() {
                   selectedCampaign.recipients.map((recipient) => (
                     <div
                       key={recipient.id}
-                      className="flex items-center justify-between border-b border-gray-100 px-4 py-3 text-sm last:border-b-0 dark:border-slate-800"
+                      className="flex items-center justify-between border-b border-gray-200 px-4 py-3 text-sm last:border-b-0 dark:border-slate-800"
                     >
                       <span className="font-medium text-gray-900 dark:text-white">{recipient.phoneNumber}</span>
                       <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:bg-slate-800 dark:text-gray-300">
@@ -417,8 +417,8 @@ export default function Broadcast() {
 
       {previewCampaign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-gray-100 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5 dark:border-slate-800">
+          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5 dark:border-slate-800">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{t('broadcast.broadcastPreview')}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -656,9 +656,9 @@ function BroadcastBuilder({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden transition-colors"
+      className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden transition-colors"
     >
-      <div className="flex border-b border-gray-100 dark:border-slate-800">
+      <div className="flex border-b border-gray-200 dark:border-slate-800">
         {[1, 2, 3].map((s) => (
           <button
             type="button"
@@ -850,7 +850,7 @@ function BroadcastBuilder({
           <div className="space-y-8 max-w-xl mx-auto">
             <div className="grid grid-cols-1 gap-3">
               {reviewItems.map((item) => (
-                <div key={item.label} className="rounded-xl border border-gray-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+                <div key={item.label} className="rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">{item.label}</p>
                   <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{item.value}</p>
                 </div>
@@ -934,7 +934,7 @@ function BroadcastBuilder({
           </div>
         )}
 
-        <div className="mt-12 flex items-center justify-between pt-6 border-t border-gray-100 dark:border-slate-800 transition-colors">
+        <div className="mt-12 flex items-center justify-between pt-6 border-t border-gray-200 dark:border-slate-800 transition-colors">
           <button
             onClick={step === 1 ? onCancel : () => setStep(step - 1)}
             className="px-6 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors"

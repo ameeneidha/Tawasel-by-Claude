@@ -45,7 +45,7 @@ export default function Settings() {
 
   return (
     <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 flex transition-colors">
-      <div className="w-64 border-r border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 flex flex-col gap-2 transition-colors">
+      <div className="w-64 border-r border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 flex flex-col gap-2 transition-colors">
         <div className="mb-6">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Settings</h1>
         </div>
@@ -72,7 +72,7 @@ export default function Settings() {
       <div className="flex-1 overflow-y-auto relative">
         <button 
           onClick={() => navigate(-1)}
-          className="absolute top-8 right-8 p-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shadow-sm z-10 transition-colors"
+          className="absolute top-8 right-8 p-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shadow-sm z-10 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -103,7 +103,7 @@ function PersonalSettings() {
         <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your profile and account preferences.</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-gray-100 dark:border-slate-800 shadow-sm space-y-8 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-8 transition-colors">
         <div className="flex items-center gap-6">
           <div className="relative group">
             <div className="w-24 h-24 bg-gray-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-gray-400 dark:text-gray-500 text-2xl font-bold transition-colors">
@@ -135,7 +135,7 @@ function PersonalSettings() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-gray-100 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
         <h3 className="font-semibold text-gray-900 dark:text-white mb-6">Appearance</h3>
         <div className="flex items-center justify-between">
           <div>
@@ -183,7 +183,7 @@ function BusinessSettings() {
         <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your workspace and business information.</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-gray-100 dark:border-slate-800 shadow-sm space-y-8 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-8 transition-colors">
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Business Name</label>
@@ -316,10 +316,10 @@ function AutomationRules() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-100 dark:border-slate-800 transition-colors">
+            <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800 transition-colors">
               <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Rule Name</th>
               <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Trigger</th>
               <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Action</th>
@@ -463,7 +463,7 @@ function CustomAttributes() {
       </div>
 
       {showAdd && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 space-y-4 transition-colors">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm p-6 space-y-4 transition-colors">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('common.name')}</label>
@@ -493,10 +493,10 @@ function CustomAttributes() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-100 dark:border-slate-800 transition-colors">
+            <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800 transition-colors">
               <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('common.actions')}</th>
               <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('common.type')}</th>
               <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Key</th>
@@ -554,15 +554,15 @@ function ApiKeys() {
         </button>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
-        <div className="p-6 border-b border-gray-100 dark:border-slate-800">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
+        <div className="p-6 border-b border-gray-200 dark:border-slate-800">
           <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
             Use these keys to authenticate requests to our API. Keep them secret and never share them in public repositories.
           </p>
         </div>
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-100 dark:border-slate-800 transition-colors">
+            <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800 transition-colors">
               <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Name</th>
               <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Key</th>
               <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Created</th>
@@ -714,7 +714,7 @@ function Billing() {
         <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your subscription and view usage history.</p>
       </div>
 
-      <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-gray-100 dark:border-slate-800 w-fit transition-colors">
+      <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-gray-200 dark:border-slate-800 w-fit transition-colors">
         <Link 
           to="/app/settings/billing" 
           className={cn(
@@ -749,7 +749,7 @@ function Billing() {
           <div className="space-y-8">
             <ActivationChecklist />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm transition-colors">
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-semibold text-gray-900 dark:text-white">Current Plan</h3>
                   <span className={cn(
@@ -842,7 +842,7 @@ function Billing() {
                   ) : null}
                 </div>
               </div>
-              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm transition-colors">
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-semibold text-gray-900 dark:text-white">Credit Balance</h3>
                   <button
@@ -903,7 +903,7 @@ function Billing() {
                     ? "border-blue-300 ring-1 ring-blue-200 shadow-md dark:border-blue-500/50 dark:ring-blue-500/30"
                     : plan.highlight
                       ? "border-[#25D366]/50 shadow-md"
-                      : "border-gray-100 dark:border-slate-800 shadow-sm hover:border-gray-200 dark:hover:border-slate-700"
+                      : "border-gray-200 dark:border-slate-800 shadow-sm hover:border-gray-300 dark:hover:border-slate-700"
               )}>
                 {currentPlan === key && (
                   <div className="absolute top-0 right-0 bg-[#25D366] text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
@@ -981,10 +981,10 @@ function Billing() {
           </div>
         } />
         <Route path="usage" element={
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-100 dark:border-slate-800 transition-colors">
+                <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800 transition-colors">
                   <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Description</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Tokens</th>

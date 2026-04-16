@@ -266,10 +266,10 @@ export default function CRM() {
 
   return (
     <div className="h-full flex flex-col bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
-      <div className="h-16 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-8 flex items-center justify-between shrink-0 transition-colors">
+      <div className="h-16 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-8 flex items-center justify-between shrink-0 transition-colors">
         <div className="flex items-center gap-4">
           <h1 className="text-lg font-bold text-gray-900 dark:text-white">{t('crm.title')}</h1>
-          <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 dark:bg-slate-800 rounded-full border border-gray-100 dark:border-slate-700">
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 dark:bg-slate-800 rounded-full border border-gray-200 dark:border-slate-700">
             <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
               {hasActiveFilters ? t('crm.matchingLeads') : t('crm.totalLeads')}
             </span>
@@ -295,13 +295,13 @@ export default function CRM() {
                 'p-2 rounded-xl border transition-colors',
                 hasActiveFilters
                   ? 'border-[#25D366]/30 bg-[#25D366]/10 text-[#128C7E] dark:text-[#4ADE80]'
-                  : 'text-gray-400 border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
+                  : 'text-gray-400 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
               )}
             >
               <Filter className="w-4 h-4" />
             </button>
             {showFilters && (
-              <div className="absolute right-0 top-12 z-10 w-72 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+              <div className="absolute right-0 top-12 z-10 w-72 rounded-2xl border border-gray-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900">
                 <div className="mb-4">
                   <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
                     {t('crm.conversation')}
@@ -400,7 +400,7 @@ export default function CRM() {
 
       {showAddLead && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/35 p-4">
-          <form onSubmit={createLead} className="w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+          <form onSubmit={createLead} className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="mb-5">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('crm.addNewLead')}</h2>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -493,7 +493,7 @@ export default function CRM() {
                     <motion.div
                       layoutId={contact.id}
                       key={contact.id}
-                      className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 group hover:border-[#25D366]/30 transition-all cursor-pointer"
+                      className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 group hover:border-[#25D366]/30 transition-all cursor-pointer"
                     >
                       {(() => {
                         const stageIndex = pipelineStages.findIndex(s => s.key === stage.key);
@@ -538,7 +538,7 @@ export default function CRM() {
                         <Phone className="w-3 h-3" />
                         {contact.phoneNumber}
                       </div>
-                      <div className="mb-3 rounded-2xl border border-gray-100 bg-gray-50/80 p-2.5 dark:border-slate-700 dark:bg-slate-900/70">
+                      <div className="mb-3 rounded-2xl border border-gray-200 bg-gray-50/80 p-2.5 dark:border-slate-700 dark:bg-slate-900/70">
                         <div className="mb-1 flex items-center justify-between">
                           <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
                             {t('crm.dealValue')}
@@ -616,7 +616,7 @@ export default function CRM() {
 
       {showManageStages && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/35 p-4">
-          <div className="w-full max-w-4xl rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+          <div className="w-full max-w-4xl rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('crm.manageStagesTitle')}</h2>
@@ -633,7 +633,7 @@ export default function CRM() {
               </button>
             </div>
 
-            <div className="mt-6 max-h-[60vh] overflow-y-auto rounded-3xl border border-gray-100 dark:border-slate-800">
+            <div className="mt-6 max-h-[60vh] overflow-y-auto rounded-2xl border border-gray-200 dark:border-slate-800">
               <div className="divide-y divide-gray-100 dark:divide-slate-800">
                 {pipelineStages.map((stage, index) => (
                   <div key={stage.id} className="grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_120px_auto_auto] md:items-center">
@@ -781,7 +781,7 @@ export default function CRM() {
               </div>
             </div>
 
-            <div className="mt-6 rounded-3xl border border-dashed border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-950/50">
+            <div className="mt-6 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-950/50">
               <p className="text-sm font-bold text-gray-900 dark:text-white">Add custom stage</p>
               <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_120px_auto]">
                 <input

@@ -126,7 +126,7 @@ export default function Register() {
               : t('auth.monthlyPricing')}
           </p>
 
-          <div className="mt-10 space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6">
+          <div className="mt-10 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6">
             <div className="flex items-center justify-between text-sm text-slate-300">
               <span>{t('auth.audience')}</span>
               <span className="max-w-[220px] text-right text-xs text-slate-400">{plan.shortLabel}</span>

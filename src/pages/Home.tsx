@@ -127,11 +127,11 @@ const getComparisonCellMeta = (value: boolean | number | string) => {
 };
 
 const comparisonToneClasses = {
-  included: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  excluded: 'border-slate-200 bg-slate-100 text-slate-500',
-  addon: 'border-amber-200 bg-amber-50 text-amber-700',
-  custom: 'border-sky-200 bg-sky-50 text-sky-700',
-  neutral: 'border-slate-200 bg-white text-slate-700',
+  included: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400',
+  excluded: 'border-slate-200 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
+  addon: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400',
+  custom: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-400',
+  neutral: 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
 export default function Home() {
@@ -231,17 +231,17 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-[#25D366]/30">
-      <nav className="fixed top-0 z-50 w-full border-b border-slate-100 bg-white/85 backdrop-blur-md">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-[#25D366]/30">
+      <nav className="fixed top-0 z-50 w-full border-b border-slate-100 dark:border-slate-800 bg-white/85 dark:bg-slate-950/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#25D366]">
               <MessageSquare className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight">Tawasel App</span>
+            <span className="text-xl font-bold tracking-tight dark:text-white">Tawasel App</span>
           </div>
 
-          <div className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
+          <div className="hidden items-center gap-8 text-sm font-medium text-slate-600 dark:text-slate-400 md:flex">
             <a href="#features" className="transition-colors hover:text-[#25D366]">
               Features
             </a>
@@ -252,12 +252,12 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => navigate(getPostLoginPath(user))}
-                className="rounded-full bg-slate-900 px-4 py-2 text-white transition-colors hover:bg-slate-800"
+                className="rounded-full bg-slate-900 dark:bg-white dark:text-slate-900 px-4 py-2 text-white transition-colors hover:bg-slate-800 dark:hover:bg-slate-200"
               >
                 Open Dashboard
               </button>
             ) : (
-              <a href="#login" className="rounded-full bg-slate-900 px-4 py-2 text-white transition-colors hover:bg-slate-800">
+              <a href="#login" className="rounded-full bg-slate-900 dark:bg-white dark:text-slate-900 px-4 py-2 text-white transition-colors hover:bg-slate-800 dark:hover:bg-slate-200">
                 Sign In
               </a>
             )}
@@ -280,7 +280,7 @@ export default function Home() {
               Turn WhatsApp into your
               <span className="text-[#25D366]"> sales, support, and follow-up engine.</span>
             </h1>
-            <p className="mb-8 max-w-xl text-xl leading-relaxed text-slate-600">
+            <p className="mb-8 max-w-xl text-xl leading-relaxed text-slate-600 dark:text-slate-400">
               Tawasel gives your team one shared WhatsApp inbox, one CRM workflow, and one performance dashboard so no lead gets lost between replies, follow-ups, and broadcasts.
             </p>
             <div className="flex flex-wrap gap-4">
@@ -294,12 +294,12 @@ export default function Home() {
                 {trustedTeamMarkers.map((initials) => (
                   <div
                     key={initials}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-slate-900 text-xs font-bold text-white"
+                    className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white dark:border-slate-800 bg-slate-900 text-xs font-bold text-white"
                   >
                     {initials}
                   </div>
                 ))}
-                <span className="ml-4 text-sm font-medium text-slate-500">Trusted by 2,000+ teams</span>
+                <span className="ml-4 text-sm font-medium text-slate-500 dark:text-slate-400">Trusted by 2,000+ teams</span>
               </div>
             </div>
           </motion.div>
@@ -309,18 +309,18 @@ export default function Home() {
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.15 }}
-            className="rounded-3xl border border-slate-200 bg-slate-50 p-8 lg:p-12"
+            className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-8 lg:p-12"
           >
             <div className="mb-8">
               <h2 className="mb-2 text-2xl font-bold">{isSignUp ? 'Create your account' : 'Sign in to Tawasel App'}</h2>
-              <p className="text-slate-500">
+              <p className="text-slate-500 dark:text-slate-400">
                 {isSignUp
                   ? 'Create your workspace now, then unlock your WhatsApp inbox, CRM, and automation from billing.'
                   : 'Access your dashboard, WhatsApp inbox, and team workflows.'}
               </p>
             </div>
 
-            <div className="mb-8 flex rounded-xl bg-slate-200 p-1">
+            <div className="mb-8 flex rounded-xl bg-slate-200 dark:bg-slate-800 p-1">
               <button
                 type="button"
                 onClick={() => {
@@ -328,7 +328,7 @@ export default function Home() {
                   setError('');
                 }}
                 className={`flex-1 rounded-lg py-2 text-sm font-bold transition-all ${
-                  !isSignUp ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  !isSignUp ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 Sign In
@@ -340,7 +340,7 @@ export default function Home() {
                   setError('');
                 }}
                 className={`flex-1 rounded-lg py-2 text-sm font-bold transition-all ${
-                  isSignUp ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  isSignUp ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 Sign Up
@@ -350,7 +350,7 @@ export default function Home() {
             <form onSubmit={handleLogin} className="space-y-4">
               {isSignUp ? (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Full Name</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Full Name</label>
                   <div className="relative">
                     <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
@@ -358,7 +358,7 @@ export default function Home() {
                       value={name}
                       onChange={(event) => setName(event.target.value)}
                       autoComplete="name"
-                      className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 outline-none transition-all focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white py-3 pl-10 pr-4 outline-none transition-all focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20"
                       placeholder="John Doe"
                       required
                     />
@@ -375,7 +375,7 @@ export default function Home() {
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     autoComplete="email"
-                    className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 outline-none transition-all focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white py-3 pl-10 pr-4 outline-none transition-all focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20"
                     placeholder="name@company.com"
                     required
                   />
@@ -384,7 +384,8 @@ export default function Home() {
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-3">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Password</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Password</label>
+
                   {!isSignUp ? (
                     <button
                       type="button"
@@ -402,14 +403,14 @@ export default function Home() {
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     autoComplete={isSignUp ? 'new-password' : 'current-password'}
-                    className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-12 outline-none transition-all focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white py-3 pl-10 pr-12 outline-none transition-all focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20"
                     placeholder="........"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((value) => !value)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 transition hover:text-slate-600 dark:hover:text-slate-300"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -419,24 +420,24 @@ export default function Home() {
 
               {isSignUp ? (
                 <>
-                  <div className="grid gap-2 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
+                  <div className="grid gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-xs text-slate-600 dark:text-slate-400">
                     {passwordChecks.map((item) => (
                       <div key={item.label} className="flex items-center gap-2">
                         <span
                           className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] ${
-                            item.valid ? 'bg-[#25D366] text-white' : 'bg-slate-200 text-slate-500'
+                            item.valid ? 'bg-[#25D366] text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
                           }`}
                         >
                           <Check className="h-3 w-3" />
                         </span>
-                        <span className={item.valid ? 'text-slate-800' : 'text-slate-500'}>{item.label}</span>
+                        <span className={item.valid ? 'text-slate-800 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400'}>{item.label}</span>
                       </div>
                     ))}
-                    <p className="text-[11px] text-slate-500">Maximum 72 characters.</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Maximum 72 characters.</p>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Confirm Password</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Confirm Password</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                       <input
@@ -444,14 +445,14 @@ export default function Home() {
                         value={confirmPassword}
                         onChange={(event) => setConfirmPassword(event.target.value)}
                         autoComplete="new-password"
-                        className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-12 outline-none transition-all focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20"
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white py-3 pl-10 pr-12 outline-none transition-all focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20"
                         placeholder="Repeat your password"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword((value) => !value)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 transition hover:text-slate-600 dark:hover:text-slate-300"
                         aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
                       >
                         {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -466,12 +467,12 @@ export default function Home() {
                 </>
               ) : null}
 
-              {error ? <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-600">{error}</div> : null}
+              {error ? <div className="rounded-lg border border-red-100 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-3 text-sm text-red-600 dark:text-red-400">{error}</div> : null}
 
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-4 font-bold text-white transition-all hover:bg-slate-800 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-white dark:text-slate-900 py-4 font-bold text-white transition-all hover:bg-slate-800 dark:hover:bg-slate-200 disabled:opacity-50"
               >
                 {isLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -485,7 +486,7 @@ export default function Home() {
             </form>
 
             {isSignUp ? (
-              <p className="mt-4 text-sm text-slate-500">
+              <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
                 Your workspace opens first, then billing unlocks the paid package you choose.
               </p>
             ) : null}
@@ -493,11 +494,11 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="features" className="bg-slate-50 py-24">
+      <section id="features" className="bg-slate-50 dark:bg-slate-900 py-24">
         <div className="mx-auto max-w-7xl px-4">
           <div className="mb-16 text-center">
-            <h2 className="mb-4 text-3xl font-bold">Everything you need to run WhatsApp like a real revenue channel</h2>
-            <p className="mx-auto max-w-2xl text-slate-600">
+            <h2 className="mb-4 text-3xl font-bold dark:text-white">Everything you need to run WhatsApp like a real revenue channel</h2>
+            <p className="mx-auto max-w-2xl text-slate-600 dark:text-slate-400">
               Tawasel is not just a shared WhatsApp inbox. It combines WhatsApp CRM, AI automation, broadcasts, and accountability so your team can move faster without losing context.
             </p>
           </div>
@@ -506,41 +507,41 @@ export default function Home() {
             {FEATURE_ITEMS.map((feature) => (
               <div
                 key={feature.title}
-                className="rounded-2xl border border-slate-200 bg-white p-8 transition-all hover:-translate-y-1 hover:shadow-xl"
+                className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-8 transition-all hover:-translate-y-1 hover:shadow-xl"
               >
                 <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-[#25D366]/10">
                   <feature.icon className="h-6 w-6 text-[#25D366]" />
                 </div>
-                <h3 className="mb-3 text-xl font-bold">{feature.title}</h3>
-                <p className="leading-relaxed text-slate-600">{feature.desc}</p>
+                <h3 className="mb-3 text-xl font-bold dark:text-white">{feature.title}</h3>
+                <p className="leading-relaxed text-slate-600 dark:text-slate-400">{feature.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="pricing" className="bg-gradient-to-b from-white via-slate-50/70 to-white py-24">
+      <section id="pricing" className="bg-gradient-to-b from-white via-slate-50/70 to-white dark:from-slate-950 dark:via-slate-900/70 dark:to-slate-950 py-24">
         <div className="mx-auto max-w-7xl px-4">
           <div className="mb-14 text-center">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#25D366]/15 bg-[#25D366]/8 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-[#128C7E]">
               <Sparkles className="h-3.5 w-3.5" />
               Pricing built for operators, not vanity metrics
             </div>
-            <h2 className="mb-4 text-4xl font-bold tracking-tight text-slate-950 lg:text-5xl">
+            <h2 className="mb-4 text-4xl font-bold tracking-tight text-slate-950 dark:text-white lg:text-5xl">
               Pick the plan that matches your team today.
             </h2>
-            <p className="mx-auto max-w-3xl text-base leading-8 text-slate-600 lg:text-lg">
+            <p className="mx-auto max-w-3xl text-base leading-8 text-slate-600 dark:text-slate-400 lg:text-lg">
               Tawasel keeps your WhatsApp inbox, CRM, broadcasts, and AI in one operational system, so every upgrade unlocks clearer
               execution, not just more seats.
             </p>
-            <div className="mt-8 inline-flex rounded-full border border-slate-300 bg-white p-1.5 shadow-sm shadow-slate-200/70">
+            <div className="mt-8 inline-flex rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1.5 shadow-sm shadow-slate-200/70">
               <button
                 type="button"
                 onClick={() => setBillingCycle('monthly')}
                 className={`rounded-full px-5 py-2.5 text-sm font-semibold transition-all ${
                   billingCycle === 'monthly'
-                    ? 'bg-slate-950 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-slate-950 dark:bg-white dark:text-slate-900 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Monthly
@@ -551,13 +552,13 @@ export default function Home() {
                 className={`rounded-full px-5 py-2.5 text-sm font-semibold transition-all ${
                   billingCycle === 'annual'
                     ? 'bg-[#25D366] text-white shadow-sm shadow-[#25D366]/20'
-                    : 'text-slate-600 hover:text-slate-900'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Annual - Save 20%
               </button>
             </div>
-            <p className="mt-3 text-sm font-medium text-slate-500">
+            <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
               Annual pricing is already defined and can be activated in checkout when billing goes live.
             </p>
           </div>
@@ -570,8 +571,8 @@ export default function Home() {
                     key={planKey}
                     className={`relative flex h-full flex-col overflow-hidden rounded-[2rem] border p-8 transition-all ${
                       plan.highlight
-                        ? 'border-[#25D366]/50 bg-white shadow-[0_28px_70px_-28px_rgba(37,211,102,0.42)] ring-1 ring-[#25D366]/20'
-                        : 'border-slate-200 bg-white shadow-[0_18px_45px_-30px_rgba(15,23,42,0.28)] hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_26px_70px_-36px_rgba(15,23,42,0.32)]'
+                        ? 'border-[#25D366]/50 bg-white dark:bg-slate-900 shadow-[0_28px_70px_-28px_rgba(37,211,102,0.42)] ring-1 ring-[#25D366]/20'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.28)] hover:-translate-y-1 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-[0_26px_70px_-36px_rgba(15,23,42,0.32)]'
                     }`}
                   >
                     {plan.highlight ? (
@@ -582,7 +583,7 @@ export default function Home() {
                       <div className="flex items-start justify-between gap-3">
                         <p
                           className={`max-w-[13rem] text-xs font-bold uppercase tracking-[0.22em] ${
-                            plan.highlight ? 'text-[#128C7E]' : 'text-slate-500'
+                            plan.highlight ? 'text-[#128C7E]' : 'text-slate-500 dark:text-slate-400'
                           }`}
                         >
                           {plan.shortLabel}
@@ -594,12 +595,12 @@ export default function Home() {
                         ) : null}
                       </div>
                       <div className="mt-4">
-                        <h3 className="text-2xl font-bold text-slate-950">{plan.name}</h3>
-                        <p className="mt-2 max-w-xs text-sm leading-6 text-slate-600">{plan.description}</p>
+                        <h3 className="text-2xl font-bold text-slate-950 dark:text-white">{plan.name}</h3>
+                        <p className="mt-2 max-w-xs text-sm leading-6 text-slate-600 dark:text-slate-400">{plan.description}</p>
                       </div>
                       <div className="mt-6 flex items-end gap-2">
-                        <span className="text-5xl font-bold tracking-tight text-slate-950">AED {getPlanPrice(plan, billingCycle)}</span>
-                        <span className="pb-2 text-sm font-semibold text-slate-500">/ month</span>
+                        <span className="text-5xl font-bold tracking-tight text-slate-950 dark:text-white">AED {getPlanPrice(plan, billingCycle)}</span>
+                        <span className="pb-2 text-sm font-semibold text-slate-500 dark:text-slate-400">/ month</span>
                       </div>
                       <p className="mt-2 text-sm font-medium text-[#128C7E]">
                         {billingCycle === 'annual'
@@ -608,28 +609,28 @@ export default function Home() {
                       </p>
                     </div>
 
-                    <div className="mb-8 grid gap-3 rounded-2xl bg-slate-50 p-4">
-                      <div className="flex items-center justify-between text-sm text-slate-600">
+                    <div className="mb-8 grid gap-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4">
+                      <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
                         <span>Contacts</span>
-                        <span className="font-semibold text-slate-900">{formatLimitValue(plan.contactsLimit)}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{formatLimitValue(plan.contactsLimit)}</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm text-slate-600">
+                      <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
                         <span>Broadcasts / month</span>
-                        <span className="font-semibold text-slate-900">{formatLimitValue(plan.broadcastLimit)}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{formatLimitValue(plan.broadcastLimit)}</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm text-slate-600">
+                      <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
                         <span>AI assistants</span>
-                        <span className="font-semibold text-slate-900">{formatLimitValue(plan.chatbotLimit)}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{formatLimitValue(plan.chatbotLimit)}</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm text-slate-600">
+                      <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
                         <span>Team members</span>
-                        <span className="font-semibold text-slate-900">{formatLimitValue(plan.userLimit)}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{formatLimitValue(plan.userLimit)}</span>
                       </div>
                     </div>
 
                     <ul className="mb-8 space-y-3">
                       {plan.cardHighlights.map((feature) => (
-                        <li key={feature} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
+                        <li key={feature} className="flex items-start gap-3 text-sm leading-6 text-slate-700 dark:text-slate-300">
                           <span className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#25D366]/10 text-[#128C7E]">
                             <Check className="h-3.5 w-3.5" />
                           </span>
@@ -645,27 +646,27 @@ export default function Home() {
                         className={`w-full rounded-2xl py-4 text-sm font-bold transition-all ${
                           plan.highlight
                             ? 'bg-[#25D366] text-white shadow-lg shadow-[#25D366]/20 hover:bg-[#128C7E]'
-                            : 'border border-slate-300 bg-white text-slate-900 hover:border-slate-900 hover:bg-slate-900 hover:text-white'
+                            : 'border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white hover:border-slate-900 dark:hover:border-white hover:bg-slate-900 dark:hover:bg-white hover:text-white dark:hover:text-slate-900'
                         }`}
                       >
                         {user ? 'Choose Plan' : 'Start With This Plan'}
                       </button>
-                      <p className="text-xs leading-5 text-slate-500">{plan.audience}</p>
+                      <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{plan.audience}</p>
                     </div>
                   </div>
                 );
               })}
           </div>
 
-          <div className="mt-12 rounded-[2rem] border border-slate-200 bg-white px-6 py-6 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.28)] sm:px-8">
+          <div className="mt-12 rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-6 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.28)] sm:px-8">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#128C7E]">Why teams move to Tawasel</p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{PRICING_VALUE_STATEMENT}</p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">{PRICING_VALUE_STATEMENT}</p>
               </div>
-              <div className="flex flex-wrap gap-3 text-sm text-slate-600">
+              <div className="flex flex-wrap gap-3 text-sm text-slate-600 dark:text-slate-400">
                 {PRICING_TRUST_SIGNALS.map((signal) => (
-                  <span key={signal} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 font-semibold text-slate-700">
+                  <span key={signal} className="rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2 font-semibold text-slate-700 dark:text-slate-300">
                     {signal}
                   </span>
                 ))}
@@ -673,8 +674,8 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-16 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.28)] sm:p-8 lg:p-10">
-            <div className="flex flex-col gap-4 border-b border-slate-200 pb-8 lg:flex-row lg:items-end lg:justify-between">
+          <div className="mt-16 rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.28)] sm:p-8 lg:p-10">
+            <div className="flex flex-col gap-4 border-b border-slate-200 dark:border-slate-800 pb-8 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#128C7E]">Comparison</p>
                 <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Compare the features that change operations day to day.</h3>

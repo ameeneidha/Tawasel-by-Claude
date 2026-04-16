@@ -5,6 +5,7 @@ import { useApp } from '../contexts/AppContext';
 import { Loader2, Search, Plus, Users, Tags, CheckSquare, Square, Upload, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
+import { Skeleton, SkeletonTable } from '../components/ui/Skeleton';
 import ContactListPicker from '../components/ContactListPicker';
 import {
   DEFAULT_PIPELINE_STAGE_KEY,
@@ -471,8 +472,38 @@ export default function Contacts() {
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#25D366]" />
+      <div className="h-full overflow-hidden bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
+        <div className="flex h-full">
+          {/* Sidebar skeleton */}
+          <aside className="w-72 border-r border-gray-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <Skeleton className="h-11 w-full rounded-2xl mb-5" />
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-9 w-full rounded-xl" />
+              ))}
+            </div>
+          </aside>
+
+          {/* Main content skeleton */}
+          <main className="flex-1 overflow-auto p-6">
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-56" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-36 rounded-2xl" />
+                <Skeleton className="h-10 w-36 rounded-2xl" />
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <Skeleton className="h-11 w-full max-w-md rounded-2xl" />
+            </div>
+
+            <SkeletonTable rows={8} columns={6} />
+          </main>
+        </div>
       </div>
     );
   }
@@ -480,7 +511,7 @@ export default function Contacts() {
   if (!activeWorkspace) {
     return (
       <div className="h-full flex items-center justify-center bg-[#F8F9FA] dark:bg-slate-950 transition-colors p-6">
-        <div className="max-w-md rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-slate-800">
             <Users className="h-6 w-6" />
           </div>
@@ -496,7 +527,7 @@ export default function Contacts() {
   return (
     <div className="h-full overflow-hidden bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
       <div className="flex h-full">
-        <aside className="w-72 border-r border-gray-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+        <aside className="w-72 border-r border-gray-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
           <button
             disabled={!hasFullAccess}
             onClick={() => {
@@ -607,7 +638,7 @@ export default function Contacts() {
           )}
 
           {selectedContactIds.length > 0 && (
-            <div className="mb-4 rounded-3xl border border-[#25D366]/15 bg-white p-4 shadow-sm dark:border-[#25D366]/20 dark:bg-slate-900">
+            <div className="mb-4 rounded-2xl border border-[#25D366]/15 bg-white p-4 shadow-sm dark:border-[#25D366]/20 dark:bg-slate-900">
               <div className="mb-3 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -657,7 +688,7 @@ export default function Contacts() {
             </div>
           )}
 
-          <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <table className="min-w-full divide-y divide-gray-100 dark:divide-slate-800">
               <thead className="bg-gray-50 dark:bg-slate-950/50">
                 <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
@@ -744,7 +775,7 @@ export default function Contacts() {
 
       {showContactModal && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/35 p-4">
-          <form onSubmit={createContact} className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+          <form onSubmit={createContact} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">New Contact</h2>
             <div className="mt-5 space-y-4">
               <input
@@ -795,7 +826,7 @@ export default function Contacts() {
 
       {showListModal && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/35 p-4">
-          <form onSubmit={createList} className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+          <form onSubmit={createList} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">New Contact List</h2>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Create a reusable list from the contacts you selected.
@@ -829,7 +860,7 @@ export default function Contacts() {
 
       {showImportModal && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/35 p-4">
-          <form onSubmit={submitCsvImport} className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+          <form onSubmit={submitCsvImport} className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Import Contacts from CSV</h2>
@@ -851,7 +882,7 @@ export default function Contacts() {
 
             <div className="mt-5 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="space-y-5">
-                <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 p-5 dark:border-slate-700 dark:bg-slate-950/40">
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-5 dark:border-slate-700 dark:bg-slate-950/40">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-gray-900 dark:text-white">Upload CSV file</p>
@@ -1010,13 +1041,13 @@ export default function Contacts() {
               </div>
 
               <div className="space-y-5">
-                <div className="rounded-3xl border border-gray-100 bg-gray-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/40">
+                <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/40">
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white">Import preview</h3>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     Previewing the first {Math.min(previewRows.length, 5)} rows after mapping.
                   </p>
 
-                  <div className="mt-4 overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-slate-800 dark:bg-slate-900">
+                  <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900">
                     <table className="min-w-full divide-y divide-gray-100 dark:divide-slate-800">
                       <thead className="bg-gray-50 dark:bg-slate-950/50">
                         <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">

@@ -129,7 +129,7 @@ export default function Chatbots() {
                 key={bot.id}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group"
+                className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="p-2 bg-[#25D366]/10 text-[#25D366] rounded-xl">
@@ -150,7 +150,7 @@ export default function Chatbots() {
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{bot.name}</h3>
                 <div className="flex flex-wrap gap-2 mb-6">
                   {bot.numbers.map((num: any) => (
-                    <div key={num.id} className="flex items-center gap-1 px-2 py-1 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 text-[10px] font-medium rounded-lg border border-gray-100 dark:border-slate-700 transition-colors">
+                    <div key={num.id} className="flex items-center gap-1 px-2 py-1 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 text-[10px] font-medium rounded-lg border border-gray-200 dark:border-slate-700 transition-colors">
                       <Hash className="w-3 h-3" />
                       {num.phoneNumber}
                     </div>
@@ -309,7 +309,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-slate-900 transition-colors">
-      <div className="h-16 border-b border-gray-100 dark:border-slate-800 px-6 flex items-center justify-between shrink-0 transition-colors">
+      <div className="h-16 border-b border-gray-200 dark:border-slate-800 px-6 flex items-center justify-between shrink-0 transition-colors">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400 dark:text-gray-500 transition-colors">
             <ChevronRight className="w-5 h-5 rotate-180" />
@@ -344,8 +344,8 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left: Config Panel */}
-        <div className="w-1/2 border-r border-gray-100 dark:border-slate-800 flex flex-col transition-colors">
-          <div className="flex border-b border-gray-100 dark:border-slate-800 transition-colors">
+        <div className="w-1/2 border-r border-gray-200 dark:border-slate-800 flex flex-col transition-colors">
+          <div className="flex border-b border-gray-200 dark:border-slate-800 transition-colors">
             <button 
               onClick={() => setActiveTab('info')}
               className={cn(
@@ -517,7 +517,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                 </div>
                 <div className="space-y-4">
                   {bot.tools.map((tool: any) => (
-                    <div key={tool.id} className="p-4 bg-gray-50 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 flex items-start justify-between transition-colors">
+                    <div key={tool.id} className="p-4 bg-gray-50 dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 flex items-start justify-between transition-colors">
                       <div className="flex gap-3">
                         <div className="p-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm transition-colors">
                           <Zap className="w-4 h-4 text-amber-500" />
@@ -543,7 +543,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
 
         {/* Right: Test Panel */}
         <div className="flex-1 flex flex-col bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
-          <div className="h-12 px-6 flex items-center border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 transition-colors">
+          <div className="h-12 px-6 flex items-center border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 transition-colors">
             <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('chatbots.testYourBot')}</h3>
           </div>
           
@@ -588,7 +588,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
             )}
           </div>
 
-          <div className="p-4 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 shrink-0 transition-colors">
+          <div className="p-4 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 shrink-0 transition-colors">
             <form onSubmit={handleTestSend} className="flex items-center gap-2">
               <input
                 type="text"

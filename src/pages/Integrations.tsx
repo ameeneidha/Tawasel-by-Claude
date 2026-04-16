@@ -83,7 +83,7 @@ export default function Integrations() {
             key={app.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-gray-200 dark:hover:border-slate-700 hover:shadow-sm transition-all flex flex-col group"
+            className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-700 hover:shadow-sm transition-all flex flex-col group"
           >
             <div className="flex items-start justify-between mb-6">
               <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-colors", 
@@ -140,7 +140,7 @@ export default function Integrations() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-gray-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-dashed border-gray-200 dark:border-slate-800 flex flex-col items-center justify-center text-center group cursor-pointer hover:bg-white dark:hover:bg-slate-900 hover:border-[#25D366] transition-all"
         >
-          <div className="w-14 h-14 rounded-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <div className="w-14 h-14 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <Zap className="w-6 h-6 text-gray-400 group-hover:text-[#25D366]" />
           </div>
           <h3 className="font-bold text-gray-900 dark:text-white mb-1">{t('integrations.requestIntegration')}</h3>

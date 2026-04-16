@@ -41,7 +41,7 @@ export default function WebChatWidget() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           {/* Configuration */}
-          <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800 space-y-6 transition-colors">
+          <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 space-y-6 transition-colors">
             <div className="flex items-center gap-2 mb-2">
               <Palette className="w-5 h-5 text-[#25D366]" />
               <h2 className="font-semibold text-gray-900 dark:text-white">{t('webChat.appearance')}</h2>
@@ -177,7 +177,7 @@ export default function WebChatWidget() {
                 initial={{ opacity: 0, y: 20, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 className={cn(
-                  "absolute bottom-24 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-800 overflow-hidden transition-colors",
+                  "absolute bottom-24 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden transition-colors",
                   config.position === 'left' ? "left-6" : "right-6"
                 )}
               >

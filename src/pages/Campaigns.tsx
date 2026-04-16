@@ -412,7 +412,7 @@ export default function Campaigns() {
                 return (
                   <div
                     key={campaign.id}
-                    className="flex items-center gap-4 p-4 rounded-lg border border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
+                    className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
                   >
                     <span className="text-2xl">{plat?.icon || '🔗'}</span>
                     <div className="flex-1 min-w-0">

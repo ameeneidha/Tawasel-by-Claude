@@ -282,8 +282,8 @@ export default function Team() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden transition-colors">
-          <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-gray-50/50 dark:bg-slate-800/50 transition-colors">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden transition-colors">
+          <div className="p-4 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between bg-gray-50/50 dark:bg-slate-800/50 transition-colors">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -291,7 +291,7 @@ export default function Team() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('team.searchPlaceholder')}
-                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#25D366]/10 transition-colors"
+                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#25D366]/10 transition-colors"
               />
             </div>
           </div>
@@ -299,7 +299,7 @@ export default function Team() {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-gray-100 dark:border-slate-800">
+                <tr className="border-b border-gray-200 dark:border-slate-800">
                   <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('team.member')}</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('team.role')}</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('common.status')}</th>
@@ -400,8 +400,8 @@ export default function Team() {
 
       {isInviteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-gray-100 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5 dark:border-slate-800">
+          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5 dark:border-slate-800">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{t('team.inviteTeamMember')}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -474,7 +474,7 @@ export default function Team() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-gray-100 px-6 py-5 dark:border-slate-800">
+            <div className="flex items-center justify-between border-t border-gray-200 px-6 py-5 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setIsInviteOpen(false)}
@@ -497,8 +497,8 @@ export default function Team() {
 
       {editingMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-gray-100 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5 dark:border-slate-800">
+          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5 dark:border-slate-800">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{t('team.editTeamMember')}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -563,7 +563,7 @@ export default function Team() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-gray-100 px-6 py-5 dark:border-slate-800">
+            <div className="flex items-center justify-between border-t border-gray-200 px-6 py-5 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setEditingMember(null)}

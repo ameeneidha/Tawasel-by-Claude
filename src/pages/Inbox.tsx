@@ -940,7 +940,7 @@ export default function Inbox() {
               <button
                 key={ws.id}
                 onClick={() => setActiveWorkspace(ws)}
-                className="flex items-center gap-3 p-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl hover:border-[#25D366] hover:shadow-md transition-all text-left group cursor-pointer"
+                className="flex items-center gap-3 p-4 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl hover:border-[#25D366] hover:shadow-md transition-all text-left group cursor-pointer"
               >
                 <div className="w-10 h-10 bg-gray-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-gray-400 dark:text-gray-600 group-hover:bg-[#25D366]/10 group-hover:text-[#25D366] font-bold">
                   {ws.name[0]}
@@ -957,7 +957,7 @@ export default function Inbox() {
               onClick={() => setIsCreatingWorkspace(true)}
               className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-slate-900/50 border border-dashed border-gray-200 dark:border-slate-800 rounded-2xl hover:border-[#25D366] hover:bg-white dark:hover:bg-slate-900 transition-all text-left group cursor-pointer"
             >
-              <div className="w-10 h-10 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 rounded-xl flex items-center justify-center text-gray-400 dark:text-gray-600 group-hover:text-[#25D366]">
+              <div className="w-10 h-10 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-800 rounded-xl flex items-center justify-center text-gray-400 dark:text-gray-600 group-hover:text-[#25D366]">
                 <Plus className="w-5 h-5" />
               </div>
               <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 group-hover:text-[#25D366]">{t('inbox.newWorkspace')}</p>
@@ -974,14 +974,14 @@ export default function Inbox() {
                 {t('inbox.createFirstWorkspace')}
               </button>
             ) : (
-              <form onSubmit={handleCreateWorkspace} className="bg-gray-50 dark:bg-slate-900 p-6 rounded-2xl border border-gray-100 dark:border-slate-800">
+              <form onSubmit={handleCreateWorkspace} className="bg-gray-50 dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800">
                 <input
                   autoFocus
                   type="text"
                   placeholder={t('inbox.workspaceNamePlaceholder')}
                   value={newWorkspaceName}
                   onChange={(e) => setNewWorkspaceName(e.target.value)}
-                  className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#25D366]/20 mb-4"
+                  className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#25D366]/20 mb-4"
                 />
                 <div className="flex gap-2">
                   <button
@@ -1011,7 +1011,7 @@ export default function Inbox() {
     <div className="h-full flex bg-white dark:bg-slate-950 transition-colors">
       {/* Left Column: Conversation List */}
       <div className={cn(
-        "w-full md:w-80 border-r border-gray-100 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-colors",
+        "w-full md:w-80 border-r border-gray-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-colors",
         selectedConv && "hidden md:flex"
       )}>
         {isRestrictedMode && (
@@ -1021,7 +1021,7 @@ export default function Inbox() {
               : t('inbox.verifyEmailFirst')}
           </div>
         )}
-        <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="p-4 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-[#25D366] rounded-full" />
             <span className="font-medium text-sm dark:text-gray-200">{t('inbox.active')}</span>
@@ -1055,7 +1055,7 @@ export default function Inbox() {
         </div>
 
         {(isSearchOpen || showFilters) && (
-          <div className="border-b border-gray-100 dark:border-slate-800 px-4 py-3 space-y-3 bg-white dark:bg-slate-900">
+          <div className="border-b border-gray-200 dark:border-slate-800 px-4 py-3 space-y-3 bg-white dark:bg-slate-900">
             {isSearchOpen && (
               <input
                 type="text"
@@ -1254,13 +1254,13 @@ export default function Inbox() {
           </div>
         )}
         {(!hasFullAccess || conversations.length === 0) && (
-          <div className="shrink-0 border-b border-gray-100 p-6 dark:border-slate-800">
+          <div className="shrink-0 border-b border-gray-200 p-6 dark:border-slate-800">
             <ActivationChecklist />
           </div>
         )}
         {selectedConv ? (
           <>
-            <div className="h-16 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-4 md:px-6 flex items-center justify-between shrink-0 transition-colors">
+            <div className="h-16 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 md:px-6 flex items-center justify-between shrink-0 transition-colors">
               <div className="flex items-center gap-3">
                 <button
                   className="md:hidden mr-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -1352,7 +1352,7 @@ export default function Inbox() {
                   </AppTooltip>
                 )}
                 <div
-                  className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800"
+                  className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800"
                   style={{
                     borderColor: `${activePipelineStageColor}4D`,
                     backgroundColor: `${activePipelineStageColor}14`,
@@ -1378,7 +1378,7 @@ export default function Inbox() {
                     />
                   </div>
                 </div>
-                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700">
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                   <span className="text-xs text-gray-500 dark:text-gray-400">Assigned to:</span>
                   <select
                     value={selectedConv.assignedToId || ''}
@@ -1390,7 +1390,7 @@ export default function Inbox() {
                     {/* In a real app, we'd fetch all team members here */}
                   </select>
                 </div>
-                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700">
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                   <span className="text-xs text-gray-500 dark:text-gray-400">From:</span>
                     <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                       {selectedConv.channelType === 'INSTAGRAM' 
@@ -1420,7 +1420,7 @@ export default function Inbox() {
                   {showConvMenu && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowConvMenu(false)} />
-                      <div className="absolute right-0 top-full mt-1 z-50 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 py-1 text-sm">
+                      <div className="absolute right-0 top-full mt-1 z-50 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 py-1 text-sm">
                         <button
                           onClick={async () => {
                             setShowConvMenu(false);
@@ -1456,7 +1456,7 @@ export default function Inbox() {
                           <Trash2 className="w-4 h-4 text-orange-500" />
                           Clear Messages
                         </button>
-                        <div className="border-t border-gray-100 dark:border-slate-700 my-1" />
+                        <div className="border-t border-gray-200 dark:border-slate-700 my-1" />
                         <button
                           onClick={async () => {
                             setShowConvMenu(false);
@@ -1593,7 +1593,7 @@ export default function Inbox() {
 
             {/* Quote reply preview bar */}
             {replyToMessage && (
-              <div className="px-4 py-2 bg-gray-50 dark:bg-slate-800 border-t border-gray-100 dark:border-slate-700 flex items-center gap-3">
+              <div className="px-4 py-2 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center gap-3">
                 <div className="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-700 border-l-4 border-[#25D366] text-sm flex items-center gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-[#25D366] text-xs mb-0.5">
@@ -1616,7 +1616,7 @@ export default function Inbox() {
               </div>
             )}
 
-            <div className="p-4 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 shrink-0 transition-colors">
+            <div className="p-4 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 shrink-0 transition-colors">
               <div className="flex items-center gap-4 mb-3 px-1">
                 <button 
                   onClick={() => setIsInternalMode(false)}
@@ -1746,7 +1746,7 @@ export default function Inbox() {
                     </AppTooltip>
                     {showTemplatePicker && (
                       <div className="absolute bottom-12 left-0 z-20 w-80 max-h-[26rem] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
-                        <div className="border-b border-gray-100 px-3 py-3 dark:border-slate-800">
+                        <div className="border-b border-gray-200 px-3 py-3 dark:border-slate-800">
                           <div className="flex items-center justify-between gap-3">
                             <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                               Session Templates
@@ -1879,7 +1879,7 @@ export default function Inbox() {
       )}
       {/* Right Column: Contact Info / Tasks / Activity */}
       <div className={cn(
-        "w-80 border-l border-gray-100 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-all duration-300",
+        "w-80 border-l border-gray-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-all duration-300",
         "fixed inset-y-0 right-0 z-50 md:relative md:translate-x-0",
         mobileContactPanel ? "translate-x-0" : "translate-x-full md:translate-x-0",
         "hidden md:flex",
@@ -1887,7 +1887,7 @@ export default function Inbox() {
       )}>
         {selectedConv && (
           <>
-            <div className="flex border-b border-gray-100 dark:border-slate-800 shrink-0">
+            <div className="flex border-b border-gray-200 dark:border-slate-800 shrink-0">
               <button
                 className="md:hidden px-3 py-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 onClick={() => setMobileContactPanel(false)}
@@ -2051,7 +2051,7 @@ export default function Inbox() {
                   </div>
 
                   {isAddingTask && (
-                    <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 space-y-3">
+                    <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 space-y-3">
                       <input 
                         type="text"
                         placeholder="Task title..."
@@ -2096,7 +2096,7 @@ export default function Inbox() {
 
                   <div className="space-y-3">
                     {selectedConv.tasks?.length ? selectedConv.tasks.map((task) => (
-                      <div key={task.id} className="p-3 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-sm">
+                      <div key={task.id} className="p-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm">
                         <div className="flex items-start gap-3">
                           <button 
                             onClick={async () => {

@@ -47,7 +47,7 @@ export default function Login() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-black/5 dark:border-slate-800 p-8 transition-colors"
+        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 p-8 transition-colors"
       >
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-[#25D366]/10 rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -131,7 +131,7 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-slate-800 text-center">
+        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-slate-800 text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {t('auth.noAccount')}{' '}
             <Link to="/register" className="text-[#25D366] font-medium hover:text-[#128C7E] transition-colors">

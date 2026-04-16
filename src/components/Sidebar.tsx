@@ -81,7 +81,7 @@ export default function Sidebar() {
         />
       )}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-16 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 flex flex-col items-center py-4 h-screen transition-all duration-300",
+        "fixed inset-y-0 left-0 z-50 w-16 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 flex flex-col items-center py-4 h-screen transition-all duration-300",
         "md:relative md:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
@@ -120,7 +120,7 @@ export default function Sidebar() {
 
       </nav>
 
-      <div className="mt-auto flex flex-col gap-1 pt-2 border-t border-gray-100 dark:border-slate-800">
+      <div className="mt-auto flex flex-col gap-1 pt-2 border-t border-gray-200 dark:border-slate-800">
         <AppTooltip content={isRtl ? 'English' : 'العربية'}>
           <button
             onClick={toggleLanguage}
@@ -152,7 +152,7 @@ export default function Sidebar() {
 
           <DropdownMenu.Portal>
             <DropdownMenu.Content 
-              className="min-w-[240px] bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-gray-100 dark:border-slate-800 p-2 z-50 animate-in fade-in zoom-in-95"
+              className="min-w-[240px] bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-gray-200 dark:border-slate-800 p-2 z-50 animate-in fade-in zoom-in-95"
               side={isRtl ? 'left' : 'right'}
               align="end"
               sideOffset={10}

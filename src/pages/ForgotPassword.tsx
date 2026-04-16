@@ -35,7 +35,7 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] dark:bg-slate-950 flex items-center justify-center p-4 transition-colors">
-      <div className="w-full max-w-md rounded-2xl border border-black/5 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900 transition-colors">
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900 transition-colors">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#25D366]/10">
             <KeyRound className="h-6 w-6 text-[#25D366]" />
@@ -109,7 +109,7 @@ export default function ForgotPassword() {
           </button>
         </form>
 
-        <div className="mt-8 border-t border-gray-100 pt-6 text-center dark:border-slate-800">
+        <div className="mt-8 border-t border-gray-200 pt-6 text-center dark:border-slate-800">
           <Link to="/login" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-[#25D366] dark:text-slate-400">
             <ArrowLeft className="h-4 w-4" />
             Back to sign in

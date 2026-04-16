@@ -267,7 +267,7 @@ export default function Templates() {
                 {t('templates.subtitleAlt')}
               </p>
             </div>
-            <Tabs.List className="flex gap-1 rounded-xl border border-gray-100 bg-white p-1 transition-colors dark:border-slate-800 dark:bg-slate-900">
+            <Tabs.List className="flex gap-1 rounded-xl border border-gray-200 bg-white p-1 transition-colors dark:border-slate-800 dark:bg-slate-900">
               <Tabs.Trigger
                 value="whatsapp"
                 className="rounded-lg px-4 py-1.5 text-sm font-medium text-gray-500 transition-all data-[state=active]:bg-[#25D366] data-[state=active]:text-white dark:text-gray-400"
@@ -292,14 +292,14 @@ export default function Templates() {
                   value={whatsAppSearch}
                   onChange={(event) => setWhatsAppSearch(event.target.value)}
                   placeholder={t('templates.searchWhatsApp')}
-                  className="w-full rounded-xl border border-gray-100 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:ring-2 focus:ring-[#25D366]/10 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:placeholder:text-gray-600"
+                  className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:ring-2 focus:ring-[#25D366]/10 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:placeholder:text-gray-600"
                 />
               </div>
               <button
                 type="button"
                 onClick={() => fetchTemplates('refresh')}
                 disabled={isRefreshing || !activeWorkspace?.id}
-                className="flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 disabled:cursor-wait disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300 dark:hover:bg-slate-800"
+                className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 disabled:cursor-wait disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300 dark:hover:bg-slate-800"
               >
                 <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
                 {t('templates.syncFromWhatsApp')}
@@ -333,7 +333,7 @@ export default function Templates() {
                   value={sessionSearch}
                   onChange={(event) => setSessionSearch(event.target.value)}
                   placeholder={t('templates.searchSession')}
-                  className="w-full rounded-xl border border-gray-100 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:ring-2 focus:ring-[#25D366]/10 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:placeholder:text-gray-600"
+                  className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:ring-2 focus:ring-[#25D366]/10 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:placeholder:text-gray-600"
                 />
               </div>
               <button
@@ -375,7 +375,7 @@ export default function Templates() {
           <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            className="w-full max-w-lg rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -481,7 +481,7 @@ function TemplatesGrid({
         {Array.from({ length: 3 }).map((_, index) => (
           <div
             key={index}
-            className="h-[280px] animate-pulse rounded-2xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
+            className="h-[280px] animate-pulse rounded-2xl border border-gray-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
           />
         ))}
       </div>
@@ -490,7 +490,7 @@ function TemplatesGrid({
 
   if (isEmpty) {
     return (
-      <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900">
+      <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#25D366]/10 text-[#128C7E]">
           <FileText className="h-6 w-6" />
         </div>
@@ -531,7 +531,7 @@ function TemplateCard({
     <motion.div
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+      className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
     >
       <div className="mb-4 flex items-start justify-between">
         <div className="rounded-xl bg-gray-50 p-2 text-gray-600 transition-colors dark:bg-slate-800 dark:text-gray-400">

@@ -181,7 +181,7 @@ export default function FollowUps() {
               "border rounded-xl p-4 transition-all",
               seq.enabled
                 ? "bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700"
-                : "bg-gray-50 dark:bg-slate-900 border-gray-100 dark:border-slate-800 opacity-60"
+                : "bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800 opacity-60"
             )}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
