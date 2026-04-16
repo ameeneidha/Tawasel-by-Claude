@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#065f46"/>
+      <stop offset="50%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="85%" cy="15%" r="50%">
+      <stop offset="0%" stop-color="#6ee7b7" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.5" fill="white" opacity="0.08"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#dots)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- Logo circle -->
+  <g transform="translate(80, 80)">
+    <rect width="96" height="96" rx="22" fill="white"/>
+    <text x="48" y="72" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="68" font-weight="900" fill="#10b981" text-anchor="middle">T</text>
+  </g>
+
+  <!-- Brand name -->
+  <text x="200" y="150" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="42" font-weight="800" fill="white" letter-spacing="-1">Tawasel</text>
+
+  <!-- Headline -->
+  <text x="80" y="320" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="76" font-weight="900" fill="white" letter-spacing="-3">WhatsApp CRM</text>
+  <text x="80" y="410" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="76" font-weight="900" fill="white" letter-spacing="-3">for UAE teams</text>
+
+  <!-- Subline -->
+  <text x="80" y="480" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="28" font-weight="400" fill="white" opacity="0.85">Shared inbox · AI automation · Lead routing · Broadcasts</text>
+
+  <!-- Bottom badge -->
+  <g transform="translate(80, 530)">
+    <rect width="310" height="52" rx="26" fill="white" fill-opacity="0.15" stroke="white" stroke-opacity="0.3"/>
+    <circle cx="26" cy="26" r="6" fill="#6ee7b7"/>
+    <text x="46" y="34" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="600" fill="white">Official Meta Business Partner</text>
+  </g>
+
+  <!-- Domain -->
+  <text x="1120" y="585" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="600" fill="white" opacity="0.7" text-anchor="end">tawasel.io</text>
+</svg>

@@ -1,0 +1,11 @@
+User-agent: *
+# Block authenticated app routes — these require login and have no public value
+Disallow: /app/
+Disallow: /api/
+
+# Allow public-facing pages
+Allow: /login
+Allow: /register
+Allow: /forgot-password
+
+Sitemap: https://app.tawasel.io/sitemap.xml
