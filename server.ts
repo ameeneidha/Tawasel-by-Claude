@@ -118,7 +118,8 @@ async function startServer() {
         if (!origin || ALLOWED_ORIGINS.includes(origin)) {
           return callback(null, true);
         }
-        callback(new Error("Not allowed by CORS"));
+        // Silently reject — no error thrown so Sentry doesn't capture noise
+        callback(null, false);
       },
       methods: ["GET", "POST"],
       credentials: true,
@@ -161,7 +162,8 @@ async function startServer() {
       if (!origin || ALLOWED_ORIGINS.includes(origin)) {
         return callback(null, true);
       }
-      callback(new Error("Not allowed by CORS"));
+      // Silently reject — no error thrown so Sentry doesn't capture noise
+      callback(null, false);
     },
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-workspace-id"],
