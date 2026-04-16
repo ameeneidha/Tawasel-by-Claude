@@ -68,6 +68,9 @@ npx vite build       # Production build
 - RESEND_API_KEY, EMAIL_FROM (e.g., `Tawasel <noreply@tawasel.io>`)
 - INSTAGRAM_ACCESS_TOKEN
 
+## Recently Completed (April 16, 2026)
+- **CORS Sentry noise fix** — replaced `callback(new Error("Not allowed by CORS"))` with `callback(null, false)` in both the Express `corsMiddleware` and Socket.io origin handler. Bots/scanners hitting the API with unlisted `Origin` headers were flooding Sentry with false-positive CORS errors every night. Silent rejection stops the noise while keeping the security behaviour identical.
+
 ## Recently Completed (April 15, 2026) — Production Hardening
 - **PostgreSQL migration** — Prisma now uses `postgresql` provider on Postgres 16; seed rewritten with `TRUNCATE CASCADE`
 - **Hourly pg_dump backups** — cron-driven, 30-day retention, stored in `/root/backups/postgres`

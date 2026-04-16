@@ -89,6 +89,10 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### April 16, 2026
+
+- **CORS Sentry noise fix**: Replaced `callback(new Error(...))` with `callback(null, false)` in both the Express CORS middleware and the Socket.io origin handler. Bots and scanners hitting the API with unlisted `Origin` headers were generating Sentry error alerts every night. Silent rejection stops the noise — browsers still can't make cross-origin requests, but no server-side error is raised.
+
 ### April 15, 2026 — Production Hardening for 100 Workspaces
 
 - **PostgreSQL Migration**: Switched `prisma/schema.prisma` from `sqlite` to `postgresql`. Database now runs on Postgres 16 on the DigitalOcean droplet. Seed script rewritten to use `TRUNCATE ... CASCADE` instead of SQLite-specific resets.
