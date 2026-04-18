@@ -967,6 +967,34 @@ async function startServer() {
           data,
         });
 
+    // ── Register number with Cloud API + subscribe WABA to webhooks ──
+    // These two calls are required after Embedded Signup or the number
+    // stays "Pending" and Meta never delivers webhooks for it.
+    try {
+      await axios.post(
+        `https://graph.facebook.com/${META_GRAPH_VERSION}/${normalizedPhoneNumberId}/register`,
+        { messaging_product: 'whatsapp', pin: '000000' },
+        { headers: { Authorization: `Bearer ${normalizedAccessToken}` } }
+      );
+      console.log(`[embedded-signup] registered phone ${normalizedPhoneNumberId} with Cloud API`);
+    } catch (e: any) {
+      // Non-fatal — number may already be registered
+      console.warn('[embedded-signup] register call failed (may already be registered):', e?.response?.data || e?.message);
+    }
+
+    if (wabaId) {
+      try {
+        await axios.post(
+          `https://graph.facebook.com/${META_GRAPH_VERSION}/${wabaId}/subscribed_apps`,
+          {},
+          { headers: { Authorization: `Bearer ${normalizedAccessToken}` } }
+        );
+        console.log(`[embedded-signup] subscribed WABA ${wabaId} to webhooks`);
+      } catch (e: any) {
+        console.warn('[embedded-signup] webhook subscription failed:', e?.response?.data || e?.message);
+      }
+    }
+
     res.json(savedNumber);
   });
 
