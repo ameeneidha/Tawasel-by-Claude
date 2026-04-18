@@ -1539,6 +1539,27 @@ async function startServer() {
     else res.status(404).json({ error: "User not found" });
   });
 
+  app.post("/api/auth/change-password", requireAuth, async (req: any, res) => {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: "Current and new password are required" });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (!user?.password) {
+      return res.status(400).json({ error: "No password set on this account" });
+    }
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) {
+      return res.status(400).json({ error: "Current password is incorrect" });
+    }
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: user.id }, data: { password: hashed } });
+    res.json({ success: true });
+  });
+
   // Workspace Routes
   app.get("/api/workspaces", requireAuth, async (req: any, res) => {
     const memberships = await prisma.workspaceMembership.findMany({

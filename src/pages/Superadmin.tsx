@@ -15,6 +15,7 @@ import {
   DollarSign,
   ExternalLink,
   Eye,
+  KeyRound,
   Loader2,
   MessageSquare,
   RefreshCw,
@@ -29,7 +30,7 @@ import {
 import { useApp } from '../contexts/AppContext';
 import { cn } from '../lib/utils';
 
-type SuperadminTab = 'overview' | 'workspaces' | 'users' | 'analytics';
+type SuperadminTab = 'overview' | 'workspaces' | 'users' | 'analytics' | 'account';
 
 type SuperadminStats = {
   totalUsers: number;
@@ -154,6 +155,7 @@ const tabs: Array<{ id: SuperadminTab; label: string }> = [
   { id: 'analytics', label: 'Analytics' },
   { id: 'workspaces', label: 'Workspaces' },
   { id: 'users', label: 'Users' },
+  { id: 'account', label: 'Account' },
 ];
 
 const currencyFormatter = new Intl.NumberFormat('en-AE', {
@@ -291,6 +293,96 @@ function TimelineSection({
 
 function hasActiveOverride(ws: SuperadminWorkspaceSummary) {
   return ws.planOverride && ws.planOverrideUntil && new Date(ws.planOverrideUntil) > new Date();
+}
+
+function AccountTab() {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+    setSaving(true);
+    try {
+      await axios.post('/api/auth/change-password', { currentPassword, newPassword });
+      toast.success('Password changed successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to change password');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-md">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+            <KeyRound className="h-5 w-5 text-slate-600" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Change Password</h2>
+            <p className="text-sm text-slate-500">Update your superadmin account password</p>
+          </div>
+        </div>
+        <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-slate-700">Current Password</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={e => setCurrentPassword(e.target.value)}
+              required
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+              placeholder="Enter current password"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-slate-700">New Password</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              required
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+              placeholder="At least 8 characters"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-slate-700">Confirm New Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              required
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+              placeholder="Repeat new password"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+            {saving ? 'Saving...' : 'Update Password'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 export default function Superadmin() {
@@ -1073,6 +1165,11 @@ export default function Superadmin() {
               </>
             )}
           </div>
+        ) : null}
+
+        {/* ── Account Tab ──────────────────────────────────────────── */}
+        {activeTab === 'account' ? (
+          <AccountTab />
         ) : null}
       </div>
 
