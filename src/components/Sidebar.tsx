@@ -182,13 +182,6 @@ export default function Sidebar() {
                     </DropdownMenu.Item>
                   ))}
 
-                  <DropdownMenu.Item asChild>
-                    <Link to="/app/inbox" className="flex items-center gap-2 px-3 py-2 text-sm text-[#25D366] font-medium rounded-lg cursor-pointer outline-none hover:bg-[#25D366]/5 transition-colors">
-                      <Plus className="w-4 h-4" />
-                      {t('sidebar.newWorkspace')}
-                    </Link>
-                  </DropdownMenu.Item>
-
                   <DropdownMenu.Separator className="h-px bg-gray-100 dark:bg-slate-800 my-1" />
                 </>
               )}
