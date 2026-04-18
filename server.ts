@@ -310,6 +310,7 @@ async function startServer() {
   });
 
   app.use(express.json({
+    limit: '2mb', // Allows base64 profile images up to ~1.5MB raw
     verify: (req: any, _res, buf) => {
       req.rawBody = buf?.length ? buf.toString('utf8') : '';
     }
