@@ -61,6 +61,7 @@ npx vite build       # Production build
 - SENTRY_DSN (optional but recommended in production)
 - WEBHOOK_WORKER_CONCURRENCY (optional, default 10)
 - JWT_SECRET
+- **SUPERADMIN_EMAIL + VITE_SUPERADMIN_EMAIL** — must both be set to the superadmin email (e.g. `ameeneidha@gmail.com`). `VITE_SUPERADMIN_EMAIL` is baked into the frontend at build time — if missing, the superadmin sees no dashboard after login. Requires `npx vite build` after adding.
 - OPENAI_API_KEY
 - META_ACCESS_TOKEN, META_PHONE_NUMBER_ID (WhatsApp)
 - META_APP_ID, META_APP_SECRET, META_EMBEDDED_SIGNUP_CONFIG_ID (WhatsApp Embedded Signup)
