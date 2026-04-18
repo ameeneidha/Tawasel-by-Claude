@@ -69,6 +69,12 @@ npx vite build       # Production build
 - RESEND_API_KEY, EMAIL_FROM (e.g., `Tawasel <noreply@tawasel.io>`)
 - INSTAGRAM_ACCESS_TOKEN
 
+## Recently Completed (April 19, 2026)
+- **Profile picture upload** — Upload button in Personal Settings now works. File picker → instant preview → `PATCH /api/users/me` saves base64 image to DB. Full Name also editable with Save Changes button. Context updated immediately so avatar refreshes across the app.
+- **Superadmin change password** — Added Account tab to superadmin dashboard with change password form. Superadmin is locked to `/app/superadmin` so `/app/settings` is unreachable; the form lives directly in the dashboard.
+- **Embedded Signup auto-register** — `finalize` endpoint now calls `POST /{phoneNumberId}/register` + `POST /{wabaId}/subscribed_apps` automatically after DB save, using the per-number OAuth token. Previously every new number stayed "Pending" with no webhooks.
+- **Superadmin dashboard fix** — `VITE_SUPERADMIN_EMAIL` was missing from server `.env`; frontend bakes it at build time so superadmin got no dashboard. Also `SUPERADMIN_EMAIL` (server-side) was missing, causing "Superadmin access required" on all API calls.
+
 ## Recently Completed (April 16, 2026)
 - **CORS Sentry noise fix** — replaced `callback(new Error("Not allowed by CORS"))` with `callback(null, false)` in both the Express `corsMiddleware` and Socket.io origin handler. Bots/scanners hitting the API with unlisted `Origin` headers were flooding Sentry with false-positive CORS errors every night. Silent rejection stops the noise while keeping the security behaviour identical.
 

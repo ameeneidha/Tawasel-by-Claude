@@ -89,6 +89,14 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### April 19, 2026
+
+- **Profile Picture Upload**: Upload button in Personal Settings now works — file picker opens, image previews instantly in the avatar circle, saved to DB via `PATCH /api/users/me`. Full Name field is now editable with a Save Changes button. Avatar updates across the whole app immediately after save.
+- **Superadmin Change Password**: Added an Account tab to the superadmin dashboard with a working change password form. Superadmin was previously locked to `/app/superadmin` with no way to change their password since `/app/settings` is off-limits.
+- **Embedded Signup auto-registration**: The finalize endpoint now automatically calls `POST /{phoneNumberId}/register` and `POST /{wabaId}/subscribed_apps` after saving a number. Previously every customer doing Embedded Signup ended up with a "Pending" number that never received messages — fixed for all future signups.
+- **Superadmin dashboard fix**: `VITE_SUPERADMIN_EMAIL` was missing from server `.env`, causing the superadmin to see no dashboard after login. Added the env var and documented it as required before `npx vite build`.
+- **Superadmin API access fix**: `SUPERADMIN_EMAIL` (server-side) was also missing, causing "Superadmin access required" errors on all API calls from the dashboard.
+
 ### April 16, 2026
 
 - **CORS Sentry noise fix**: Replaced `callback(new Error(...))` with `callback(null, false)` in both the Express CORS middleware and the Socket.io origin handler. Bots and scanners hitting the API with unlisted `Origin` headers were generating Sentry error alerts every night. Silent rejection stops the noise — browsers still can't make cross-origin requests, but no server-side error is raised.
