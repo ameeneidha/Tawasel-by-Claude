@@ -144,7 +144,9 @@ export default function Sidebar() {
             <div>
               <AppTooltip content={t('sidebar.accountMenu')}>
                 <button className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors overflow-hidden text-sm">
-                  {displayName[0] || 'U'}
+                  {user?.image
+                    ? <img src={user.image} alt={displayName} className="w-full h-full object-cover" />
+                    : displayName[0] || 'U'}
                 </button>
               </AppTooltip>
             </div>
