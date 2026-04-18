@@ -93,8 +93,45 @@ export default function Settings() {
 }
 
 function PersonalSettings() {
-  const { user } = useApp();
+  const { user, token, setUser } = useApp();
   const { theme, toggleTheme } = useTheme();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [name, setName] = React.useState(user?.name || '');
+  const [saving, setSaving] = React.useState(false);
+  const [avatarPreview, setAvatarPreview] = React.useState<string | null>(user?.image || null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 800 * 1024) {
+      toast.error('Image too large. Max size is 800KB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setAvatarPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await axios.patch('/api/users/me', {
+        name: name.trim() || user?.name,
+        image: avatarPreview,
+      });
+      setUser(res.data, token);
+      toast.success('Profile updated');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-12">
@@ -105,20 +142,25 @@ function PersonalSettings() {
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-8 transition-colors">
         <div className="flex items-center gap-6">
-          <div className="relative group">
-            <div className="w-24 h-24 bg-gray-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-gray-400 dark:text-gray-500 text-2xl font-bold transition-colors">
-              {user?.name?.[0]}
+          <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+            <div className="w-24 h-24 bg-gray-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-gray-400 dark:text-gray-500 text-2xl font-bold transition-colors overflow-hidden">
+              {avatarPreview
+                ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+                : user?.name?.[0]}
             </div>
-            <button className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <Camera className="w-6 h-6 text-white" />
-            </button>
+            </div>
           </div>
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-white">Profile Picture</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">JPG, GIF or PNG. Max size of 800K</p>
             <div className="flex gap-2 mt-3">
-              <button className="px-4 py-1.5 bg-[#25D366] text-white text-xs font-bold rounded-lg hover:bg-[#128C7E] transition-colors">Upload</button>
-              <button className="px-4 py-1.5 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">Remove</button>
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif" className="hidden" onChange={handleFileChange} />
+              <button onClick={() => fileInputRef.current?.click()} className="px-4 py-1.5 bg-[#25D366] text-white text-xs font-bold rounded-lg hover:bg-[#128C7E] transition-colors">Upload</button>
+              {avatarPreview && (
+                <button onClick={handleRemoveAvatar} className="px-4 py-1.5 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">Remove</button>
+              )}
             </div>
           </div>
         </div>
@@ -126,12 +168,18 @@ function PersonalSettings() {
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
-            <input type="text" defaultValue={user?.name || ''} className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 transition-all" />
+            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 transition-all" />
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
             <input type="email" defaultValue={user?.email || ''} disabled className="w-full px-4 py-2 bg-gray-100 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl outline-none text-gray-500 dark:text-gray-500 cursor-not-allowed transition-all" />
           </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button onClick={handleSave} disabled={saving} className="px-6 py-2 bg-[#25D366] text-white text-sm font-semibold rounded-xl hover:bg-[#128C7E] transition-colors disabled:opacity-60">
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
         </div>
       </div>
 

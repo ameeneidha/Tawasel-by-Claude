@@ -1567,6 +1567,41 @@ async function startServer() {
     else res.status(404).json({ error: "User not found" });
   });
 
+  app.patch("/api/users/me", requireAuth, async (req: any, res) => {
+    const { name, image } = req.body;
+    const updates: any = {};
+
+    if (name !== undefined) {
+      const trimmed = String(name).trim();
+      if (!trimmed) return res.status(400).json({ error: "Name cannot be empty" });
+      updates.name = trimmed;
+    }
+
+    if (image !== undefined) {
+      // Accept base64 data URL or null (to remove)
+      if (image !== null && !String(image).startsWith('data:image/')) {
+        return res.status(400).json({ error: "Invalid image format" });
+      }
+      // Limit ~800KB base64 ≈ ~1.1MB string
+      if (image && image.length > 1_200_000) {
+        return res.status(400).json({ error: "Image too large. Max 800KB." });
+      }
+      updates.image = image;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "No fields to update" });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: req.user.userId },
+      data: updates,
+      select: { id: true, name: true, email: true, image: true, emailVerified: true },
+    });
+
+    res.json(updated);
+  });
+
   app.post("/api/auth/change-password", requireAuth, async (req: any, res) => {
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword) {
