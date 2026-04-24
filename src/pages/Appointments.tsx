@@ -328,22 +328,64 @@ export default function Appointments() {
   }, []);
 
   // ─── Template setup ────────────────────────────────────────────────────
+  // Uses the same /api/templates/whatsapp/create endpoint as the template builder
+  // (proven to work) instead of a separate setup endpoint.
+
+  const REMINDER_TEMPLATES = [
+    {
+      name: 'tawasel_booking_confirmation',
+      category: 'UTILITY',
+      language: 'en_US',
+      bodyText: 'Hi {{customer_name}}! ✅\n\nYour appointment at *{{business}}* is confirmed.\n\n📅 *Date & Time:* {{date}}\n👤 *With:* {{staff}}\n\nWe look forward to seeing you!',
+    },
+    {
+      name: 'tawasel_reminder_24h',
+      category: 'UTILITY',
+      language: 'en_US',
+      bodyText: 'Hi {{customer_name}}! 👋\n\nThis is a reminder that you have an appointment *tomorrow* at *{{business}}*.\n\n📅 *Time:* {{time}}\n👤 *With:* {{staff}}\n\nNeed to reschedule? Simply reply to this message.',
+    },
+    {
+      name: 'tawasel_reminder_1h',
+      category: 'UTILITY',
+      language: 'en_US',
+      bodyText: 'Hi {{customer_name}}! ⏰\n\nReminder: your appointment at *{{business}}* with {{staff}} is in *1 hour* at {{time}}.\n\nSee you soon!',
+    },
+  ];
 
   const setupTemplates = async () => {
     if (!wsId) return;
     setSettingUpTemplates(true);
     try {
-      const res = await axios.post('/api/appointments/setup-templates', { workspaceId: wsId, whatsAppNumberId: selectedNumberId || undefined });
-      const results: { name: string; status: string; detail?: string }[] = res.data?.results || [];
-      const errors = results.filter(r => r.status === 'error');
+      const errors: string[] = [];
+
+      for (const tpl of REMINDER_TEMPLATES) {
+        const fd = new FormData();
+        fd.append('workspaceId', wsId);
+        fd.append('name', tpl.name);
+        fd.append('category', tpl.category);
+        fd.append('language', tpl.language);
+        fd.append('bodyText', tpl.bodyText);
+        if (selectedNumberId) fd.append('whatsAppNumberId', selectedNumberId);
+
+        try {
+          await axios.post('/api/templates/whatsapp/create', fd, {
+            headers: { 'x-workspace-id': wsId },
+          });
+        } catch (err: any) {
+          const msg: string = err.response?.data?.error || err.message || 'Unknown error';
+          // "already exists" is fine — template was created in a previous attempt
+          if (!msg.toLowerCase().includes('already exist') && err.response?.data?.metaErrorCode !== 2388085) {
+            errors.push(`${tpl.name}: ${msg}`);
+          }
+        }
+      }
+
       if (errors.length > 0) {
-        toast.error(`Template error: ${errors[0].detail || 'Unknown error from Meta'}`);
+        toast.error(errors[0]);
       } else {
         setTemplateStatus('pending');
         toast.success('Templates submitted to Meta! They\'ll be active within a few minutes.');
       }
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to submit templates');
     } finally {
       setSettingUpTemplates(false);
     }
