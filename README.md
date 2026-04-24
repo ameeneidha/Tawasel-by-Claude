@@ -47,7 +47,7 @@ Most leads don't convert on the first message. Tawasel automatically sends follo
 The sequence stops automatically when the customer replies, so they never feel spammed.
 
 ### Appointment Booking
-Customers can book appointments directly through WhatsApp chat with the AI bot. The system checks staff availability, prevents double-bookings, and sends a WhatsApp reminder 24 hours before the appointment. No more no-shows.
+Customers can book, reschedule, and cancel appointments directly through WhatsApp chat with the AI bot — or through a public self-service booking page at `app.tawasel.io/book/{your-slug}` that works with no login. The system checks staff availability, prevents double-bookings, and sends WhatsApp reminders 24 hours before, 1 hour before, and a post-visit follow-up. A drag-to-reschedule calendar view lets your team rearrange the day in seconds. No more no-shows, no more phone tag.
 
 ### Broadcast Campaigns
 Send approved WhatsApp template messages to your customer lists for promotions, updates, or re-engagement. Track delivery, read rates, and replies in real-time. Every broadcast message appears in the customer's inbox conversation, so when they reply, your team has the full context.
@@ -88,6 +88,24 @@ The repo also includes an App Platform spec:
 - [`.do/app.yaml`](C:\Users\Khaled\Desktop\SaaS%20Whatsapp\SaaS-Whatsapp-CRM-main\SaaS-Whatsapp-CRM-main\.do\app.yaml)
 
 ## Update Log
+
+### April 24, 2026 — Phase 1.5: AI Self-Service Appointments
+
+- **New chatbot tools** (`server/services/ai.ts`): Customers can now view, reschedule, and cancel their own appointments directly through WhatsApp chat
+  - `get_my_appointments` — "Do I have an appointment?" → AI shows upcoming bookings
+  - `reschedule_my_appointment` — "Move my 3pm to 5pm tomorrow" → AI checks availability, confirms, and moves the booking
+  - `cancel_my_appointment` — "Cancel my appointment" → AI confirms and cancels
+- **Security-first design**: `contactId` is derived server-side from the WhatsApp conversation (never from LLM args), so the AI can only view or modify the caller's own appointments. Cross-user enumeration attempts are rejected. Ownership is re-verified before every mutation. Reminder flags (`reminderSentAt`, `reminder1hSentAt`) are reset on reschedule so new reminders fire for the new time
+- **Activity log entries** for every AI-driven reschedule/cancel, so owners have a full audit trail
+
+### April 24, 2026 — Phase 1: Close the Booking Loop
+
+- **Public self-service booking page** at `/book/:slug` — no login required. Customers pick service → staff (or "Any Available") → date → time slot → enter name + phone → confirm. On submit the system upserts a contact, creates the appointment, and fires a WhatsApp confirmation (template-based). Owners share the link `app.tawasel.io/book/{workspace-slug}` on Instagram bio, Google Business Profile, or website
+- **Calendar view with drag-to-reschedule** on the Appointments page. Toggle between list and calendar in the toolbar. Week view by default. Appointments render as colored blocks using the service color. Drag any event to a new time slot → `PATCH /api/appointments/:id` updates `startTime` + `endTime` + resets reminder flags
+- **1-hour reminder + post-visit follow-up**: The reminder scheduler now runs three passes every 30 minutes — 24h before, 1h before, and a post-visit follow-up ("How was your [service] with [staff]?") within the 4-hour window after appointment end. Schema additions: `reminder1hSentAt`, `followUpSentAt` on `Appointment`
+- **Template auto-setup** (`POST /api/appointments/setup-templates`): One-click button in the Appointments page creates three WhatsApp templates in the owner's WABA via Meta Graph API — `tawasel_booking_confirmation`, `tawasel_reminder_24h`, `tawasel_reminder_1h`. Owner no longer needs to touch Meta Business Manager. Handles "already exists" (code 2388085) gracefully
+- **Template status banner**: Appointments page shows a 3-state banner (missing / pending / ready) so the owner knows when reminders can actually fire
+- **Resilience fixes**: Public booking availability falls back to all enabled staff when no `StaffService` junction rows exist, and defaults to 09:00–17:00 Sun–Thu when a staff member has no `workingHours` configured. Appointments page switched from `Promise.all` to `Promise.allSettled` so a single failing endpoint (e.g. `/api/templates` on workspaces without a connected WABA) no longer breaks the whole dashboard
 
 ### April 19, 2026
 

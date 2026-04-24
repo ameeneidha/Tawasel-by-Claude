@@ -69,6 +69,43 @@ npx vite build       # Production build
 - RESEND_API_KEY, EMAIL_FROM (e.g., `Tawasel <noreply@tawasel.io>`)
 - INSTAGRAM_ACCESS_TOKEN
 
+## Recently Completed (April 24, 2026) — Phase 1.5: AI Self-Service Appointments
+- **3 new chatbot tools in `server/services/ai.ts`**:
+  - `get_my_appointments` — lists caller's upcoming bookings
+  - `reschedule_my_appointment` — moves one to a new time
+  - `cancel_my_appointment` — cancels one
+- All three scoped strictly by `{ workspaceId, contactId }` where `contactId` is derived server-side from the conversation (NEVER from LLM args) — prevents cross-user enumeration/leaks
+- Ownership check before every mutation; rejects CANCELLED/COMPLETED targets
+- Conflict check against same staff on reschedule
+- Reminder flags (`reminderSentAt`, `reminder1hSentAt`) reset on reschedule
+- ActivityLog entries written for each AI-driven mutation (type: `APPOINTMENT_RESCHEDULED`, `APPOINTMENT_CANCELLED`)
+- System prompt updated to tell AI to call `get_my_appointments` first for reschedule/cancel flows and to decline cross-user requests
+
+## Recently Completed (April 24, 2026) — Phase 1: Close the Booking Loop
+- **Public self-service booking page** at `/book/:slug`:
+  - `src/pages/BookingPage.tsx` — standalone, no AppContext/sidebar
+  - 5-step flow: service → staff → date → time → details → confirmed
+  - 3 public API endpoints (no auth): `GET /api/public/book/:slug`, `GET /api/public/book/:slug/availability`, `POST /api/public/book/:slug`
+  - Upserts contact by phone + creates appointment + fires WhatsApp confirmation template
+  - Route added before `*` catch-all in `src/App.tsx`
+- **Calendar view + drag-to-reschedule** inside `src/pages/Appointments.tsx`:
+  - List/Calendar toggle in toolbar
+  - `AppointmentCalendar` sub-component using `react-big-calendar` + `withDragAndDrop` HOC
+  - `handleEventDrop` → `PATCH /api/appointments/:id` with new startTime/endTime
+  - `eventPropGetter` colors events by `service.color`
+- **1h reminder + post-visit follow-up** in `server/services/appointmentReminders.ts`:
+  - `send24hReminders()` — 23–25h window, uses `tawasel_reminder_24h` template
+  - `send1hReminders()` — 45–90min window, uses `tawasel_reminder_1h` template
+  - `sendPostVisitFollowUps()` — endTime 30min–4h ago, plain text (session should still be open)
+- **Schema additions** on `Appointment`: `reminder1hSentAt`, `followUpSentAt`
+- **Template auto-setup** — `POST /api/appointments/setup-templates` creates 3 templates in user's WABA via Meta Graph API using per-number OAuth token. Handles code 2388085 (already exists) gracefully. Auto-syncs after creation
+- **Template status banner** in Appointments page (3 states: missing / pending / ready)
+- **`sendTemplateMessage(to, templateName, language, parameters, config)`** helper added to `server/services/meta.ts`
+- **Resilience fixes**:
+  - Availability endpoint falls back to all enabled staff when no `StaffService` links exist, defaults to 09:00–17:00 Sun–Thu when `workingHours` is empty (booking page was returning zero slots otherwise)
+  - Appointments page switched `Promise.all` → `Promise.allSettled` so one failed endpoint doesn't break the whole page (e.g. `/api/templates` on workspaces without WABA)
+- **Deploy gotcha**: After pulling Phase 1, must run `npx prisma db push && npx prisma generate` on server before `pm2 restart` — Prisma client must know about new columns or `/api/appointments` 500s with P2022
+
 ## Recently Completed (April 19, 2026)
 - **Profile picture upload** — Upload button in Personal Settings now works. File picker → instant preview → `PATCH /api/users/me` saves base64 image to DB. Full Name also editable with Save Changes button. Context updated immediately so avatar refreshes across the app.
 - **Superadmin change password** — Added Account tab to superadmin dashboard with change password form. Superadmin is locked to `/app/superadmin` so `/app/settings` is unreachable; the form lives directly in the dashboard.
@@ -174,12 +211,19 @@ pm2 logs tawasel-worker            # verify worker is consuming the queue
 ## Known Issues
 - Prisma migrations need baseline on production (`npx prisma migrate resolve --applied <name>`)
 
-## Potential Next Features
-- Calendar view with drag-to-reschedule (react-big-calendar)
-- 1-hour before reminder option
-- Customer self-service booking link
-- Recurring appointments
-- Instagram DM inbox (code exists, needs re-enabling)
-- Telegram channel integration
-- Website live chat widget → inbox
-- Email inbox via Resend
+## Roadmap (Phases)
+
+- ✅ **Phase 1 — Close the Booking Loop** (DONE) — Public booking page, calendar view + drag, 1h reminder + post-visit follow-up, template auto-setup
+- ✅ **Phase 1.5 — AI Self-Service Appointments** (DONE) — view/reschedule/cancel own appointments via WhatsApp chat
+- 🔜 **Phase 2 — Flexible Reminders & Template Builder** — in-app template builder + appointment reminder rules engine (custom offsets 15m/2h/12h/48h etc.) + per-appointment reminder timeline
+- **Phase 3 — Recurring Appointments** — weekly/bi-weekly/monthly series, package bundles, edit this-one/this-and-future/all
+- **Phase 4 — Payments & Deposits** — Stripe Checkout at booking, deposit %, no-show auto-charge, refund workflow, revenue dashboard
+- **Phase 5 — Multi-Channel Inbox** — Instagram DMs re-enable, Web Chat Widget → inbox, Telegram, Email via Resend
+- **Phase 6 — Team Productivity** — shared canned responses, internal notes, @mentions, SLA timers, read receipts between agents
+- **Phase 7 — Advanced AI** — knowledge base upload (RAG), personality presets, training on historical convos, handoff summaries, AI-written draft replies
+- **Phase 8 — Analytics & Reporting** — booking conversion funnel, staff utilization, revenue per service/channel, CLV, no-show rate, PDF/CSV export
+- **Phase 9 — Customer Portal** — `/customer/:id` magic-link portal, past bookings, loyalty points, one-click rebook, invoice history
+- **Phase 10 — Marketing Automation** — birthday messages, re-engagement, review requests, referral program, lead drip
+- **Phase 11 — Mobile Apps** — React Native for owners/agents, push notifications, offline queue
+- **Phase 12 — Enterprise & Scale** — multi-location, franchise mode, SSO/SAML, audit logs, public API/webhook docs
+- **Phase 13 — Marketplace & Discovery** — `tawasel.io/discover` public directory of Tawasel-powered businesses, category search, reviews, embedded book-now CTA
