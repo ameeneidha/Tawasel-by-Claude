@@ -2544,9 +2544,11 @@ async function startServer() {
     }
 
     // Find the workspace's WhatsApp number to get WABA ID and access token
-    const waNumber = await prisma.whatsAppNumber.findFirst({
-      where: { workspaceId }
-    });
+    // Prefer a number that actually has credentials (seeded demo placeholders have null metaWabaId)
+    const waNumber =
+      (await prisma.whatsAppNumber.findFirst({
+        where: { workspaceId, metaWabaId: { not: null }, metaAccessToken: { not: null } },
+      })) || (await prisma.whatsAppNumber.findFirst({ where: { workspaceId } }));
 
     const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || '';
 
@@ -2659,7 +2661,11 @@ async function startServer() {
     const workspaceId = String(req.body.workspaceId || "").trim();
     if (!workspaceId) return res.status(400).json({ error: "Workspace ID required" });
 
-    const waNumber = await prisma.whatsAppNumber.findFirst({ where: { workspaceId } });
+    // Prefer a number that actually has credentials (seeded demo placeholders have null metaWabaId)
+    const waNumber =
+      (await prisma.whatsAppNumber.findFirst({
+        where: { workspaceId, metaWabaId: { not: null }, metaAccessToken: { not: null } },
+      })) || (await prisma.whatsAppNumber.findFirst({ where: { workspaceId } }));
     const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || "";
 
     // Try per-number token first (Embedded Signup), then System User token as fallback.
@@ -2786,7 +2792,11 @@ async function startServer() {
       return res.status(400).json({ error: "Template name must be lowercase letters, numbers, and underscores only" });
     }
 
-    const waNumber = await prisma.whatsAppNumber.findFirst({ where: { workspaceId } });
+    // Prefer a number that actually has credentials (seeded demo placeholders have null metaWabaId)
+    const waNumber =
+      (await prisma.whatsAppNumber.findFirst({
+        where: { workspaceId, metaWabaId: { not: null }, metaAccessToken: { not: null } },
+      })) || (await prisma.whatsAppNumber.findFirst({ where: { workspaceId } }));
     const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || "";
     if (!wabaId) {
       return res.status(400).json({ error: "No WhatsApp number connected. Connect a number in Channels first." });
