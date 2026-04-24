@@ -89,6 +89,34 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### April 25, 2026 — Phase 2: Flexible Reminders & Template Builder
+
+- **In-app WhatsApp Template Builder** — Create and submit Meta-reviewed templates directly from Tawasel without ever opening Meta Business Manager
+  - **Header types**: None / Text / Image (JPG/PNG) / Video (MP4) — image/video uploaded to Meta via resumable upload API to get a `header_handle` for compliance review
+  - **Body editor** with named variable tags (`{{customer_name}}`, `{{service}}`, `{{date}}`, etc.) — auto-converted to numbered `{{1}}`, `{{2}}` format on submit with auto-generated sample values, fixing Meta's "Incorrect params" rejection
+  - **Buttons**: add Quick Reply, URL, or Phone Number buttons (up to 3) with a live WhatsApp-style preview
+  - **WhatsApp number picker** — workspaces with multiple connected numbers can choose which WABA receives the template
+  - **Compact modal** — sticky header/footer, scrollable body, fits without zooming out
+  - **Status pills**: APPROVED (green) / PENDING (amber) / REJECTED (red) — rejection reason shown inline so you know exactly what to fix
+  - **Auto-sync on load**: if any template is PENDING, the page silently re-syncs from Meta in the background to catch newly approved/rejected templates
+  - **Delete templates**: trash icon on each template card removes from Meta Graph API and local DB simultaneously
+
+- **Appointment Reminder Rules Engine** — Replace the fixed 24h/1h reminders with fully configurable reminder schedules
+  - New **Reminders** tab on the Appointments page — create, edit, toggle, and delete rules without touching code
+  - Any offset you want: 15 min before, 2 hours before, 12 hours before, 48 hours after — all supported
+  - Two trigger directions: `BEFORE_START` (reminders) and `AFTER_END` (follow-ups)
+  - Each rule targets a Meta-approved template name or a custom plain-text message body
+  - Maximum 5 active rules per workspace
+  - Scheduler runs every 30 min with a ±20 min tolerance window — rules-based pass first, legacy 24h/1h/post-visit fallback for workspaces with no custom rules
+  - New schema models: `AppointmentReminderRule` (the config), `AppointmentReminderLog` (dedup guard — prevents double-sends)
+
+- **WhatsApp Token Auto-Refresh (permanent fix)** — Customers no longer need to reconnect their WhatsApp number every 60 days
+  - `server/services/tokenRefresh.ts` — daily scheduler finds tokens expiring within 30 days and renews them silently via Meta's `fb_exchange_token` API
+  - Runs once on server startup (catches already-expired tokens), then every 24 hours
+  - Embedded Signup now also exchanges the short-lived code for a 60-day long-lived token immediately at connect time, then the daily scheduler keeps it alive indefinitely
+
+- **Deploy checklist**: `npx prisma db push` (adds `rejectedReason`, `AppointmentReminderRule`, `AppointmentReminderLog`) → `npx prisma generate` → `npx vite build` → `pm2 restart ecosystem.config.cjs`
+
 ### April 24, 2026 — Phase 1.5: AI Self-Service Appointments
 
 - **New chatbot tools** (`server/services/ai.ts`): Customers can now view, reschedule, and cancel their own appointments directly through WhatsApp chat

@@ -22,7 +22,8 @@
 - `server/lib/redis.ts` — Shared Redis connection + queue/channel name constants
 - `server/services/webhookProcessor.ts` — Extracted Meta webhook processing logic (WhatsApp + Instagram + AI + auto-assign + follow-ups + escalation). Takes a `WebhookContext { emit }` so it works in both the worker and inline fallback.
 - `server/services/ai.ts` — AI chatbot with OpenAI function calling (appointment booking tools)
-- `server/services/appointmentReminders.ts` — 24-hour WhatsApp reminder scheduler
+- `server/services/appointmentReminders.ts` — Rules-based + legacy reminder scheduler (24h, 1h, post-visit)
+- `server/services/tokenRefresh.ts` — Daily WhatsApp OAuth token auto-refresh (keeps 60-day tokens alive indefinitely)
 - `server/services/meta.ts` — WhatsApp/Instagram message sending
 - `server/middleware/auth.ts` — Auth + plan limit enforcement
 - `server/config.ts` — Plan limits configuration
@@ -68,6 +69,54 @@ npx vite build       # Production build
 - STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 - RESEND_API_KEY, EMAIL_FROM (e.g., `Tawasel <noreply@tawasel.io>`)
 - INSTAGRAM_ACCESS_TOKEN
+
+## Recently Completed (April 25, 2026) — Phase 2: Flexible Reminders & Template Builder
+
+### WhatsApp Template Builder (Templates page)
+- **Full in-app template creator** — no need to use Meta Business Manager
+- **Header support**: None / Text / Image (JPG/PNG) / Video (MP4) — file uploaded to Meta via resumable upload API to get `header_handle` for review
+- **Body editor** with named variable tags (`{{customer_name}}`, `{{service}}`, `{{staff}}`, `{{date}}`, `{{time}}`, `{{business}}`) — auto-converted to numbered `{{1}}`, `{{2}}` format on submit with sample values (fixes "Incorrect params" rejection)
+- **Buttons**: Quick Reply, URL, Phone Number — up to 3, live preview in WhatsApp-style bubble
+- **WhatsApp number picker** — dropdown to select which WABA the template is created on (workspaces with multiple numbers)
+- **Compact modal** — sticky header/footer, scrollable middle, max-h-[92vh], fits at 100% zoom
+- **Status pills**: APPROVED (green) / PENDING (amber) / REJECTED (red) with rejection reason shown inline
+- **Auto-sync on load**: if any template is PENDING, silently syncs from Meta in the background
+- **Delete templates**: trash icon on each WA template card — removes from Meta Graph API + local DB
+- `WhatsAppTemplate.rejectedReason` field added to schema (run `npx prisma db push` on deploy)
+
+### Appointment Reminder Rules Engine (Appointments → Reminders tab)
+- New **Reminders tab** in Appointments page (4th tab)
+- Create/edit/delete/toggle reminder rules — any offset (e.g. 15min, 3h, 12h, 48h before/after)
+- Two trigger types: `BEFORE_START` and `AFTER_END`
+- Each rule can use a Meta-approved template name OR a plain-text message body
+- Max 5 active rules per workspace
+- New schema models: `AppointmentReminderRule`, `AppointmentReminderLog` (dedup guard)
+- Scheduler rewrites: rules-based pass + legacy fallback (24h/1h/post-visit for workspaces with no rules)
+- Tolerance window: ±20 min (scheduler checks every 30 min)
+
+### WhatsApp Token Auto-Refresh (permanent fix, no reconnection required)
+- `server/services/tokenRefresh.ts` — daily scheduler renews any token expiring within 30 days via `fb_exchange_token`
+- Runs on startup to catch already-expired tokens, then every 24h
+- Long-lived tokens renewed indefinitely — customers never need to reconnect every 60 days
+- Embedded Signup now exchanges short-lived code for 60-day token immediately on connect
+- `POST /api/meta/embedded-signup/refresh-token` — manual trigger for existing expired tokens
+
+### Other fixes in this session
+- Template sync: try per-number token first, then system-user token fallback (both endpoints)
+- Prefer credentialed WhatsApp number over seeded demo placeholders in all template endpoints
+- Template sync error now surfaces full detail (was swallowing Prisma errors when `rejectedReason` column missing)
+- Removed stale `META_WABA_ID` env var that was causing "Object does not exist" on all template operations
+- `x-workspace-id` header sent with FormData template create (fixes "Workspace ID required" with multer)
+
+### Deploy checklist for Phase 2
+```bash
+git pull origin main
+npm install
+npx prisma db push    # adds rejectedReason, AppointmentReminderRule, AppointmentReminderLog
+npx prisma generate
+npx vite build
+pm2 restart ecosystem.config.cjs
+```
 
 ## Recently Completed (April 24, 2026) — Phase 1.5: AI Self-Service Appointments
 - **3 new chatbot tools in `server/services/ai.ts`**:
@@ -215,8 +264,9 @@ pm2 logs tawasel-worker            # verify worker is consuming the queue
 
 - ✅ **Phase 1 — Close the Booking Loop** (DONE) — Public booking page, calendar view + drag, 1h reminder + post-visit follow-up, template auto-setup
 - ✅ **Phase 1.5 — AI Self-Service Appointments** (DONE) — view/reschedule/cancel own appointments via WhatsApp chat
-- 🔜 **Phase 2 — Flexible Reminders & Template Builder** — in-app template builder + appointment reminder rules engine (custom offsets 15m/2h/12h/48h etc.) + per-appointment reminder timeline
-- **Phase 3 — Recurring Appointments** — weekly/bi-weekly/monthly series, package bundles, edit this-one/this-and-future/all
+- ✅ **Phase 2 — Flexible Reminders & Template Builder** (DONE) — In-app WA template builder (header/body/buttons), reminder rules engine, token auto-refresh
+- 🔜 **Phase 3 — Recurring Appointments** — weekly/bi-weekly/monthly series, package bundles, edit this-one/this-and-future/all
+- **Phase 4 — Recurring Appointments** — weekly/bi-weekly/monthly series, package bundles, edit this-one/this-and-future/all
 - **Phase 4 — Payments & Deposits** — Stripe Checkout at booking, deposit %, no-show auto-charge, refund workflow, revenue dashboard
 - **Phase 5 — Multi-Channel Inbox** — Instagram DMs re-enable, Web Chat Widget → inbox, Telegram, Email via Resend
 - **Phase 6 — Team Productivity** — shared canned responses, internal notes, @mentions, SLA timers, read receipts between agents
