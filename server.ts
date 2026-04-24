@@ -2757,7 +2757,7 @@ async function startServer() {
       category: "UTILITY",
       language: "en_US",
       bodyText:
-        "Hi {{1}}! ✅\n\nYour appointment is confirmed:\n📋 *Service:* {{2}}\n👤 *With:* {{3}}\n📅 *Date & Time:* {{4}}\n\nWe'll send you a reminder before your appointment. See you soon! — {{5}}",
+        "Hi {{1}}! ✅\n\nYour appointment at {{5}} is confirmed:\n📋 *Service:* {{2}}\n👤 *With:* {{3}}\n📅 *Date & Time:* {{4}}\n\nWe look forward to seeing you!",
       examples: ["Sara", "Haircut", "Ahmed", "Monday 15 Jan at 2:00 PM", "Tawasel Salon"],
     },
     {
@@ -2765,15 +2765,17 @@ async function startServer() {
       category: "UTILITY",
       language: "en_US",
       bodyText:
-        "Hi {{1}}! 👋\n\nReminder about your upcoming appointment:\n📋 *Service:* {{2}}\n👤 *With:* {{3}}\n🕐 *Time:* {{4}}\n\nNeed to reschedule? Just reply to this message. — {{5}}",
-      examples: ["Sara", "Haircut", "Ahmed", "Monday 15 Jan at 2:00 PM", "Tawasel Salon"],
+        "Hi {{1}}! 👋\n\nThis is a reminder from {{5}} about your appointment tomorrow:\n📋 *Service:* {{2}}\n👤 *With:* {{3}}\n🕐 *Time:* {{4}}\n\nNeed to reschedule? Just reply to this message.",
+      // examples must match {{1}}..{{5}} in numeric order
+      examples: ["Sara", "Haircut", "Ahmed", "2:00 PM", "Tawasel Salon"],
     },
     {
       name: "tawasel_reminder_1h",
       category: "UTILITY",
       language: "en_US",
       bodyText:
-        "Hi {{1}}! ⏰\n\nYour {{2}} with {{3}} is in 1 hour at {{4}}. See you soon! — {{5}}",
+        "Hi {{1}}! ⏰\n\nYour {{2}} with {{3}} at {{5}} is in about 1 hour — see you at {{4}}!",
+      // {{1}}=name {{2}}=service {{3}}=staff {{4}}=time {{5}}=business
       examples: ["Sara", "Haircut", "Ahmed", "2:00 PM", "Tawasel Salon"],
     },
   ];
