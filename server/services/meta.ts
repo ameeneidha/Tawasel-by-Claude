@@ -141,7 +141,8 @@ export async function exchangeMetaCodeForAccessToken(
     throw new Error("Meta app credentials are not configured");
   }
 
-  const response = await axios.get(
+  // Step 1: Exchange auth code for short-lived user token (~1 hour)
+  const shortLivedRes = await axios.get(
     `https://graph.facebook.com/${META_GRAPH_VERSION}/oauth/access_token`,
     {
       params: {
@@ -152,12 +153,39 @@ export async function exchangeMetaCodeForAccessToken(
       },
     }
   );
+  const shortLivedToken: string = shortLivedRes.data.access_token;
 
-  return response.data as {
-    access_token: string;
-    expires_in?: number;
-    token_type?: string;
-  };
+  // Step 2: Exchange for long-lived token (~60 days)
+  // This is critical for template management — short-lived tokens expire in ~1h
+  // and Meta's Graph API then returns "missing permissions" errors.
+  try {
+    const longLivedRes = await axios.get(
+      `https://graph.facebook.com/${META_GRAPH_VERSION}/oauth/access_token`,
+      {
+        params: {
+          grant_type: 'fb_exchange_token',
+          client_id: appId,
+          client_secret: appSecret,
+          fb_exchange_token: shortLivedToken,
+        },
+      }
+    );
+    console.log('[embedded-signup] exchanged short-lived token for long-lived token');
+    return longLivedRes.data as {
+      access_token: string;
+      expires_in?: number;
+      token_type?: string;
+    };
+  } catch (e: any) {
+    // If long-lived exchange fails, fall back to the short-lived token.
+    // The number will still connect — template ops will break once it expires.
+    console.warn('[embedded-signup] long-lived token exchange failed, using short-lived:', e?.response?.data || e?.message);
+    return shortLivedRes.data as {
+      access_token: string;
+      expires_in?: number;
+      token_type?: string;
+    };
+  }
 }
 
 export async function fetchEmbeddedSignupPhoneAssets(

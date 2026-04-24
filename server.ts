@@ -872,6 +872,58 @@ async function startServer() {
     }
   });
 
+  // Refresh an expired/short-lived Embedded Signup token to a fresh long-lived one.
+  // Call this when template operations fail with "missing permissions" after token expiry.
+  app.post("/api/meta/embedded-signup/refresh-token", requireAuth, requireRole('ADMIN', 'OWNER'), async (req: any, res) => {
+    const workspaceId = String(req.body.workspaceId || '').trim();
+    const numberId = String(req.body.numberId || '').trim();
+    if (!workspaceId) return res.status(400).json({ error: "workspaceId required" });
+
+    const waNumber = numberId
+      ? await prisma.whatsAppNumber.findFirst({ where: { id: numberId, workspaceId } })
+      : await prisma.whatsAppNumber.findFirst({
+          where: { workspaceId, metaWabaId: { not: null }, metaAccessToken: { not: null } },
+        });
+
+    if (!waNumber?.metaAccessToken) {
+      return res.status(404).json({ error: "No connected WhatsApp number with a stored token found" });
+    }
+
+    const appId = process.env.META_APP_ID;
+    const appSecret = process.env.META_APP_SECRET;
+    if (!appId || !appSecret) return res.status(500).json({ error: "Meta app credentials not configured" });
+
+    try {
+      const r = await axios.get(`https://graph.facebook.com/${META_GRAPH_VERSION}/oauth/access_token`, {
+        params: {
+          grant_type: 'fb_exchange_token',
+          client_id: appId,
+          client_secret: appSecret,
+          fb_exchange_token: waNumber.metaAccessToken,
+        },
+      });
+      const newToken: string = r.data.access_token;
+      const expiresIn: number | undefined = r.data.expires_in;
+      await prisma.whatsAppNumber.update({
+        where: { id: waNumber.id },
+        data: {
+          metaAccessToken: newToken,
+          metaTokenExpiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000) : null,
+        },
+      });
+      console.log(`[token-refresh] ✅ Refreshed token for number ${waNumber.phoneNumber}`);
+      res.json({ ok: true, expiresIn, phone: waNumber.phoneNumber });
+    } catch (e: any) {
+      const msg = e?.response?.data?.error?.message || e?.message;
+      console.error('[token-refresh] ❌', msg);
+      // Token is fully expired — cannot extend. User must reconnect.
+      res.status(400).json({
+        error: msg || "Token refresh failed",
+        hint: "The token has fully expired and cannot be renewed. Go to Channels and reconnect the WhatsApp number to get a fresh token.",
+      });
+    }
+  });
+
   app.post("/api/meta/embedded-signup/resolve-assets", requireAuth, requireRole('ADMIN', 'OWNER'), async (req, res) => {
     const accessToken = String(req.body.accessToken || '').trim();
     const businessId = String(req.body.businessId || '').trim();
