@@ -544,18 +544,17 @@ export default function Templates() {
 
       {/* WhatsApp Template Builder Modal */}
       {isWaBuilderOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-sm">
           <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            className="flex max-h-[92vh] w-full max-w-xl flex-col rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
           >
-            <div className="flex items-start justify-between gap-4">
+            {/* Sticky header */}
+            <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-5 py-3 dark:border-slate-800">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create WhatsApp Template</h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Template will be submitted to Meta for approval — usually takes a few minutes.
-                </p>
+                <h2 className="text-base font-semibold text-gray-900 dark:text-white">Create WhatsApp Template</h2>
+                <p className="text-xs text-gray-400">Submitted to Meta for approval — usually a few minutes.</p>
               </div>
               <button
                 type="button"
@@ -567,7 +566,8 @@ export default function Templates() {
               </button>
             </div>
 
-            <div className="mt-6 space-y-4">
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
               {/* WhatsApp Number (target WABA) */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
@@ -853,14 +853,15 @@ export default function Templates() {
                   )}
                 </div>
               )}
-            </div>
+            </div>{/* end scrollable body */}
 
-            <div className="mt-6 flex items-center justify-end gap-3">
+            {/* Sticky footer */}
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-5 py-3 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setIsWaBuilderOpen(false)}
                 disabled={isWaBuilderSaving}
-                className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-300"
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-300"
               >
                 Cancel
               </button>
@@ -868,7 +869,7 @@ export default function Templates() {
                 type="button"
                 onClick={handleCreateWaTemplate}
                 disabled={isWaBuilderSaving || !waBuilder.name || !waBuilder.bodyText}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#128C7E] disabled:cursor-wait disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#128C7E] disabled:cursor-wait disabled:opacity-60"
               >
                 <Save className="h-4 w-4" />
                 {isWaBuilderSaving ? 'Submitting...' : 'Submit to Meta'}
