@@ -242,14 +242,15 @@ model ConversationNote {
 }
 
 model WhatsAppTemplate {
-  id            String    @id @default(cuid())
-  name          String
-  content       String
-  category      String
-  language      String
-  status        String    @default("APPROVED")
-  workspaceId   String
-  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  id             String    @id @default(cuid())
+  name           String
+  content        String
+  category       String
+  language       String
+  status         String    @default("APPROVED")
+  rejectedReason String?
+  workspaceId    String
+  workspace      Workspace @relation(fields: [workspaceId], references: [id])
 }
 
 model SessionTemplate {

@@ -25,6 +25,7 @@ type WhatsAppTemplate = {
   category: string;
   language?: string | null;
   status?: string | null;
+  rejectedReason?: string | null;
 };
 
 type SessionTemplate = {
@@ -146,8 +147,18 @@ export default function Templates() {
           axios.get(`/api/templates/whatsapp?workspaceId=${activeWorkspace.id}`),
           axios.get(`/api/templates/session?workspaceId=${activeWorkspace.id}`),
         ]);
-        setWaTemplates(Array.isArray(waResponse.data) ? waResponse.data : []);
+        const waList = Array.isArray(waResponse.data) ? waResponse.data : [];
+        setWaTemplates(waList);
         setSessionTemplates(Array.isArray(sessionResponse.data) ? sessionResponse.data : []);
+        // If any templates are still PENDING, auto-sync with Meta in the background
+        // so their real status (APPROVED/REJECTED) shows up without a manual refresh
+        if (waList.some((t: WhatsAppTemplate) => t.status === 'PENDING')) {
+          axios.post('/api/templates/whatsapp/sync', { workspaceId: activeWorkspace.id })
+            .then((r) => {
+              if (Array.isArray(r.data?.templates)) setWaTemplates(r.data.templates);
+            })
+            .catch(() => { /* silent — the refresh button is still available */ });
+        }
       }
     } catch (error: any) {
       toast.error(error.response?.data?.error || t('templates.couldNotLoad'));
@@ -814,11 +825,19 @@ function TemplateCard({
         <div className="rounded-xl bg-gray-50 p-2 text-gray-600 transition-colors dark:bg-slate-800 dark:text-gray-400">
           <FileText className="h-5 w-5" />
         </div>
-        {type === 'whatsapp' ? (
-          <span className="rounded bg-green-50 px-2 py-0.5 text-[10px] font-bold uppercase text-green-600 dark:bg-green-900/20 dark:text-green-400">
-            {'status' in template ? template.status || t('templates.approved') : t('templates.approved')}
-          </span>
-        ) : (
+        {type === 'whatsapp' ? (() => {
+          const status = (template as WhatsAppTemplate).status || 'APPROVED';
+          const cls =
+            status === 'APPROVED' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
+            : status === 'PENDING' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300'
+            : status === 'REJECTED' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
+            : 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-300';
+          return (
+            <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${cls}`}>
+              {status}
+            </span>
+          );
+        })() : (
           <span className="rounded bg-[#25D366]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#128C7E]">
             {t('templates.session')}
           </span>
@@ -826,6 +845,12 @@ function TemplateCard({
       </div>
 
       <h3 className="mb-2 truncate font-semibold text-gray-900 dark:text-white">{template.name}</h3>
+
+      {type === 'whatsapp' && (template as WhatsAppTemplate).status === 'REJECTED' && (template as WhatsAppTemplate).rejectedReason && (
+        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+          <span className="font-semibold">Rejected:</span> {(template as WhatsAppTemplate).rejectedReason}
+        </div>
+      )}
 
       <div className="mb-4 min-h-[88px] rounded-xl bg-gray-50 p-3 transition-colors dark:bg-slate-800">
         <p className="line-clamp-4 text-xs leading-relaxed text-gray-500 dark:text-gray-400">{content}</p>

@@ -2606,6 +2606,7 @@ async function startServer() {
             content,
             category: t.category || 'UTILITY',
             status: t.status || 'APPROVED',
+            rejectedReason: t.rejected_reason || null,
           },
           create: {
             workspaceId,
@@ -2614,6 +2615,7 @@ async function startServer() {
             category: t.category || 'UTILITY',
             language: t.language || 'en',
             status: t.status || 'APPROVED',
+            rejectedReason: t.rejected_reason || null,
           }
         });
         synced++;
