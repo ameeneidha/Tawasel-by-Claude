@@ -386,7 +386,10 @@ export default function Templates() {
       if (waBuilder.headerFile) fd.append('headerFile', waBuilder.headerFile);
 
       const res = await axios.post('/api/templates/whatsapp/create', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'x-workspace-id': activeWorkspace.id,
+        },
       });
       setWaTemplates(prev => [res.data.template, ...prev]);
       setIsWaBuilderOpen(false);
