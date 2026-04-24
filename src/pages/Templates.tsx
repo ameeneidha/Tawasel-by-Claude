@@ -283,6 +283,28 @@ export default function Templates() {
     }
   };
 
+  const handleDeleteWaTemplate = async (template: WhatsAppTemplate) => {
+    if (!activeWorkspace?.id) return;
+    const confirmed = window.confirm(
+      `Delete WhatsApp template "${template.name}"?\n\nThis will remove it from Meta and from Tawasel. This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const r = await axios.delete(
+        `/api/templates/whatsapp/${template.id}?workspaceId=${activeWorkspace.id}`
+      );
+      setWaTemplates((cur) => cur.filter((t) => t.id !== template.id));
+      if (r.data?.metaDeleted) {
+        toast.success('Template deleted from WhatsApp');
+      } else {
+        toast.success('Removed locally — check WhatsApp Manager if Meta still shows it');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Could not delete template');
+    }
+  };
+
   const handleDuplicateTemplate = async (template: SessionTemplate) => {
     if (!activeWorkspace?.id) {
       toast.error(t('templates.chooseWorkspaceDuplicate'));
@@ -440,6 +462,7 @@ export default function Templates() {
                     template={template}
                     type="whatsapp"
                     onCopy={() => handleCopyTemplate(template)}
+                    onDelete={() => handleDeleteWaTemplate(template)}
                   />
                 </React.Fragment>
               ))}

@@ -2904,6 +2904,65 @@ async function startServer() {
     res.json({ template, message: "Template submitted to Meta for approval. Usually approved within a few minutes." });
   });
 
+  // ── Delete a WhatsApp template (from Meta + local DB) ──────────────
+  app.delete("/api/templates/whatsapp/:id", requireAuth, requireRole("ADMIN", "OWNER"), async (req: any, res) => {
+    const { id } = req.params;
+    const workspaceId = String(req.query.workspaceId || req.body?.workspaceId || "").trim();
+    if (!workspaceId) return res.status(400).json({ error: "workspaceId required" });
+
+    const template = await prisma.whatsAppTemplate.findFirst({ where: { id, workspaceId } });
+    if (!template) return res.status(404).json({ error: "Template not found" });
+
+    // Find the credentialed number for this workspace
+    const waNumber =
+      (await prisma.whatsAppNumber.findFirst({
+        where: { workspaceId, metaWabaId: { not: null }, metaAccessToken: { not: null } },
+      })) || (await prisma.whatsAppNumber.findFirst({ where: { workspaceId } }));
+    const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || "";
+
+    const tokens: { label: string; token: string }[] = [];
+    if (waNumber?.metaAccessToken?.trim()) tokens.push({ label: "per-number", token: waNumber.metaAccessToken.trim() });
+    if (process.env.META_ACCESS_TOKEN?.trim()) tokens.push({ label: "system-user", token: process.env.META_ACCESS_TOKEN.trim() });
+
+    // Try to delete from Meta if we have credentials. If Meta deletion fails
+    // (already deleted / rejected cooldown / missing permissions), still remove
+    // the local row so the user sees a clean state.
+    let metaDeleted = false;
+    let metaError: string = "";
+    if (wabaId && tokens.length > 0) {
+      const graphVersion = process.env.META_GRAPH_VERSION || "v22.0";
+      for (const { label, token } of tokens) {
+        try {
+          console.log(`[templates/delete] ${template.name}: trying ${label} token`);
+          await axios.delete(
+            `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
+            {
+              params: { name: template.name },
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          console.log(`[templates/delete] ✅ ${template.name} deleted from Meta with ${label} token`);
+          metaDeleted = true;
+          break;
+        } catch (err: any) {
+          metaError = err.response?.data?.error?.message || err.message;
+          console.error(`[templates/delete] ❌ ${label} token:`, metaError);
+        }
+      }
+    }
+
+    await prisma.whatsAppTemplate.delete({ where: { id } });
+
+    res.json({
+      ok: true,
+      metaDeleted,
+      metaError: metaDeleted ? null : metaError || null,
+      message: metaDeleted
+        ? "Template deleted from WhatsApp and removed locally."
+        : "Template removed locally. Meta deletion may have failed — check WhatsApp Manager.",
+    });
+  });
+
   // ── Appointment Reminder Rules CRUD ────────────────────────────────
   // GET /api/reminder-rules?workspaceId=
   app.get("/api/reminder-rules", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
