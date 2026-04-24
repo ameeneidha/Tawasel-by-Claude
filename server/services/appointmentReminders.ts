@@ -312,7 +312,7 @@ async function send24hReminders() {
       let messageContent: string;
 
       if (useTemplate) {
-        await sendTemplateMessage(appt.contact.phoneNumber, "tawasel_reminder_24h", "en",
+        await sendTemplateMessage(appt.contact.phoneNumber, "tawasel_reminder_24h", "en_US",
           [customerName, appt.service.name, appt.staff.name, dateTimeStr, businessName],
           config as { accessToken: string; phoneNumberId: string }
         );
@@ -377,7 +377,7 @@ async function send1hReminders() {
       let messageContent: string;
 
       if (useTemplate) {
-        await sendTemplateMessage(appt.contact.phoneNumber, "tawasel_reminder_1h", "en",
+        await sendTemplateMessage(appt.contact.phoneNumber, "tawasel_reminder_1h", "en_US",
           [customerName, appt.service.name, appt.staff.name, formatReminderTime(startTime), businessName],
           config as { accessToken: string; phoneNumberId: string }
         );

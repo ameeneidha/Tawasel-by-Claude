@@ -1731,7 +1731,7 @@ async function startServer() {
             + " at " + startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
 
           if (confirmedTemplate) {
-            await sendTemplateMessage(phone, "tawasel_booking_confirmation", "en",
+            await sendTemplateMessage(phone, "tawasel_booking_confirmation", "en_US",
               [customerName?.trim() || "there", service.name, staffMember.name, dateTimeStr, workspace.name],
               config as { accessToken: string; phoneNumberId: string }
             );
@@ -2617,21 +2617,21 @@ async function startServer() {
     {
       name: "tawasel_booking_confirmation",
       category: "UTILITY",
-      language: "en",
+      language: "en_US",
       bodyText:
         "Hi {{1}}! ✅\n\nYour appointment is confirmed:\n📋 *Service:* {{2}}\n👤 *With:* {{3}}\n📅 *Date & Time:* {{4}}\n\nWe'll send you a reminder before your appointment. See you soon! — {{5}}",
     },
     {
       name: "tawasel_reminder_24h",
       category: "UTILITY",
-      language: "en",
+      language: "en_US",
       bodyText:
         "Hi {{1}}! 👋\n\nReminder about your upcoming appointment:\n📋 *Service:* {{2}}\n👤 *With:* {{3}}\n🕐 *Time:* {{4}}\n\nNeed to reschedule? Just reply to this message. — {{5}}",
     },
     {
       name: "tawasel_reminder_1h",
       category: "UTILITY",
-      language: "en",
+      language: "en_US",
       bodyText:
         "Hi {{1}}! ⏰\n\nYour {{2}} with {{3}} is in 1 hour at {{4}}. See you soon! — {{5}}",
     },
@@ -2719,7 +2719,7 @@ async function startServer() {
             name: t.name,
             content,
             category: t.category || "UTILITY",
-            language: t.language || "en",
+            language: t.language || "en_US",
             status: t.status || "PENDING",
           },
         });

@@ -54,7 +54,7 @@ type WaBuilderState = {
 const EMPTY_WA_BUILDER: WaBuilderState = {
   name: '',
   category: 'UTILITY',
-  language: 'en',
+  language: 'en_US',
   bodyText: '',
 };
 
@@ -69,9 +69,9 @@ const VARIABLE_TAGS = [
 
 const WA_CATEGORIES = ['UTILITY', 'MARKETING', 'AUTHENTICATION'];
 const WA_LANGUAGES  = [
-  { code: 'en', label: 'English' },
-  { code: 'ar', label: 'Arabic' },
   { code: 'en_US', label: 'English (US)' },
+  { code: 'en_GB', label: 'English (UK)' },
+  { code: 'ar',    label: 'Arabic' },
 ];
 
 export default function Templates() {
