@@ -49,6 +49,7 @@ type WaBuilderState = {
   category: string;
   language: string;
   bodyText: string;
+  whatsAppNumberId: string;
 };
 
 const EMPTY_WA_BUILDER: WaBuilderState = {
@@ -56,6 +57,14 @@ const EMPTY_WA_BUILDER: WaBuilderState = {
   category: 'UTILITY',
   language: 'en_US',
   bodyText: '',
+  whatsAppNumberId: '',
+};
+
+type WaNumberOption = {
+  id: string;
+  phoneNumber: string;
+  metaWabaId: string | null;
+  metaAccessToken?: string | null;
 };
 
 const VARIABLE_TAGS = [
@@ -93,13 +102,19 @@ export default function Templates() {
   const [waBuilder, setWaBuilder] = useState<WaBuilderState>(EMPTY_WA_BUILDER);
   const [isWaBuilderSaving, setIsWaBuilderSaving] = useState(false);
   const [waBodyRef, setWaBodyRef] = useState<HTMLTextAreaElement | null>(null);
+  const [waNumbers, setWaNumbers] = useState<WaNumberOption[]>([]);
 
   useEffect(() => {
     if (activeWorkspace?.id) {
       fetchTemplates();
+      // Fetch connected numbers so the builder can pick which WABA to target
+      axios.get(`/api/numbers?workspaceId=${activeWorkspace.id}`)
+        .then((r) => setWaNumbers(Array.isArray(r.data) ? r.data : []))
+        .catch(() => setWaNumbers([]));
     } else {
       setWaTemplates([]);
       setSessionTemplates([]);
+      setWaNumbers([]);
       setIsLoading(false);
     }
   }, [activeWorkspace?.id]);
@@ -311,6 +326,7 @@ export default function Templates() {
         category: waBuilder.category,
         language: waBuilder.language,
         bodyText: waBuilder.bodyText,
+        whatsAppNumberId: waBuilder.whatsAppNumberId || undefined,
       });
       setWaTemplates(prev => [res.data.template, ...prev]);
       setIsWaBuilderOpen(false);
@@ -378,7 +394,11 @@ export default function Templates() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => { setWaBuilder(EMPTY_WA_BUILDER); setIsWaBuilderOpen(true); }}
+                  onClick={() => {
+                    const preferred = waNumbers.find(n => n.metaWabaId && n.metaAccessToken) || waNumbers[0];
+                    setWaBuilder({ ...EMPTY_WA_BUILDER, whatsAppNumberId: preferred?.id || '' });
+                    setIsWaBuilderOpen(true);
+                  }}
                   disabled={!activeWorkspace?.id}
                   className="flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2 font-medium text-white shadow-sm transition-all hover:bg-[#128C7E] disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -487,6 +507,32 @@ export default function Templates() {
             </div>
 
             <div className="mt-6 space-y-4">
+              {/* WhatsApp Number (target WABA) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                  WhatsApp Number <span className="text-gray-400 font-normal normal-case tracking-normal">(template will be created on this WABA)</span>
+                </label>
+                {waNumbers.length === 0 ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+                    No WhatsApp numbers connected. Connect one in Channels first.
+                  </div>
+                ) : (
+                  <select
+                    value={waBuilder.whatsAppNumberId}
+                    onChange={e => setWaBuilder(b => ({ ...b, whatsAppNumberId: e.target.value }))}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  >
+                    <option value="">Auto-pick (first connected)</option>
+                    {waNumbers.map(n => (
+                      <option key={n.id} value={n.id} disabled={!n.metaWabaId || !n.metaAccessToken}>
+                        {n.phoneNumber}
+                        {n.metaWabaId ? ` — WABA ${n.metaWabaId}` : ' — not connected'}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
               {/* Name */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
