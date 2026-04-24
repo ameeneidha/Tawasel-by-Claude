@@ -66,6 +66,7 @@ import {
 import { getDashboardSections } from "./server/services/dashboard.js";
 import { startReminderScheduler, setReminderEmitter } from "./server/services/appointmentReminders.js";
 import { startFollowUpScheduler, setFollowUpEmitter } from "./server/services/followUpScheduler.js";
+import { startTokenRefreshScheduler } from "./server/services/tokenRefresh.js";
 
 import {
   sendMetaMessage, uploadWhatsAppMedia, sendWhatsAppMediaMessage,
@@ -6430,6 +6431,9 @@ async function startServer() {
 
     // Start follow-up sequence scheduler (checks every 5 min)
     startFollowUpScheduler();
+
+    // Start WhatsApp token auto-refresh scheduler (checks daily, renews tokens expiring within 30 days)
+    startTokenRefreshScheduler();
   });
 }
 
