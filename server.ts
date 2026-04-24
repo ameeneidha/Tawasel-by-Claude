@@ -2783,35 +2783,51 @@ async function startServer() {
     const whatsAppNumberId = String(req.body.whatsAppNumberId || "").trim();
     if (!workspaceId) return res.status(400).json({ error: "Workspace ID required" });
 
-    const waNumber = whatsAppNumberId
-      ? await prisma.whatsAppNumber.findFirst({ where: { id: whatsAppNumberId, workspaceId } })
-      : (await prisma.whatsAppNumber.findFirst({
-          where: { workspaceId, metaWabaId: { not: null }, metaAccessToken: { not: null } },
-        })) || (await prisma.whatsAppNumber.findFirst({ where: { workspaceId } }));
-    const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || "";
-
-    // Try per-number token first (Embedded Signup), then System User token as fallback.
-    const tokens: { label: string; token: string }[] = [];
-    if (waNumber?.metaAccessToken?.trim()) tokens.push({ label: "per-number", token: waNumber.metaAccessToken.trim() });
-    if (process.env.META_ACCESS_TOKEN?.trim()) tokens.push({ label: "system-user", token: process.env.META_ACCESS_TOKEN.trim() });
-
-    if (tokens.length === 0 || !wabaId) {
+    // Build a list of (wabaId, token) combos to try — one per connected number + system user fallback.
+    // This way if the first number's token lacks whatsapp_business_management permission, we try the next.
+    const allNumbers = await prisma.whatsAppNumber.findMany({
+      where: whatsAppNumberId
+        ? { id: whatsAppNumberId, workspaceId }
+        : { workspaceId, metaWabaId: { not: null }, metaAccessToken: { not: null } },
+    });
+    if (allNumbers.length === 0) {
       return res.status(400).json({ error: "No WhatsApp number connected. Connect a number first." });
+    }
+
+    // Build ordered credential list: each number's own token first, then system user as final fallback
+    type Cred = { label: string; wabaId: string; token: string };
+    const credList: Cred[] = [];
+    for (const n of allNumbers) {
+      if (n.metaWabaId?.trim() && n.metaAccessToken?.trim()) {
+        credList.push({ label: `per-number(${n.phoneNumber})`, wabaId: n.metaWabaId.trim(), token: n.metaAccessToken.trim() });
+      }
+    }
+    if (process.env.META_ACCESS_TOKEN?.trim()) {
+      // Try system user against every known WABA
+      for (const n of allNumbers) {
+        if (n.metaWabaId?.trim()) {
+          credList.push({ label: `system-user(${n.phoneNumber})`, wabaId: n.metaWabaId.trim(), token: process.env.META_ACCESS_TOKEN.trim() });
+        }
+      }
+    }
+    if (credList.length === 0) {
+      return res.status(400).json({ error: "No WhatsApp credentials available. Reconnect your number." });
     }
 
     const graphVersion = process.env.META_GRAPH_VERSION || "v22.0";
     const results: { name: string; status: string; detail?: string }[] = [];
-    // Track the working token for auto-sync at the end
-    let workingToken: string = tokens[0].token;
+    // Track the working (wabaId, token) pair for auto-sync at the end
+    let workingWabaId: string = credList[0].wabaId;
+    let workingToken: string = credList[0].token;
 
     for (const tpl of APPOINTMENT_TEMPLATES) {
       let submitted = false;
       let alreadyExists = false;
       let lastCode: number | undefined;
       let lastDetail: string = "";
-      for (const { label, token } of tokens) {
+      for (const { label, wabaId, token } of credList) {
         try {
-          console.log(`[setup-templates] ${tpl.name}: trying ${label} token (WABA ${wabaId})`);
+          console.log(`[setup-templates] ${tpl.name}: trying ${label} (WABA ${wabaId})`);
           await axios.post(
             `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
             {
@@ -2826,15 +2842,17 @@ async function startServer() {
             },
             { headers: { Authorization: `Bearer ${token}` } }
           );
-          console.log(`[setup-templates] ✅ ${tpl.name} submitted with ${label} token`);
+          console.log(`[setup-templates] ✅ ${tpl.name} submitted via ${label}`);
+          workingWabaId = wabaId;
           workingToken = token;
           submitted = true;
           break;
         } catch (err: any) {
           lastCode = err.response?.data?.error?.code;
           lastDetail = err.response?.data?.error?.message || err.message;
-          console.error(`[setup-templates] ❌ ${tpl.name} ${label} token:`, { code: lastCode, message: lastDetail });
+          console.error(`[setup-templates] ❌ ${tpl.name} ${label}:`, { code: lastCode, message: lastDetail });
           if (lastCode === 2388085 || lastDetail?.includes("already exists")) {
+            workingWabaId = wabaId;
             workingToken = token;
             alreadyExists = true;
             break;
@@ -2871,7 +2889,7 @@ async function startServer() {
     // Auto-sync so the new templates appear in the DB right away
     try {
       const syncRes = await axios.get(
-        `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
+        `https://graph.facebook.com/${graphVersion}/${workingWabaId}/message_templates`,
         { params: { access_token: workingToken, limit: 250 }, timeout: 10000 }
       );
       const metaTemplates = syncRes.data?.data || [];
