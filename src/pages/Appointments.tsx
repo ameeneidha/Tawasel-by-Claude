@@ -81,7 +81,17 @@ interface Appointment {
   createdAt: string;
 }
 
-type Tab = 'appointments' | 'services' | 'staff';
+interface ReminderRule {
+  id: string;
+  name: string;
+  triggerType: 'BEFORE_START' | 'AFTER_END';
+  offsetMinutes: number;
+  templateName?: string | null;
+  messageBody?: string | null;
+  enabled: boolean;
+}
+
+type Tab = 'appointments' | 'services' | 'staff' | 'reminders';
 
 const STATUS_OPTIONS = ['SCHEDULED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const;
 
@@ -138,6 +148,13 @@ export default function Appointments() {
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
 
+  // Reminder rules
+  const [reminderRules, setReminderRules] = useState<ReminderRule[]>([]);
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [editingRule, setEditingRule] = useState<Partial<ReminderRule> | null>(null);
+  const [savingRule, setSavingRule] = useState(false);
+  const [ruleForm, setRuleForm] = useState({ name: '', triggerType: 'BEFORE_START', offsetMinutes: 60, templateName: '', messageBody: '' });
+
   // Data
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -168,18 +185,20 @@ export default function Appointments() {
     if (!wsId) return;
     setLoading(true);
     try {
-      const [apptRes, svcRes, staffRes, contactRes, tplRes] = await Promise.allSettled([
+      const [apptRes, svcRes, staffRes, contactRes, tplRes, rulesRes] = await Promise.allSettled([
         axios.get(`/api/appointments?workspaceId=${wsId}`),
         axios.get(`/api/services?workspaceId=${wsId}`),
         axios.get(`/api/staff?workspaceId=${wsId}`),
         axios.get(`/api/contacts?workspaceId=${wsId}`),
         axios.get(`/api/templates?workspaceId=${wsId}`),
+        axios.get(`/api/reminder-rules?workspaceId=${wsId}`),
       ]);
 
       setAppointments(apptRes.status === 'fulfilled' ? apptRes.value.data : []);
       setServices(svcRes.status === 'fulfilled' ? svcRes.value.data : []);
       setStaff(staffRes.status === 'fulfilled' ? staffRes.value.data : []);
       setContacts(contactRes.status === 'fulfilled' ? contactRes.value.data : []);
+      setReminderRules(rulesRes.status === 'fulfilled' ? rulesRes.value.data : []);
 
       // Check whether the 3 appointment templates exist and are approved
       const templates: { name: string; status: string }[] =
@@ -194,7 +213,7 @@ export default function Appointments() {
       // Log which endpoint failed (helps debugging) but don't block the UI
       const failures = [
         ['appointments', apptRes], ['services', svcRes], ['staff', staffRes],
-        ['contacts', contactRes], ['templates', tplRes],
+        ['contacts', contactRes], ['templates', tplRes], ['reminder-rules', rulesRes],
       ].filter(([_, r]: any) => r.status === 'rejected');
       if (failures.length > 0) {
         console.warn('[Appointments] Partial load failures:', failures.map(([n, r]: any) => ({ n, err: r.reason?.response?.data || r.reason?.message })));
@@ -316,6 +335,75 @@ export default function Appointments() {
     }
   };
 
+  // ─── Reminder Rules CRUD ─────────────────────────────────────────
+
+  const openNewRule = () => {
+    setEditingRule(null);
+    setRuleForm({ name: '', triggerType: 'BEFORE_START', offsetMinutes: 60, templateName: '', messageBody: '' });
+    setShowRuleModal(true);
+  };
+
+  const openEditRule = (rule: ReminderRule) => {
+    setEditingRule(rule);
+    setRuleForm({
+      name: rule.name,
+      triggerType: rule.triggerType,
+      offsetMinutes: rule.offsetMinutes,
+      templateName: rule.templateName || '',
+      messageBody: rule.messageBody || '',
+    });
+    setShowRuleModal(true);
+  };
+
+  const saveRule = async () => {
+    if (!wsId || !ruleForm.name || ruleForm.offsetMinutes < 5) return;
+    setSavingRule(true);
+    try {
+      if (editingRule?.id) {
+        const res = await axios.patch(`/api/reminder-rules/${editingRule.id}`, { workspaceId: wsId, ...ruleForm });
+        setReminderRules(prev => prev.map(r => r.id === editingRule.id ? res.data : r));
+        toast.success('Reminder rule updated');
+      } else {
+        const res = await axios.post('/api/reminder-rules', { workspaceId: wsId, ...ruleForm });
+        setReminderRules(prev => [...prev, res.data]);
+        toast.success('Reminder rule created');
+      }
+      setShowRuleModal(false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to save rule');
+    } finally {
+      setSavingRule(false);
+    }
+  };
+
+  const toggleRule = async (rule: ReminderRule) => {
+    try {
+      const res = await axios.patch(`/api/reminder-rules/${rule.id}`, { workspaceId: wsId, enabled: !rule.enabled });
+      setReminderRules(prev => prev.map(r => r.id === rule.id ? res.data : r));
+      toast.success(res.data.enabled ? 'Rule enabled' : 'Rule disabled');
+    } catch {
+      toast.error('Failed to update rule');
+    }
+  };
+
+  const deleteRule = async (rule: ReminderRule) => {
+    if (!confirm(`Delete reminder rule "${rule.name}"?`)) return;
+    try {
+      await axios.delete(`/api/reminder-rules/${rule.id}?workspaceId=${wsId}`);
+      setReminderRules(prev => prev.filter(r => r.id !== rule.id));
+      toast.success('Rule deleted');
+    } catch {
+      toast.error('Failed to delete rule');
+    }
+  };
+
+  const formatOffset = (rule: ReminderRule) => {
+    const h = Math.floor(rule.offsetMinutes / 60);
+    const m = rule.offsetMinutes % 60;
+    const label = h > 0 && m > 0 ? `${h}h ${m}m` : h > 0 ? `${h}h` : `${m}m`;
+    return rule.triggerType === 'BEFORE_START' ? `${label} before appointment` : `${label} after appointment ends`;
+  };
+
   // ─── Navigation helpers ────────────────────────────────────────────────
 
   const navigateDate = (delta: number) => {
@@ -359,7 +447,7 @@ export default function Appointments() {
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 dark:border-gray-700">
-        {(['appointments', 'services', 'staff'] as Tab[]).map((tabKey) => (
+        {(['appointments', 'services', 'staff', 'reminders'] as Tab[]).map((tabKey) => (
           <button
             key={tabKey}
             onClick={() => setTab(tabKey)}
@@ -819,6 +907,203 @@ export default function Appointments() {
             setShowStaffModal(false);
           }}
         />
+      )}
+
+      {/* ═══════════════ REMINDERS TAB ═══════════════ */}
+      {tab === 'reminders' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{reminderRules.length} rule(s) configured</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                Rules-based reminders replace the default 24h + 1h reminders for this workspace.
+              </p>
+            </div>
+            <button
+              onClick={openNewRule}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white text-sm font-medium transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Rule
+            </button>
+          </div>
+
+          {reminderRules.length === 0 ? (
+            <div className="rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-10 text-center">
+              <Clock className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">No reminder rules yet</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-sm mx-auto">
+                Default reminders (24h + 1h before) fire automatically. Add a rule to customise timing — e.g. 2h, 12h, 48h before, or a follow-up after.
+              </p>
+              <button
+                onClick={openNewRule}
+                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white text-sm font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Add First Rule
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {reminderRules.map(rule => (
+                <div key={rule.id} className={cn(
+                  'flex items-center gap-4 p-4 rounded-xl border transition-all',
+                  rule.enabled
+                    ? 'border-gray-200 bg-white dark:border-gray-700 dark:bg-slate-900'
+                    : 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-slate-900/50 opacity-60'
+                )}>
+                  {/* Toggle */}
+                  <button
+                    onClick={() => toggleRule(rule)}
+                    className={cn(
+                      'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
+                      rule.enabled ? 'bg-[#25D366]' : 'bg-gray-300 dark:bg-gray-600'
+                    )}
+                  >
+                    <span className={cn(
+                      'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200',
+                      rule.enabled ? 'translate-x-4' : 'translate-x-0'
+                    )} />
+                  </button>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{rule.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{formatOffset(rule)}</p>
+                    {rule.templateName && (
+                      <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-[#128C7E] bg-[#25D366]/10 px-2 py-0.5 rounded-full">
+                        Template: {rule.templateName}
+                      </span>
+                    )}
+                    {!rule.templateName && rule.messageBody && (
+                      <p className="text-[10px] text-gray-400 mt-1 truncate max-w-md">{rule.messageBody}</p>
+                    )}
+                    {!rule.templateName && !rule.messageBody && (
+                      <span className="text-[10px] text-gray-400">Auto-generated message</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => openEditRule(rule)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors">
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => deleteRule(rule)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Info box */}
+          <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 text-xs text-blue-700 dark:text-blue-300 space-y-1">
+            <p className="font-semibold">How reminder rules work:</p>
+            <ul className="list-disc list-inside space-y-0.5 text-blue-600 dark:text-blue-400">
+              <li>Rules fire once per appointment (no duplicates)</li>
+              <li>If a template is set, it must be approved in Meta first</li>
+              <li>Without a template, a plain-text message is sent (works within 24h session)</li>
+              <li>Custom message: use <code>{'{{customer_name}}'}</code>, <code>{'{{service}}'}</code>, <code>{'{{staff}}'}</code>, <code>{'{{time}}'}</code>, <code>{'{{date}}'}</code>, <code>{'{{business}}'}</code></li>
+              <li>Max 5 active rules per workspace</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════ REMINDER RULE MODAL ═══════════════ */}
+      {showRuleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-slate-900 p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {editingRule ? 'Edit Reminder Rule' : 'New Reminder Rule'}
+              </h3>
+              <button onClick={() => setShowRuleModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Rule Name</label>
+                <input
+                  type="text"
+                  value={ruleForm.name}
+                  onChange={e => setRuleForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. 2 hours before"
+                  className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-slate-950 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#25D366]/20"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Trigger</label>
+                  <select
+                    value={ruleForm.triggerType}
+                    onChange={e => setRuleForm(f => ({ ...f, triggerType: e.target.value }))}
+                    className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-slate-950 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#25D366]/20"
+                  >
+                    <option value="BEFORE_START">Before start</option>
+                    <option value="AFTER_END">After end</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Offset (minutes)</label>
+                  <input
+                    type="number"
+                    min={5}
+                    max={10080}
+                    value={ruleForm.offsetMinutes}
+                    onChange={e => setRuleForm(f => ({ ...f, offsetMinutes: Number(e.target.value) }))}
+                    className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-slate-950 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#25D366]/20"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Common: 60=1h, 120=2h, 720=12h, 1440=24h, 2880=48h
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Template Name <span className="font-normal normal-case tracking-normal text-gray-400">(optional — must be APPROVED in Meta)</span>
+                </label>
+                <input
+                  type="text"
+                  value={ruleForm.templateName}
+                  onChange={e => setRuleForm(f => ({ ...f, templateName: e.target.value }))}
+                  placeholder="e.g. my_reminder_2h"
+                  className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-slate-950 px-3 py-2.5 text-sm font-mono text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#25D366]/20"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Custom Message <span className="font-normal normal-case tracking-normal text-gray-400">(if no template — plain text)</span>
+                </label>
+                <textarea
+                  value={ruleForm.messageBody}
+                  onChange={e => setRuleForm(f => ({ ...f, messageBody: e.target.value }))}
+                  rows={3}
+                  placeholder="Hi {{customer_name}}, your {{service}} is in 2 hours at {{time}}. See you soon! — {{business}}"
+                  className="mt-1.5 w-full resize-none rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-slate-950 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#25D366]/20"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Leave empty for auto-generated message</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-6">
+              <button onClick={() => setShowRuleModal(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={saveRule}
+                disabled={savingRule || !ruleForm.name || ruleForm.offsetMinutes < 5}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white text-sm font-medium transition-colors disabled:opacity-60"
+              >
+                {savingRule ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {editingRule ? 'Save Changes' : 'Create Rule'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

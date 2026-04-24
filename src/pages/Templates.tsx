@@ -44,6 +44,36 @@ const EMPTY_EDITOR_STATE: TemplateEditorState = {
   content: '',
 };
 
+type WaBuilderState = {
+  name: string;
+  category: string;
+  language: string;
+  bodyText: string;
+};
+
+const EMPTY_WA_BUILDER: WaBuilderState = {
+  name: '',
+  category: 'UTILITY',
+  language: 'en',
+  bodyText: '',
+};
+
+const VARIABLE_TAGS = [
+  { label: 'Customer Name', token: '{{customer_name}}' },
+  { label: 'Service', token: '{{service}}' },
+  { label: 'Staff', token: '{{staff}}' },
+  { label: 'Date', token: '{{date}}' },
+  { label: 'Time', token: '{{time}}' },
+  { label: 'Business', token: '{{business}}' },
+];
+
+const WA_CATEGORIES = ['UTILITY', 'MARKETING', 'AUTHENTICATION'];
+const WA_LANGUAGES  = [
+  { code: 'en', label: 'English' },
+  { code: 'ar', label: 'Arabic' },
+  { code: 'en_US', label: 'English (US)' },
+];
+
 export default function Templates() {
   const { activeWorkspace } = useApp();
   const { t } = useTranslation();
@@ -57,6 +87,12 @@ export default function Templates() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TemplateEditorState>(EMPTY_EDITOR_STATE);
+
+  // WhatsApp Template Builder
+  const [isWaBuilderOpen, setIsWaBuilderOpen] = useState(false);
+  const [waBuilder, setWaBuilder] = useState<WaBuilderState>(EMPTY_WA_BUILDER);
+  const [isWaBuilderSaving, setIsWaBuilderSaving] = useState(false);
+  const [waBodyRef, setWaBodyRef] = useState<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     if (activeWorkspace?.id) {
@@ -243,6 +279,50 @@ export default function Templates() {
     }
   };
 
+  const insertToken = (token: string) => {
+    if (!waBodyRef) {
+      setWaBuilder(b => ({ ...b, bodyText: b.bodyText + token }));
+      return;
+    }
+    const start = waBodyRef.selectionStart;
+    const end   = waBodyRef.selectionEnd;
+    const text  = waBuilder.bodyText;
+    const next  = text.slice(0, start) + token + text.slice(end);
+    setWaBuilder(b => ({ ...b, bodyText: next }));
+    setTimeout(() => {
+      waBodyRef.selectionStart = waBodyRef.selectionEnd = start + token.length;
+      waBodyRef.focus();
+    }, 0);
+  };
+
+  const handleCreateWaTemplate = async () => {
+    if (!activeWorkspace?.id) return;
+    const name = waBuilder.name.trim().toLowerCase().replace(/\s+/g, '_');
+    if (!name) return toast.error('Template name is required');
+    if (!/^[a-z0-9_]+$/.test(name)) return toast.error('Name must be lowercase letters, numbers, underscores only');
+    if (!waBuilder.bodyText.trim()) return toast.error('Template body is required');
+    if (waBuilder.bodyText.length > 1024) return toast.error('Body text must be under 1024 characters');
+
+    setIsWaBuilderSaving(true);
+    try {
+      const res = await axios.post('/api/templates/whatsapp/create', {
+        workspaceId: activeWorkspace.id,
+        name,
+        category: waBuilder.category,
+        language: waBuilder.language,
+        bodyText: waBuilder.bodyText,
+      });
+      setWaTemplates(prev => [res.data.template, ...prev]);
+      setIsWaBuilderOpen(false);
+      setWaBuilder(EMPTY_WA_BUILDER);
+      toast.success('Template submitted to Meta for approval! Will be active in a few minutes.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to create template');
+    } finally {
+      setIsWaBuilderSaving(false);
+    }
+  };
+
   const handleCopyTemplate = async (template: { content: string }) => {
     try {
       await navigator.clipboard.writeText(template.content);
@@ -295,15 +375,26 @@ export default function Templates() {
                   className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:ring-2 focus:ring-[#25D366]/10 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:placeholder:text-gray-600"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => fetchTemplates('refresh')}
-                disabled={isRefreshing || !activeWorkspace?.id}
-                className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 disabled:cursor-wait disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300 dark:hover:bg-slate-800"
-              >
-                <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
-                {t('templates.syncFromWhatsApp')}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setWaBuilder(EMPTY_WA_BUILDER); setIsWaBuilderOpen(true); }}
+                  disabled={!activeWorkspace?.id}
+                  className="flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2 font-medium text-white shadow-sm transition-all hover:bg-[#128C7E] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Plus className="h-4 w-4" />
+                  New Template
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fetchTemplates('refresh')}
+                  disabled={isRefreshing || !activeWorkspace?.id}
+                  className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 disabled:cursor-wait disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300 dark:hover:bg-slate-800"
+                >
+                  <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                  {t('templates.syncFromWhatsApp')}
+                </button>
+              </div>
             </div>
 
             <TemplatesGrid
@@ -369,6 +460,146 @@ export default function Templates() {
           </Tabs.Content>
         </Tabs.Root>
       </div>
+
+      {/* WhatsApp Template Builder Modal */}
+      {isWaBuilderOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create WhatsApp Template</h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Template will be submitted to Meta for approval — usually takes a few minutes.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsWaBuilderOpen(false)}
+                disabled={isWaBuilderSaving}
+                className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-slate-800"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {/* Name */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                  Template Name <span className="text-gray-400 font-normal normal-case tracking-normal">(lowercase, underscores only)</span>
+                </label>
+                <input
+                  type="text"
+                  value={waBuilder.name}
+                  onChange={e => setWaBuilder(b => ({ ...b, name: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') }))}
+                  placeholder="e.g. appointment_reminder_3h"
+                  maxLength={60}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 font-mono outline-none focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                />
+              </div>
+
+              {/* Category + Language */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Category</label>
+                  <select
+                    value={waBuilder.category}
+                    onChange={e => setWaBuilder(b => ({ ...b, category: e.target.value }))}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  >
+                    {WA_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <p className="text-xs text-gray-400">Use UTILITY for reminders, MARKETING for promotions</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Language</label>
+                  <select
+                    value={waBuilder.language}
+                    onChange={e => setWaBuilder(b => ({ ...b, language: e.target.value }))}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  >
+                    {WA_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                    Message Body
+                  </label>
+                  <span className="text-xs text-gray-400">{waBuilder.bodyText.length}/1024</span>
+                </div>
+                {/* Variable tags */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {VARIABLE_TAGS.map(v => (
+                    <button
+                      key={v.token}
+                      type="button"
+                      onClick={() => insertToken(v.token)}
+                      className="rounded-lg border border-[#25D366]/30 bg-[#25D366]/5 px-2 py-0.5 text-xs font-medium text-[#128C7E] hover:bg-[#25D366]/15 transition-colors dark:border-[#25D366]/20 dark:text-[#25D366]"
+                    >
+                      + {v.label}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  ref={el => setWaBodyRef(el)}
+                  value={waBuilder.bodyText}
+                  onChange={e => setWaBuilder(b => ({ ...b, bodyText: e.target.value.slice(0, 1024) }))}
+                  rows={6}
+                  placeholder="Hi {{customer_name}}! Your {{service}} with {{staff}} is tomorrow at {{time}}. See you then! — {{business}}"
+                  className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm leading-6 text-gray-900 outline-none focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                />
+                <p className="text-xs text-gray-400">
+                  Click a variable tag above to insert it at the cursor. Variables are auto-filled by Tawasel when the reminder fires.
+                </p>
+              </div>
+
+              {/* Preview */}
+              {waBuilder.bodyText && (
+                <div className="rounded-xl bg-[#DCF8C6] p-4 dark:bg-green-900/20">
+                  <p className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Preview</p>
+                  <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                    {waBuilder.bodyText
+                      .replace(/\{\{customer_name\}\}/g, 'Layla')
+                      .replace(/\{\{service\}\}/g, 'Haircut')
+                      .replace(/\{\{staff\}\}/g, 'Ahmed')
+                      .replace(/\{\{date\}\}/g, 'Monday, April 28')
+                      .replace(/\{\{time\}\}/g, '3:00 PM')
+                      .replace(/\{\{business\}\}/g, 'Glamour Salon')}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsWaBuilderOpen(false)}
+                disabled={isWaBuilderSaving}
+                className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateWaTemplate}
+                disabled={isWaBuilderSaving || !waBuilder.name || !waBuilder.bodyText}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#128C7E] disabled:cursor-wait disabled:opacity-60"
+              >
+                <Save className="h-4 w-4" />
+                {isWaBuilderSaving ? 'Submitting...' : 'Submit to Meta'}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {isEditorOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">

@@ -2,32 +2,19 @@ import prisma from "../../src/lib/prisma.js";
 import { sendMetaMessage, sendTemplateMessage, getWhatsAppChannelConfig } from "./meta.js";
 
 // ── Appointment Reminder & Follow-Up Scheduler ────────────────────
-// Runs every 30 minutes, handles 3 automated WhatsApp messages:
-//   1. 24h reminder  — sent when appointment is 24h away (reminderSentAt)
-//   2. 1h reminder   — sent when appointment is 1h away  (reminder1hSentAt)
-//   3. Post-visit    — sent 30min–4h after endTime        (followUpSentAt)
+// Runs every 30 minutes. Two modes:
+//   1. Rules-based: reads AppointmentReminderRule rows per workspace (Phase 2)
+//   2. Legacy hardcoded: 24h + 1h + post-visit (fires for workspaces with no rules)
 
 const REMINDER_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-
-// Template names must match what was submitted via /api/appointments/setup-templates
-const TEMPLATE_REMINDER_24H = "tawasel_reminder_24h";
-const TEMPLATE_REMINDER_1H  = "tawasel_reminder_1h";
+const SCHEDULER_TOLERANCE_MS = 20 * 60 * 1000; // ±20 min window around target time
 
 function formatReminderTime(date: Date): string {
-  return date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
 function formatReminderDate(date: Date): string {
-  return date.toLocaleDateString([], {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  return date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 }
 
 // ── Helper: get WhatsApp number for a workspace ────────────────────
@@ -77,15 +64,222 @@ async function saveReminderMessage(
   }
 }
 
-// ── 24-Hour Reminder ───────────────────────────────────────────────
+// ── Helper: build default message body ────────────────────────────
+
+function buildReminderBody(
+  triggerType: string,
+  offsetMinutes: number,
+  customerName: string,
+  serviceName: string,
+  staffName: string,
+  startTime: Date,
+  businessName: string
+): string {
+  if (triggerType === "AFTER_END") {
+    return [
+      `Hi ${customerName}! 😊`,
+      ``,
+      `How was your ${serviceName} with ${staffName} today?`,
+      ``,
+      `We'd love to hear your feedback — and whenever you're ready to rebook, just reply to this message!`,
+      ``,
+      `— ${businessName}`,
+    ].join("\n");
+  }
+
+  const hoursAway = Math.round(offsetMinutes / 60);
+  const timeLabel =
+    offsetMinutes >= 60 ? `${hoursAway} hour${hoursAway !== 1 ? "s" : ""}` : `${offsetMinutes} minutes`;
+
+  if (offsetMinutes <= 120) {
+    // Short reminder (≤2h) — concise
+    return `Hi ${customerName}! ⏰\n\nYour ${serviceName} with ${staffName} is in ${timeLabel} at ${formatReminderTime(startTime)}. See you soon!\n\n— ${businessName}`;
+  }
+
+  // Longer reminder — full details
+  return [
+    `Hi ${customerName}! 👋`,
+    ``,
+    `Reminder about your upcoming appointment (in ${timeLabel}):`,
+    ``,
+    `📋 *Service:* ${serviceName}`,
+    `👤 *With:* ${staffName}`,
+    `📅 *Date:* ${formatReminderDate(startTime)}`,
+    `🕐 *Time:* ${formatReminderTime(startTime)}`,
+    ``,
+    `Need to reschedule? Just reply to this message.`,
+    ``,
+    `— ${businessName}`,
+  ].join("\n");
+}
+
+// ── Rules-Based Reminder Pass ──────────────────────────────────────
+// For each enabled rule, find appointments whose trigger window overlaps
+// now, and where no log entry exists yet for that rule+appointment pair.
+
+async function runRulesBasedReminders() {
+  const now = new Date();
+
+  const rules = await prisma.appointmentReminderRule.findMany({
+    where: { enabled: true },
+    select: {
+      id: true,
+      workspaceId: true,
+      name: true,
+      triggerType: true,
+      offsetMinutes: true,
+      templateName: true,
+      messageBody: true,
+    },
+  });
+
+  if (rules.length === 0) return;
+
+  for (const rule of rules) {
+    try {
+      // Calculate target fire time window
+      let windowStart: Date, windowEnd: Date;
+      if (rule.triggerType === "BEFORE_START") {
+        // We want appointments where: startTime ≈ now + offsetMinutes
+        const target = now.getTime() + rule.offsetMinutes * 60000;
+        windowStart = new Date(target - SCHEDULER_TOLERANCE_MS);
+        windowEnd   = new Date(target + SCHEDULER_TOLERANCE_MS);
+      } else {
+        // AFTER_END: endTime ≈ now - offsetMinutes
+        const target = now.getTime() - rule.offsetMinutes * 60000;
+        windowStart = new Date(target - SCHEDULER_TOLERANCE_MS);
+        windowEnd   = new Date(target + SCHEDULER_TOLERANCE_MS);
+      }
+
+      // Find appointments in the window for this workspace that haven't been logged yet
+      const appointments = await prisma.appointment.findMany({
+        where: {
+          workspaceId: rule.workspaceId,
+          status: { in: ["SCHEDULED", "CONFIRMED", ...(rule.triggerType === "AFTER_END" ? ["COMPLETED"] : [])] },
+          ...(rule.triggerType === "BEFORE_START"
+            ? { startTime: { gte: windowStart, lte: windowEnd } }
+            : { endTime:   { gte: windowStart, lte: windowEnd } }),
+          // Exclude appointments already handled by this rule
+          reminderLogs: { none: { ruleId: rule.id } },
+        },
+        include: {
+          contact:   { select: { id: true, name: true, phoneNumber: true } },
+          service:   { select: { name: true, durationMin: true, price: true, currency: true } },
+          staff:     { select: { name: true } },
+          workspace: { select: { id: true, name: true } },
+        },
+      });
+
+      if (appointments.length === 0) continue;
+      console.log(`[Reminders Rule "${rule.name}"] Found ${appointments.length} appointment(s)`);
+
+      const waNumber = await getWaNumber(rule.workspaceId);
+      if (!waNumber) continue;
+      const config = getWhatsAppChannelConfig(waNumber);
+      if (!config.accessToken || !config.phoneNumberId) continue;
+
+      for (const appt of appointments) {
+        if (!appt.contact?.phoneNumber) continue;
+
+        const customerName = appt.contact.name || "there";
+        const businessName = appt.workspace?.name || "us";
+        const startTime    = new Date(appt.startTime);
+        const timeStr      = formatReminderTime(startTime);
+        const dateStr      = `${formatReminderDate(startTime)} at ${timeStr}`;
+
+        try {
+          let messageContent: string;
+
+          // Try template first
+          const tplName = rule.templateName;
+          if (tplName && await hasApprovedTemplate(rule.workspaceId, tplName)) {
+            await sendTemplateMessage(
+              appt.contact.phoneNumber,
+              tplName,
+              "en",
+              [customerName, appt.service.name, appt.staff.name,
+               rule.triggerType === "BEFORE_START" ? dateStr : timeStr,
+               businessName],
+              config as { accessToken: string; phoneNumberId: string }
+            );
+            messageContent = `[${rule.name} template "${tplName}" sent to ${customerName}]`;
+          } else {
+            // Fallback: custom messageBody or auto-generated text
+            messageContent =
+              rule.messageBody?.trim() ||
+              buildReminderBody(rule.triggerType, rule.offsetMinutes, customerName,
+                appt.service.name, appt.staff.name, startTime, businessName);
+            // Replace placeholders in custom body
+            messageContent = messageContent
+              .replace(/\{\{customer_name\}\}/gi, customerName)
+              .replace(/\{\{service\}\}/gi, appt.service.name)
+              .replace(/\{\{staff\}\}/gi, appt.staff.name)
+              .replace(/\{\{date\}\}/gi, formatReminderDate(startTime))
+              .replace(/\{\{time\}\}/gi, timeStr)
+              .replace(/\{\{business\}\}/gi, businessName);
+
+            await sendMetaMessage(appt.contact.phoneNumber, messageContent, "whatsapp", config);
+          }
+
+          // Mark as sent — upsert is safe against race conditions
+          await prisma.appointmentReminderLog.upsert({
+            where: { ruleId_appointmentId: { ruleId: rule.id, appointmentId: appt.id } },
+            update: { sentAt: new Date() },
+            create: { ruleId: rule.id, appointmentId: appt.id },
+          });
+
+          await saveReminderMessage(appt.workspaceId, appt.contact.id, messageContent, rule.name);
+          await prisma.activityLog.create({
+            data: {
+              type: "REMINDER_SENT",
+              content: `Reminder "${rule.name}" sent for ${appt.service.name} with ${appt.staff.name}`,
+              contactId: appt.contact.id,
+              workspaceId: appt.workspaceId,
+            },
+          });
+          console.log(`[Reminders Rule "${rule.name}"] ✅ ${appt.id} → ${appt.contact.phoneNumber}`);
+        } catch (err: any) {
+          console.error(`[Reminders Rule "${rule.name}"] ❌ ${appt.id}:`, err?.message || err);
+        }
+      }
+    } catch (err: any) {
+      console.error(`[Reminders] Rule ${rule.id} error:`, err?.message || err);
+    }
+  }
+}
+
+// ── Legacy Hardcoded Reminders ─────────────────────────────────────
+// Only fires for workspaces that have NO reminder rules configured.
+// This ensures existing workspaces keep getting 24h + 1h reminders
+// until they set up their own rules.
+
+async function getLegacyWorkspaceIds(): Promise<string[]> {
+  // Workspaces with at least one enabled rule handle their own reminders
+  const withRules = await prisma.appointmentReminderRule.findMany({
+    where: { enabled: true },
+    select: { workspaceId: true },
+    distinct: ["workspaceId"],
+  });
+  const ruleWorkspaceIds = new Set(withRules.map((r) => r.workspaceId));
+
+  const allWorkspaces = await prisma.workspace.findMany({
+    where: { suspended: false },
+    select: { id: true },
+  });
+  return allWorkspaces.map((w) => w.id).filter((id) => !ruleWorkspaceIds.has(id));
+}
 
 async function send24hReminders() {
+  const legacyIds = await getLegacyWorkspaceIds();
+  if (legacyIds.length === 0) return;
+
   const now = new Date();
-  const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000); // 23h from now
-  const windowEnd   = new Date(now.getTime() + 25 * 60 * 60 * 1000); // 25h from now
+  const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000);
+  const windowEnd   = new Date(now.getTime() + 25 * 60 * 60 * 1000);
 
   const appointments = await prisma.appointment.findMany({
     where: {
+      workspaceId: { in: legacyIds },
       startTime: { gte: windowStart, lte: windowEnd },
       status: { in: ["SCHEDULED", "CONFIRMED"] },
       reminderSentAt: null,
@@ -99,67 +293,40 @@ async function send24hReminders() {
   });
 
   if (appointments.length === 0) return;
-  console.log(`[Reminders 24h] Found ${appointments.length} appointment(s)`);
+  console.log(`[Reminders 24h] Found ${appointments.length} appointment(s) (legacy workspaces)`);
 
   for (const appt of appointments) {
     if (!appt.contact?.phoneNumber) continue;
-
     const waNumber = await getWaNumber(appt.workspaceId);
     if (!waNumber) continue;
     const config = getWhatsAppChannelConfig(waNumber);
     if (!config.accessToken || !config.phoneNumberId) continue;
 
     const startTime    = new Date(appt.startTime);
-    const businessName = appt.workspace?.name || "us";
     const customerName = appt.contact.name || "there";
+    const businessName = appt.workspace?.name || "us";
     const dateTimeStr  = `${formatReminderDate(startTime)} at ${formatReminderTime(startTime)}`;
 
     try {
-      const useTemplate = await hasApprovedTemplate(appt.workspaceId, TEMPLATE_REMINDER_24H);
-
-      let messageId: string | undefined;
+      const useTemplate = await hasApprovedTemplate(appt.workspaceId, "tawasel_reminder_24h");
       let messageContent: string;
 
       if (useTemplate) {
-        // Template: {{1}}=name, {{2}}=service, {{3}}=staff, {{4}}=datetime, {{5}}=business
-        messageId = await sendTemplateMessage(
-          appt.contact.phoneNumber,
-          TEMPLATE_REMINDER_24H,
-          "en",
+        await sendTemplateMessage(appt.contact.phoneNumber, "tawasel_reminder_24h", "en",
           [customerName, appt.service.name, appt.staff.name, dateTimeStr, businessName],
           config as { accessToken: string; phoneNumberId: string }
         );
         messageContent = `[24h reminder template sent to ${customerName}]`;
       } else {
-        // Fallback plain text (works if customer messaged recently)
-        messageContent = [
-          `Hi ${customerName}! 👋`,
-          ``,
-          `Reminder about your upcoming appointment:`,
-          ``,
-          `📋 *Service:* ${appt.service.name}`,
-          `👤 *With:* ${appt.staff.name}`,
-          `📅 *Date:* ${formatReminderDate(startTime)}`,
-          `🕐 *Time:* ${formatReminderTime(startTime)}`,
-          `⏱️ *Duration:* ${appt.service.durationMin} minutes`,
-          appt.service.price > 0 ? `💰 *Price:* ${appt.service.price} ${appt.service.currency}` : "",
-          ``,
-          `Need to reschedule? Just reply to this message.`,
-          ``,
-          `— ${businessName}`,
-        ].filter(Boolean).join("\n");
-        messageId = await sendMetaMessage(appt.contact.phoneNumber, messageContent, "whatsapp", config);
+        messageContent = buildReminderBody("BEFORE_START", 1440, customerName,
+          appt.service.name, appt.staff.name, startTime, businessName);
+        await sendMetaMessage(appt.contact.phoneNumber, messageContent, "whatsapp", config);
       }
 
       await prisma.appointment.update({ where: { id: appt.id }, data: { reminderSentAt: new Date() } });
       await saveReminderMessage(appt.workspaceId, appt.contact.id, messageContent, "24h Reminder");
       await prisma.activityLog.create({
-        data: {
-          type: "REMINDER_SENT",
-          content: `24h reminder sent for ${appt.service.name} with ${appt.staff.name} on ${dateTimeStr}`,
-          contactId: appt.contact.id,
-          workspaceId: appt.workspaceId,
-        },
+        data: { type: "REMINDER_SENT", content: `24h reminder sent for ${appt.service.name} with ${appt.staff.name} on ${dateTimeStr}`, contactId: appt.contact.id, workspaceId: appt.workspaceId },
       });
       console.log(`[Reminders 24h] ✅ ${appt.id} → ${appt.contact.phoneNumber}`);
     } catch (err: any) {
@@ -168,15 +335,17 @@ async function send24hReminders() {
   }
 }
 
-// ── 1-Hour Reminder ────────────────────────────────────────────────
-
 async function send1hReminders() {
+  const legacyIds = await getLegacyWorkspaceIds();
+  if (legacyIds.length === 0) return;
+
   const now = new Date();
-  const windowStart = new Date(now.getTime() + 45 * 60 * 1000);  // 45min from now
-  const windowEnd   = new Date(now.getTime() + 90 * 60 * 1000);  // 90min from now
+  const windowStart = new Date(now.getTime() + 45 * 60 * 1000);
+  const windowEnd   = new Date(now.getTime() + 90 * 60 * 1000);
 
   const appointments = await prisma.appointment.findMany({
     where: {
+      workspaceId: { in: legacyIds },
       startTime: { gte: windowStart, lte: windowEnd },
       status: { in: ["SCHEDULED", "CONFIRMED"] },
       reminder1hSentAt: null,
@@ -190,51 +359,39 @@ async function send1hReminders() {
   });
 
   if (appointments.length === 0) return;
-  console.log(`[Reminders 1h] Found ${appointments.length} appointment(s)`);
+  console.log(`[Reminders 1h] Found ${appointments.length} appointment(s) (legacy workspaces)`);
 
   for (const appt of appointments) {
     if (!appt.contact?.phoneNumber) continue;
-
     const waNumber = await getWaNumber(appt.workspaceId);
     if (!waNumber) continue;
     const config = getWhatsAppChannelConfig(waNumber);
     if (!config.accessToken || !config.phoneNumberId) continue;
 
     const startTime    = new Date(appt.startTime);
-    const businessName = appt.workspace?.name || "us";
     const customerName = appt.contact.name || "there";
-    const timeStr      = formatReminderTime(startTime);
+    const businessName = appt.workspace?.name || "us";
 
     try {
-      const useTemplate = await hasApprovedTemplate(appt.workspaceId, TEMPLATE_REMINDER_1H);
-
+      const useTemplate = await hasApprovedTemplate(appt.workspaceId, "tawasel_reminder_1h");
       let messageContent: string;
 
       if (useTemplate) {
-        // Template: {{1}}=name, {{2}}=service, {{3}}=staff, {{4}}=time, {{5}}=business
-        await sendTemplateMessage(
-          appt.contact.phoneNumber,
-          TEMPLATE_REMINDER_1H,
-          "en",
-          [customerName, appt.service.name, appt.staff.name, timeStr, businessName],
+        await sendTemplateMessage(appt.contact.phoneNumber, "tawasel_reminder_1h", "en",
+          [customerName, appt.service.name, appt.staff.name, formatReminderTime(startTime), businessName],
           config as { accessToken: string; phoneNumberId: string }
         );
         messageContent = `[1h reminder template sent to ${customerName}]`;
       } else {
-        // Fallback plain text
-        messageContent = `Hi ${customerName}! ⏰\n\nYour ${appt.service.name} with ${appt.staff.name} is in 1 hour at ${timeStr}. See you soon! — ${businessName}`;
+        messageContent = buildReminderBody("BEFORE_START", 60, customerName,
+          appt.service.name, appt.staff.name, startTime, businessName);
         await sendMetaMessage(appt.contact.phoneNumber, messageContent, "whatsapp", config);
       }
 
       await prisma.appointment.update({ where: { id: appt.id }, data: { reminder1hSentAt: new Date() } });
       await saveReminderMessage(appt.workspaceId, appt.contact.id, messageContent, "1h Reminder");
       await prisma.activityLog.create({
-        data: {
-          type: "REMINDER_SENT",
-          content: `1h reminder sent for ${appt.service.name} with ${appt.staff.name} at ${timeStr}`,
-          contactId: appt.contact.id,
-          workspaceId: appt.workspaceId,
-        },
+        data: { type: "REMINDER_SENT", content: `1h reminder sent for ${appt.service.name} with ${appt.staff.name}`, contactId: appt.contact.id, workspaceId: appt.workspaceId },
       });
       console.log(`[Reminders 1h] ✅ ${appt.id} → ${appt.contact.phoneNumber}`);
     } catch (err: any) {
@@ -243,17 +400,17 @@ async function send1hReminders() {
   }
 }
 
-// ── Post-Visit Follow-Up ───────────────────────────────────────────
-// Fires 30min–4h after appointment endTime. Uses plain text — by this
-// point the 1h reminder was sent today so the 24h session is open.
-
 async function sendPostVisitFollowUps() {
+  const legacyIds = await getLegacyWorkspaceIds();
+  if (legacyIds.length === 0) return;
+
   const now = new Date();
-  const windowStart = new Date(now.getTime() - 4 * 60 * 60 * 1000);  // up to 4h ago
-  const windowEnd   = new Date(now.getTime() - 30 * 60 * 1000);       // at least 30min ago
+  const windowStart = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+  const windowEnd   = new Date(now.getTime() - 30 * 60 * 1000);
 
   const appointments = await prisma.appointment.findMany({
     where: {
+      workspaceId: { in: legacyIds },
       endTime: { gte: windowStart, lte: windowEnd },
       status: { in: ["SCHEDULED", "CONFIRMED", "COMPLETED"] },
       followUpSentAt: null,
@@ -267,40 +424,28 @@ async function sendPostVisitFollowUps() {
   });
 
   if (appointments.length === 0) return;
-  console.log(`[Follow-Up] Found ${appointments.length} appointment(s)`);
+  console.log(`[Follow-Up] Found ${appointments.length} appointment(s) (legacy workspaces)`);
 
   for (const appt of appointments) {
     if (!appt.contact?.phoneNumber) continue;
-
     const waNumber = await getWaNumber(appt.workspaceId);
     if (!waNumber) continue;
     const config = getWhatsAppChannelConfig(waNumber);
     if (!config.accessToken || !config.phoneNumberId) continue;
 
-    const businessName = appt.workspace?.name || "us";
+    const startTime    = new Date(appt.startTime);
     const customerName = appt.contact.name || "there";
+    const businessName = appt.workspace?.name || "us";
 
-    const message = [
-      `Hi ${customerName}! 😊`,
-      ``,
-      `How was your ${appt.service.name} with ${appt.staff.name} today?`,
-      ``,
-      `We'd love to hear your feedback — and whenever you're ready to rebook, just reply to this message!`,
-      ``,
-      `— ${businessName}`,
-    ].join("\n");
+    const message = buildReminderBody("AFTER_END", 30, customerName,
+      appt.service.name, appt.staff.name, startTime, businessName);
 
     try {
       await sendMetaMessage(appt.contact.phoneNumber, message, "whatsapp", config);
       await prisma.appointment.update({ where: { id: appt.id }, data: { followUpSentAt: new Date() } });
       await saveReminderMessage(appt.workspaceId, appt.contact.id, message, "Post-Visit Follow-Up");
       await prisma.activityLog.create({
-        data: {
-          type: "REMINDER_SENT",
-          content: `Post-visit follow-up sent after ${appt.service.name} with ${appt.staff.name}`,
-          contactId: appt.contact.id,
-          workspaceId: appt.workspaceId,
-        },
+        data: { type: "REMINDER_SENT", content: `Post-visit follow-up sent after ${appt.service.name} with ${appt.staff.name}`, contactId: appt.contact.id, workspaceId: appt.workspaceId },
       });
       console.log(`[Follow-Up] ✅ ${appt.id} → ${appt.contact.phoneNumber}`);
     } catch (err: any) {
@@ -313,7 +458,8 @@ async function sendPostVisitFollowUps() {
 
 async function runReminderTick() {
   try {
-    await send24hReminders();
+    await runRulesBasedReminders();  // Phase 2: rules from DB
+    await send24hReminders();        // Legacy: workspaces with no rules
     await send1hReminders();
     await sendPostVisitFollowUps();
   } catch (error) {

@@ -2734,6 +2734,127 @@ async function startServer() {
     });
   });
 
+  // ── Template Creator (create custom WhatsApp template in Meta) ─────
+  app.post("/api/templates/whatsapp/create", requireAuth, requireRole("ADMIN", "OWNER"), requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+    const { workspaceId, name, category, language, bodyText, variableCount } = req.body;
+    if (!workspaceId || !name || !category || !language || !bodyText) {
+      return res.status(400).json({ error: "name, category, language, and bodyText are required" });
+    }
+
+    // Validate name: lowercase letters, numbers, underscores only
+    if (!/^[a-z0-9_]{1,512}$/.test(name)) {
+      return res.status(400).json({ error: "Template name must be lowercase letters, numbers, and underscores only" });
+    }
+
+    const waNumber = await prisma.whatsAppNumber.findFirst({ where: { workspaceId } });
+    const accessToken = waNumber?.metaAccessToken?.trim() || process.env.META_ACCESS_TOKEN || "";
+    const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || "";
+    if (!accessToken || !wabaId) {
+      return res.status(400).json({ error: "No WhatsApp number connected. Connect a number in Channels first." });
+    }
+
+    const graphVersion = process.env.META_GRAPH_VERSION || "v22.0";
+    try {
+      await axios.post(
+        `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
+        { name, category, language, components: [{ type: "BODY", text: bodyText }] },
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+    } catch (err: any) {
+      const code = err.response?.data?.error?.code;
+      const detail = err.response?.data?.error?.message || err.message;
+      if (code !== 2388085 && !detail?.includes("already exists")) {
+        return res.status(400).json({ error: detail || "Failed to create template on Meta" });
+      }
+      // already exists → still upsert locally and return success
+    }
+
+    // Upsert locally as PENDING
+    const existing = await prisma.whatsAppTemplate.findFirst({
+      where: { workspaceId, name, language },
+    });
+    const template = existing
+      ? await prisma.whatsAppTemplate.update({ where: { id: existing.id }, data: { content: bodyText, status: "PENDING", category } })
+      : await prisma.whatsAppTemplate.create({ data: { workspaceId, name, content: bodyText, category, language, status: "PENDING" } });
+
+    res.json({ template, message: "Template submitted to Meta for approval. Usually approved within a few minutes." });
+  });
+
+  // ── Appointment Reminder Rules CRUD ────────────────────────────────
+  // GET /api/reminder-rules?workspaceId=
+  app.get("/api/reminder-rules", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
+    const workspaceId = req.query.workspaceId as string;
+    const rules = await prisma.appointmentReminderRule.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: "asc" },
+    });
+    res.json(rules);
+  });
+
+  // POST /api/reminder-rules
+  app.post("/api/reminder-rules", requireAuth, requireRole("ADMIN", "OWNER"), requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+    const { workspaceId, name, triggerType, offsetMinutes, templateName, messageBody } = req.body;
+    if (!workspaceId || !name || !triggerType || offsetMinutes == null) {
+      return res.status(400).json({ error: "name, triggerType, and offsetMinutes are required" });
+    }
+    if (!["BEFORE_START", "AFTER_END"].includes(triggerType)) {
+      return res.status(400).json({ error: "triggerType must be BEFORE_START or AFTER_END" });
+    }
+    if (Number(offsetMinutes) < 5) {
+      return res.status(400).json({ error: "offsetMinutes must be at least 5" });
+    }
+    // Cap at 5 active rules per workspace
+    const count = await prisma.appointmentReminderRule.count({ where: { workspaceId, enabled: true } });
+    if (count >= 5) {
+      return res.status(400).json({ error: "Maximum 5 active reminder rules per workspace" });
+    }
+    const rule = await prisma.appointmentReminderRule.create({
+      data: {
+        workspaceId,
+        name: name.trim(),
+        triggerType,
+        offsetMinutes: Number(offsetMinutes),
+        templateName: templateName?.trim() || null,
+        messageBody: messageBody?.trim() || null,
+        enabled: true,
+      },
+    });
+    res.json(rule);
+  });
+
+  // PATCH /api/reminder-rules/:id
+  app.patch("/api/reminder-rules/:id", requireAuth, requireRole("ADMIN", "OWNER"), async (req: any, res) => {
+    const { id } = req.params;
+    const { name, triggerType, offsetMinutes, templateName, messageBody, enabled } = req.body;
+    const workspaceId = req.body.workspaceId;
+    // Verify ownership
+    const existing = await prisma.appointmentReminderRule.findFirst({ where: { id, workspaceId } });
+    if (!existing) return res.status(404).json({ error: "Rule not found" });
+
+    const rule = await prisma.appointmentReminderRule.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name: name.trim() }),
+        ...(triggerType !== undefined && { triggerType }),
+        ...(offsetMinutes !== undefined && { offsetMinutes: Number(offsetMinutes) }),
+        ...(templateName !== undefined && { templateName: templateName?.trim() || null }),
+        ...(messageBody !== undefined && { messageBody: messageBody?.trim() || null }),
+        ...(enabled !== undefined && { enabled }),
+      },
+    });
+    res.json(rule);
+  });
+
+  // DELETE /api/reminder-rules/:id
+  app.delete("/api/reminder-rules/:id", requireAuth, requireRole("ADMIN", "OWNER"), async (req: any, res) => {
+    const { id } = req.params;
+    const workspaceId = req.query.workspaceId as string;
+    const existing = await prisma.appointmentReminderRule.findFirst({ where: { id, workspaceId } });
+    if (!existing) return res.status(404).json({ error: "Rule not found" });
+    await prisma.appointmentReminderRule.delete({ where: { id } });
+    res.json({ success: true });
+  });
+
   // ── Compose (outbound template message) ────────────────────────────
   app.post("/api/compose/send", requireAuth, requireSubscribedWorkspaceFromBody, async (req, res) => {
     const workspaceId = String(req.body.workspaceId || '').trim();

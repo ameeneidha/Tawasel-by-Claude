@@ -897,7 +897,13 @@
     "serviceRequired": "Service *",
     "staffRequired": "Staff *",
     "today": "Today",
-    "enabled": "Enabled"
+    "enabled": "Enabled",
+    "tabs": {
+      "appointments": "Appointments",
+      "services": "Services",
+      "staff": "Staff",
+      "reminders": "Reminders"
+    }
   },
   "campaigns": {
     "title": "Campaign Links",

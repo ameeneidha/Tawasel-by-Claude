@@ -897,7 +897,13 @@
     "serviceRequired": "الخدمة *",
     "staffRequired": "الموظف *",
     "today": "اليوم",
-    "enabled": "مفعّل"
+    "enabled": "مفعّل",
+    "tabs": {
+      "appointments": "المواعيد",
+      "services": "الخدمات",
+      "staff": "الموظفون",
+      "reminders": "التذكيرات"
+    }
   },
   "campaigns": {
     "title": "روابط الحملات",
