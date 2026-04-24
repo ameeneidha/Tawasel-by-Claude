@@ -2817,17 +2817,54 @@ async function startServer() {
       return res.status(400).json({ error: "No WhatsApp access token available. Reconnect your number." });
     }
 
+    // Convert named tokens ({{customer_name}}, {{service}}, etc.) → numbered ({{1}}, {{2}}...)
+    // because Meta requires numbered placeholders and sample values for approval.
+    const SAMPLE_VALUES: Record<string, string> = {
+      customer_name: "Ahmed",
+      name: "Ahmed",
+      service: "Haircut",
+      staff: "Sara",
+      date: "Monday, April 25",
+      time: "3:30 PM",
+      business: "Tawasel Salon",
+      phone: "+971501234567",
+      amount: "150 AED",
+      code: "123456",
+    };
+    const tokenOrder: string[] = [];
+    const seen = new Set<string>();
+    let numberedText = bodyText.replace(/\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g, (_m, key) => {
+      if (!seen.has(key)) {
+        seen.add(key);
+        tokenOrder.push(key);
+      }
+      return `{{${tokenOrder.indexOf(key) + 1}}}`;
+    });
+    // Also normalize any pre-existing {{1}}, {{2}} so sample count matches
+    const numericMatches = Array.from(numberedText.matchAll(/\{\{(\d+)\}\}/g)).map(m => parseInt(m[1], 10));
+    const maxNum = numericMatches.length ? Math.max(...numericMatches) : tokenOrder.length;
+    const exampleValues: string[] = [];
+    for (let i = 1; i <= maxNum; i++) {
+      const namedKey = tokenOrder[i - 1];
+      exampleValues.push(namedKey ? (SAMPLE_VALUES[namedKey] || `Sample${i}`) : `Sample${i}`);
+    }
+
+    const components: any[] = [{ type: "BODY", text: numberedText }];
+    if (exampleValues.length > 0) {
+      components[0].example = { body_text: [exampleValues] };
+    }
+
     const graphVersion = process.env.META_GRAPH_VERSION || "v22.0";
     let lastError: string = "";
     let lastCode: number | undefined;
     let success = false;
 
     for (const { label, token } of tokens) {
-      console.log(`[templates/create] Attempting with ${label} token (WABA ${wabaId}, template ${name})`);
+      console.log(`[templates/create] Attempting with ${label} token (WABA ${wabaId}, template ${name}, ${exampleValues.length} vars)`);
       try {
         await axios.post(
           `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
-          { name, category, language, components: [{ type: "BODY", text: bodyText }] },
+          { name, category, language, components },
           { headers: { Authorization: `Bearer ${token}` } }
         );
         console.log(`[templates/create] ✅ Success with ${label} token`);
@@ -2859,9 +2896,10 @@ async function startServer() {
     const existing = await prisma.whatsAppTemplate.findFirst({
       where: { workspaceId, name, language },
     });
+    // Store the numbered version locally — that's what Meta has and what we send at runtime
     const template = existing
-      ? await prisma.whatsAppTemplate.update({ where: { id: existing.id }, data: { content: bodyText, status: "PENDING", category } })
-      : await prisma.whatsAppTemplate.create({ data: { workspaceId, name, content: bodyText, category, language, status: "PENDING" } });
+      ? await prisma.whatsAppTemplate.update({ where: { id: existing.id }, data: { content: numberedText, status: "PENDING", category, rejectedReason: null } })
+      : await prisma.whatsAppTemplate.create({ data: { workspaceId, name, content: numberedText, category, language, status: "PENDING" } });
 
     res.json({ template, message: "Template submitted to Meta for approval. Usually approved within a few minutes." });
   });
