@@ -190,7 +190,7 @@ export default function Appointments() {
         axios.get(`/api/services?workspaceId=${wsId}`),
         axios.get(`/api/staff?workspaceId=${wsId}`),
         axios.get(`/api/contacts?workspaceId=${wsId}`),
-        axios.get(`/api/templates?workspaceId=${wsId}`),
+        axios.get(`/api/templates/whatsapp?workspaceId=${wsId}`),
         axios.get(`/api/reminder-rules?workspaceId=${wsId}`),
       ]);
 
@@ -201,8 +201,8 @@ export default function Appointments() {
       setReminderRules(rulesRes.status === 'fulfilled' ? rulesRes.value.data : []);
 
       // Check whether the 3 appointment templates exist and are approved
-      const templates: { name: string; status: string }[] =
-        tplRes.status === 'fulfilled' ? (tplRes.value.data || []) : [];
+      const rawTpl = tplRes.status === 'fulfilled' ? tplRes.value.data : [];
+      const templates: { name: string; status: string }[] = Array.isArray(rawTpl) ? rawTpl : [];
       const needed = ['tawasel_booking_confirmation', 'tawasel_reminder_24h', 'tawasel_reminder_1h'];
       const approved = needed.filter(n => templates.some(t => t.name === n && t.status === 'APPROVED'));
       const pending  = needed.filter(n => templates.some(t => t.name === n && t.status !== 'APPROVED'));
