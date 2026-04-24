@@ -2548,23 +2548,40 @@ async function startServer() {
       where: { workspaceId }
     });
 
-    // Template listing also needs whatsapp_business_management — use System User token first
-    const accessToken = process.env.META_ACCESS_TOKEN?.trim() || waNumber?.metaAccessToken?.trim() || '';
     const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || '';
 
-    if (!accessToken || !wabaId) {
+    // Try per-number token first (Embedded Signup — likely has correct Business Manager access),
+    // then System User token as fallback.
+    const tokens: { label: string; token: string }[] = [];
+    if (waNumber?.metaAccessToken?.trim()) tokens.push({ label: "per-number", token: waNumber.metaAccessToken.trim() });
+    if (process.env.META_ACCESS_TOKEN?.trim()) tokens.push({ label: "system-user", token: process.env.META_ACCESS_TOKEN.trim() });
+
+    if (tokens.length === 0 || !wabaId) {
       return res.status(400).json({ error: "WhatsApp Business Account not configured. Please connect a WhatsApp number first." });
     }
 
     try {
       const graphVersion = process.env.META_GRAPH_VERSION || 'v22.0';
-      const metaRes = await axios.get(
-        `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
-        {
-          params: { access_token: accessToken, limit: 250 },
-          timeout: 15000,
+      let metaRes: any = null;
+      let lastErr: any = null;
+      for (const { label, token } of tokens) {
+        try {
+          console.log(`[template-sync] Attempting list with ${label} token (WABA ${wabaId})`);
+          metaRes = await axios.get(
+            `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
+            {
+              params: { access_token: token, limit: 250 },
+              timeout: 15000,
+            }
+          );
+          console.log(`[template-sync] ✅ Success with ${label} token`);
+          break;
+        } catch (e: any) {
+          lastErr = e;
+          console.error(`[template-sync] ❌ ${label} token failed:`, e.response?.data?.error || e.message);
         }
-      );
+      }
+      if (!metaRes) throw lastErr || new Error("All tokens failed");
 
       const metaTemplates = metaRes.data?.data || [];
 
@@ -2643,31 +2660,57 @@ async function startServer() {
     if (!workspaceId) return res.status(400).json({ error: "Workspace ID required" });
 
     const waNumber = await prisma.whatsAppNumber.findFirst({ where: { workspaceId } });
-    // Template management requires whatsapp_business_management scope.
-    // System User token (META_ACCESS_TOKEN env) has this; per-number Embedded Signup
-    // token only covers messaging. Use System User token first for template ops.
-    const accessToken = process.env.META_ACCESS_TOKEN?.trim() || waNumber?.metaAccessToken?.trim() || "";
     const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || "";
-    if (!accessToken || !wabaId) {
+
+    // Try per-number token first (Embedded Signup), then System User token as fallback.
+    const tokens: { label: string; token: string }[] = [];
+    if (waNumber?.metaAccessToken?.trim()) tokens.push({ label: "per-number", token: waNumber.metaAccessToken.trim() });
+    if (process.env.META_ACCESS_TOKEN?.trim()) tokens.push({ label: "system-user", token: process.env.META_ACCESS_TOKEN.trim() });
+
+    if (tokens.length === 0 || !wabaId) {
       return res.status(400).json({ error: "No WhatsApp number connected. Connect a number first." });
     }
 
     const graphVersion = process.env.META_GRAPH_VERSION || "v22.0";
     const results: { name: string; status: string; detail?: string }[] = [];
+    // Track the working token for auto-sync at the end
+    let workingToken: string = tokens[0].token;
 
     for (const tpl of APPOINTMENT_TEMPLATES) {
-      try {
-        await axios.post(
-          `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
-          {
-            name: tpl.name,
-            category: tpl.category,
-            language: tpl.language,
-            components: [{ type: "BODY", text: tpl.bodyText }],
-          },
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
-        // Upsert into local DB as PENDING
+      let submitted = false;
+      let alreadyExists = false;
+      let lastCode: number | undefined;
+      let lastDetail: string = "";
+      for (const { label, token } of tokens) {
+        try {
+          console.log(`[setup-templates] ${tpl.name}: trying ${label} token (WABA ${wabaId})`);
+          await axios.post(
+            `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
+            {
+              name: tpl.name,
+              category: tpl.category,
+              language: tpl.language,
+              components: [{ type: "BODY", text: tpl.bodyText }],
+            },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          console.log(`[setup-templates] ✅ ${tpl.name} submitted with ${label} token`);
+          workingToken = token;
+          submitted = true;
+          break;
+        } catch (err: any) {
+          lastCode = err.response?.data?.error?.code;
+          lastDetail = err.response?.data?.error?.message || err.message;
+          console.error(`[setup-templates] ❌ ${tpl.name} ${label} token:`, { code: lastCode, message: lastDetail });
+          if (lastCode === 2388085 || lastDetail?.includes("already exists")) {
+            workingToken = token;
+            alreadyExists = true;
+            break;
+          }
+        }
+      }
+
+      if (submitted) {
         await prisma.whatsAppTemplate.upsert({
           where: {
             id: await prisma.whatsAppTemplate.findFirst({
@@ -2686,17 +2729,10 @@ async function startServer() {
           },
         });
         results.push({ name: tpl.name, status: "submitted" });
-        console.log(`[setup-templates] ✅ Submitted ${tpl.name}`);
-      } catch (err: any) {
-        const code = err.response?.data?.error?.code;
-        const detail = err.response?.data?.error?.message || err.message;
-        // Code 2388085 = template already exists — treat as success
-        if (code === 2388085 || detail?.includes("already exists")) {
-          results.push({ name: tpl.name, status: "already_exists" });
-        } else {
-          results.push({ name: tpl.name, status: "error", detail });
-          console.error(`[setup-templates] ❌ ${tpl.name}:`, detail);
-        }
+      } else if (alreadyExists) {
+        results.push({ name: tpl.name, status: "already_exists" });
+      } else {
+        results.push({ name: tpl.name, status: "error", detail: lastDetail });
       }
     }
 
@@ -2704,7 +2740,7 @@ async function startServer() {
     try {
       const syncRes = await axios.get(
         `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
-        { params: { access_token: accessToken, limit: 250 }, timeout: 10000 }
+        { params: { access_token: workingToken, limit: 250 }, timeout: 10000 }
       );
       const metaTemplates = syncRes.data?.data || [];
       for (const t of metaTemplates) {
@@ -2751,28 +2787,57 @@ async function startServer() {
     }
 
     const waNumber = await prisma.whatsAppNumber.findFirst({ where: { workspaceId } });
-    // Use System User token for template management (needs whatsapp_business_management scope).
-    // Per-number Embedded Signup token only has messaging scope — insufficient for templates.
-    const accessToken = process.env.META_ACCESS_TOKEN?.trim() || waNumber?.metaAccessToken?.trim() || "";
     const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || "";
-    if (!accessToken || !wabaId) {
+    if (!wabaId) {
       return res.status(400).json({ error: "No WhatsApp number connected. Connect a number in Channels first." });
     }
 
+    // Try multiple tokens in order of likely permissions:
+    // 1. Per-number token (captured during Embedded Signup — includes whatsapp_business_management if app was approved)
+    // 2. System User token from env (for workspaces under the same Business Manager as the app)
+    const tokens: { label: string; token: string }[] = [];
+    if (waNumber?.metaAccessToken?.trim()) tokens.push({ label: "per-number", token: waNumber.metaAccessToken.trim() });
+    if (process.env.META_ACCESS_TOKEN?.trim()) tokens.push({ label: "system-user", token: process.env.META_ACCESS_TOKEN.trim() });
+    if (tokens.length === 0) {
+      return res.status(400).json({ error: "No WhatsApp access token available. Reconnect your number." });
+    }
+
     const graphVersion = process.env.META_GRAPH_VERSION || "v22.0";
-    try {
-      await axios.post(
-        `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
-        { name, category, language, components: [{ type: "BODY", text: bodyText }] },
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-    } catch (err: any) {
-      const code = err.response?.data?.error?.code;
-      const detail = err.response?.data?.error?.message || err.message;
-      if (code !== 2388085 && !detail?.includes("already exists")) {
-        return res.status(400).json({ error: detail || "Failed to create template on Meta" });
+    let lastError: string = "";
+    let lastCode: number | undefined;
+    let success = false;
+
+    for (const { label, token } of tokens) {
+      console.log(`[templates/create] Attempting with ${label} token (WABA ${wabaId}, template ${name})`);
+      try {
+        await axios.post(
+          `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
+          { name, category, language, components: [{ type: "BODY", text: bodyText }] },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log(`[templates/create] ✅ Success with ${label} token`);
+        success = true;
+        break;
+      } catch (err: any) {
+        lastCode = err.response?.data?.error?.code;
+        lastError = err.response?.data?.error?.message || err.message;
+        console.error(`[templates/create] ❌ ${label} token failed:`, { code: lastCode, message: lastError });
+        // If template already exists, treat as success immediately
+        if (lastCode === 2388085 || lastError.includes("already exists")) {
+          success = true;
+          break;
+        }
+        // Otherwise, try next token
       }
-      // already exists → still upsert locally and return success
+    }
+
+    if (!success) {
+      return res.status(400).json({
+        error: lastError || "Failed to create template on Meta",
+        hint: "Reconnect your WhatsApp number in Channels — the access token may have expired. Template creation requires whatsapp_business_management permission.",
+        wabaId,
+        metaErrorCode: lastCode,
+      });
     }
 
     // Upsert locally as PENDING
