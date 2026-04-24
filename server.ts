@@ -2758,6 +2758,7 @@ async function startServer() {
       language: "en_US",
       bodyText:
         "Hi {{1}}! ✅\n\nYour appointment is confirmed:\n📋 *Service:* {{2}}\n👤 *With:* {{3}}\n📅 *Date & Time:* {{4}}\n\nWe'll send you a reminder before your appointment. See you soon! — {{5}}",
+      examples: ["Sara", "Haircut", "Ahmed", "Monday 15 Jan at 2:00 PM", "Tawasel Salon"],
     },
     {
       name: "tawasel_reminder_24h",
@@ -2765,6 +2766,7 @@ async function startServer() {
       language: "en_US",
       bodyText:
         "Hi {{1}}! 👋\n\nReminder about your upcoming appointment:\n📋 *Service:* {{2}}\n👤 *With:* {{3}}\n🕐 *Time:* {{4}}\n\nNeed to reschedule? Just reply to this message. — {{5}}",
+      examples: ["Sara", "Haircut", "Ahmed", "Monday 15 Jan at 2:00 PM", "Tawasel Salon"],
     },
     {
       name: "tawasel_reminder_1h",
@@ -2772,6 +2774,7 @@ async function startServer() {
       language: "en_US",
       bodyText:
         "Hi {{1}}! ⏰\n\nYour {{2}} with {{3}} is in 1 hour at {{4}}. See you soon! — {{5}}",
+      examples: ["Sara", "Haircut", "Ahmed", "2:00 PM", "Tawasel Salon"],
     },
   ];
 
@@ -2815,7 +2818,11 @@ async function startServer() {
               name: tpl.name,
               category: tpl.category,
               language: tpl.language,
-              components: [{ type: "BODY", text: tpl.bodyText }],
+              components: [{
+                type: "BODY",
+                text: tpl.bodyText,
+                example: { body_text: [tpl.examples] },
+              }],
             },
             { headers: { Authorization: `Bearer ${token}` } }
           );

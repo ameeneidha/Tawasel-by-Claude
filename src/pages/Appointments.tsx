@@ -325,9 +325,15 @@ export default function Appointments() {
     if (!wsId) return;
     setSettingUpTemplates(true);
     try {
-      await axios.post('/api/appointments/setup-templates', { workspaceId: wsId });
-      setTemplateStatus('pending');
-      toast.success('Templates submitted to Meta! They\'ll be active within a few minutes.');
+      const res = await axios.post('/api/appointments/setup-templates', { workspaceId: wsId });
+      const results: { name: string; status: string; detail?: string }[] = res.data?.results || [];
+      const errors = results.filter(r => r.status === 'error');
+      if (errors.length > 0) {
+        toast.error(`Template error: ${errors[0].detail || 'Unknown error from Meta'}`);
+      } else {
+        setTemplateStatus('pending');
+        toast.success('Templates submitted to Meta! They\'ll be active within a few minutes.');
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to submit templates');
     } finally {
