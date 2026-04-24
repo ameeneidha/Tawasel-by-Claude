@@ -79,11 +79,9 @@ function buildReminderBody(
     return [
       `Hi ${customerName}! 😊`,
       ``,
-      `How was your ${serviceName} with ${staffName} today?`,
+      `We hope your visit to *${businessName}* went well!`,
       ``,
-      `We'd love to hear your feedback — and whenever you're ready to rebook, just reply to this message!`,
-      ``,
-      `— ${businessName}`,
+      `We'd love to hear your feedback — and whenever you're ready to book again, just reply to this message.`,
     ].join("\n");
   }
 
@@ -93,23 +91,20 @@ function buildReminderBody(
 
   if (offsetMinutes <= 120) {
     // Short reminder (≤2h) — concise
-    return `Hi ${customerName}! ⏰\n\nYour ${serviceName} with ${staffName} is in ${timeLabel} at ${formatReminderTime(startTime)}. See you soon!\n\n— ${businessName}`;
+    return `Hi ${customerName}! ⏰\n\nReminder: your appointment at *${businessName}* with ${staffName} is in ${timeLabel} at ${formatReminderTime(startTime)}.\n\nSee you soon!`;
   }
 
   // Longer reminder — full details
   return [
     `Hi ${customerName}! 👋`,
     ``,
-    `Reminder about your upcoming appointment (in ${timeLabel}):`,
+    `This is a reminder that you have an upcoming appointment at *${businessName}*:`,
     ``,
-    `📋 *Service:* ${serviceName}`,
-    `👤 *With:* ${staffName}`,
     `📅 *Date:* ${formatReminderDate(startTime)}`,
     `🕐 *Time:* ${formatReminderTime(startTime)}`,
+    `👤 *With:* ${staffName}`,
     ``,
     `Need to reschedule? Just reply to this message.`,
-    ``,
-    `— ${businessName}`,
   ].join("\n");
 }
 

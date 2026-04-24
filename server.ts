@@ -1849,7 +1849,7 @@ async function startServer() {
               config as { accessToken: string; phoneNumberId: string }
             );
           } else {
-            const msg = `Hi ${customerName?.trim() || "there"}! ✅\n\nYour appointment is confirmed:\n📋 *Service:* ${service.name}\n👤 *With:* ${staffMember.name}\n📅 *Date & Time:* ${dateTimeStr}\n\nSee you soon! — ${workspace.name}`;
+            const msg = `Hi ${customerName?.trim() || "there"}! ✅\n\nYour appointment at *${workspace.name}* is confirmed.\n\n📅 *Date & Time:* ${dateTimeStr}\n👤 *With:* ${staffMember.name}\n\nWe look forward to seeing you!`;
             await sendMetaMessage(phone, msg, "whatsapp", config);
           }
         } catch (err: any) {
@@ -2751,32 +2751,32 @@ async function startServer() {
   // WABA using their stored OAuth token. Safe to call multiple times —
   // Meta returns an error for duplicate names which we treat as "already exists".
 
+  // Variable order for all 3 templates: {{1}}=customer_name {{2}}=service {{3}}=staff {{4}}=datetime/time {{5}}=business_name
+  // Rules: must not start OR end with a variable. End with static punctuation.
   const APPOINTMENT_TEMPLATES = [
     {
       name: "tawasel_booking_confirmation",
       category: "UTILITY",
       language: "en_US",
       bodyText:
-        "Hi {{1}}! ✅\n\nYour appointment at {{5}} is confirmed:\n📋 *Service:* {{2}}\n👤 *With:* {{3}}\n📅 *Date & Time:* {{4}}\n\nWe look forward to seeing you!",
-      examples: ["Sara", "Haircut", "Ahmed", "Monday 15 Jan at 2:00 PM", "Tawasel Salon"],
+        "Hi {{1}}! ✅\n\nYour appointment at *{{5}}* is confirmed.\n\n📅 *Date & Time:* {{4}}\n👤 *With:* {{3}}\n\nWe look forward to seeing you!",
+      examples: ["Sara", "Checkup", "Dr. Ahmed", "Monday 15 Jan at 2:00 PM", "City Clinic"],
     },
     {
       name: "tawasel_reminder_24h",
       category: "UTILITY",
       language: "en_US",
       bodyText:
-        "Hi {{1}}! 👋\n\nThis is a reminder from {{5}} about your appointment tomorrow:\n📋 *Service:* {{2}}\n👤 *With:* {{3}}\n🕐 *Time:* {{4}}\n\nNeed to reschedule? Just reply to this message.",
-      // examples must match {{1}}..{{5}} in numeric order
-      examples: ["Sara", "Haircut", "Ahmed", "2:00 PM", "Tawasel Salon"],
+        "Hi {{1}}! 👋\n\nThis is a reminder that you have an appointment *tomorrow* at *{{5}}*.\n\n📅 *Time:* {{4}}\n👤 *With:* {{3}}\n\nNeed to reschedule? Simply reply to this message.",
+      examples: ["Sara", "Checkup", "Dr. Ahmed", "2:00 PM", "City Clinic"],
     },
     {
       name: "tawasel_reminder_1h",
       category: "UTILITY",
       language: "en_US",
       bodyText:
-        "Hi {{1}}! ⏰\n\nYour {{2}} with {{3}} at {{5}} is in about 1 hour — see you at {{4}}!",
-      // {{1}}=name {{2}}=service {{3}}=staff {{4}}=time {{5}}=business
-      examples: ["Sara", "Haircut", "Ahmed", "2:00 PM", "Tawasel Salon"],
+        "Hi {{1}}! ⏰\n\nReminder: your appointment at *{{5}}* with {{3}} is in *1 hour* at {{4}}.\n\nSee you soon!",
+      examples: ["Sara", "Checkup", "Dr. Ahmed", "2:00 PM", "City Clinic"],
     },
   ];
 
