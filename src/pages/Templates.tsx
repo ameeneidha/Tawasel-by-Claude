@@ -45,12 +45,18 @@ const EMPTY_EDITOR_STATE: TemplateEditorState = {
   content: '',
 };
 
+type WaButton =
+  | { type: 'QUICK_REPLY'; text: string }
+  | { type: 'URL'; text: string; url: string }
+  | { type: 'PHONE_NUMBER'; text: string; phone_number: string };
+
 type WaBuilderState = {
   name: string;
   category: string;
   language: string;
   bodyText: string;
   whatsAppNumberId: string;
+  buttons: WaButton[];
 };
 
 const EMPTY_WA_BUILDER: WaBuilderState = {
@@ -59,6 +65,7 @@ const EMPTY_WA_BUILDER: WaBuilderState = {
   language: 'en_US',
   bodyText: '',
   whatsAppNumberId: '',
+  buttons: [],
 };
 
 type WaNumberOption = {
@@ -360,6 +367,7 @@ export default function Templates() {
         language: waBuilder.language,
         bodyText: waBuilder.bodyText,
         whatsAppNumberId: waBuilder.whatsAppNumberId || undefined,
+        buttons: waBuilder.buttons.length > 0 ? waBuilder.buttons : undefined,
       });
       setWaTemplates(prev => [res.data.template, ...prev]);
       setIsWaBuilderOpen(false);
@@ -641,6 +649,93 @@ export default function Templates() {
                 </p>
               </div>
 
+              {/* Buttons */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                    Buttons <span className="font-normal normal-case tracking-normal text-gray-400">(optional, max 3)</span>
+                  </label>
+                  {waBuilder.buttons.length < 3 && (
+                    <div className="flex gap-2">
+                      {(['QUICK_REPLY', 'URL', 'PHONE_NUMBER'] as const).map(type => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setWaBuilder(b => ({
+                            ...b,
+                            buttons: [...b.buttons, type === 'QUICK_REPLY'
+                              ? { type: 'QUICK_REPLY', text: '' }
+                              : type === 'URL'
+                              ? { type: 'URL', text: '', url: '' }
+                              : { type: 'PHONE_NUMBER', text: '', phone_number: '' }
+                            ] as WaButton[],
+                          }))}
+                          className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+                        >
+                          + {type === 'QUICK_REPLY' ? 'Quick Reply' : type === 'URL' ? 'URL' : 'Phone'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {waBuilder.buttons.map((btn, i) => (
+                  <div key={i} className="flex items-start gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-[#25D366]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#128C7E]">
+                          {btn.type === 'QUICK_REPLY' ? 'Quick Reply' : btn.type === 'URL' ? 'URL' : 'Phone'}
+                        </span>
+                        <input
+                          type="text"
+                          value={btn.text}
+                          maxLength={25}
+                          placeholder="Button label (max 25 chars)"
+                          onChange={e => setWaBuilder(b => {
+                            const btns = [...b.buttons] as WaButton[];
+                            btns[i] = { ...btns[i], text: e.target.value } as WaButton;
+                            return { ...b, buttons: btns };
+                          })}
+                          className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                        />
+                      </div>
+                      {btn.type === 'URL' && (
+                        <input
+                          type="url"
+                          value={btn.url}
+                          placeholder="https://example.com"
+                          onChange={e => setWaBuilder(b => {
+                            const btns = [...b.buttons] as WaButton[];
+                            (btns[i] as Extract<WaButton, { type: 'URL' }>).url = e.target.value;
+                            return { ...b, buttons: btns };
+                          })}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                        />
+                      )}
+                      {btn.type === 'PHONE_NUMBER' && (
+                        <input
+                          type="tel"
+                          value={btn.phone_number}
+                          placeholder="+971501234567"
+                          onChange={e => setWaBuilder(b => {
+                            const btns = [...b.buttons] as WaButton[];
+                            (btns[i] as Extract<WaButton, { type: 'PHONE_NUMBER' }>).phone_number = e.target.value;
+                            return { ...b, buttons: btns };
+                          })}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                        />
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setWaBuilder(b => ({ ...b, buttons: b.buttons.filter((_, j) => j !== i) }))}
+                      className="mt-0.5 rounded-lg p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
               {/* Preview */}
               {waBuilder.bodyText && (
                 <div className="rounded-xl bg-[#DCF8C6] p-4 dark:bg-green-900/20">
@@ -654,6 +749,15 @@ export default function Templates() {
                       .replace(/\{\{time\}\}/g, '3:00 PM')
                       .replace(/\{\{business\}\}/g, 'Glamour Salon')}
                   </p>
+                  {waBuilder.buttons.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-[#b7e8b0] pt-3">
+                      {waBuilder.buttons.map((btn, i) => (
+                        <span key={i} className="rounded-lg border border-[#25D366]/40 bg-white px-3 py-1 text-xs font-medium text-[#128C7E]">
+                          {btn.text || '(empty)'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

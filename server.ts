@@ -2901,7 +2901,7 @@ async function startServer() {
 
   // ── Template Creator (create custom WhatsApp template in Meta) ─────
   app.post("/api/templates/whatsapp/create", requireAuth, requireRole("ADMIN", "OWNER"), requireSubscribedWorkspaceFromBody, async (req: any, res) => {
-    const { workspaceId, name, category, language, bodyText, variableCount, whatsAppNumberId } = req.body;
+    const { workspaceId, name, category, language, bodyText, variableCount, whatsAppNumberId, buttons } = req.body;
     if (!workspaceId || !name || !category || !language || !bodyText) {
       return res.status(400).json({ error: "name, category, language, and bodyText are required" });
     }
@@ -2966,6 +2966,23 @@ async function startServer() {
     const components: any[] = [{ type: "BODY", text: numberedText }];
     if (exampleValues.length > 0) {
       components[0].example = { body_text: [exampleValues] };
+    }
+
+    // Add BUTTONS component if any buttons were provided
+    if (Array.isArray(buttons) && buttons.length > 0) {
+      const validButtons = buttons
+        .slice(0, 3) // Meta max is 3
+        .filter((b: any) => b.type && b.text?.trim())
+        .map((b: any) => {
+          if (b.type === 'QUICK_REPLY') return { type: 'QUICK_REPLY', text: b.text.trim().slice(0, 25) };
+          if (b.type === 'URL') return { type: 'URL', text: b.text.trim().slice(0, 25), url: b.url?.trim() };
+          if (b.type === 'PHONE_NUMBER') return { type: 'PHONE_NUMBER', text: b.text.trim().slice(0, 25), phone_number: b.phone_number?.trim() };
+          return null;
+        })
+        .filter(Boolean);
+      if (validButtons.length > 0) {
+        components.push({ type: "BUTTONS", buttons: validButtons });
+      }
     }
 
     const graphVersion = process.env.META_GRAPH_VERSION || "v22.0";
