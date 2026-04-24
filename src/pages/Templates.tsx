@@ -917,6 +917,15 @@ function TemplateCard({
                 <Trash2 className="h-4 w-4" />
               </button>
             </>
+          ) : onDelete ? (
+            <button
+              type="button"
+              onClick={onDelete}
+              title="Delete template"
+              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-gray-500 dark:hover:bg-red-900/20"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           ) : null}
         </div>
       </div>
