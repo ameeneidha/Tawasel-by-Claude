@@ -235,6 +235,55 @@ const APPOINTMENT_TOOLS: any[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_my_appointments",
+      description:
+        "Look up the customer's own upcoming appointments. Call this when the customer asks things like 'do I have an appointment?', 'when is my appointment?', 'show my bookings'. Returns only the caller's own appointments — never another person's.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "reschedule_my_appointment",
+      description:
+        "Reschedule one of the customer's own upcoming appointments to a new time. Always confirm the new time with the customer first. Only works on appointments belonging to this customer.",
+      parameters: {
+        type: "object",
+        properties: {
+          appointmentId: {
+            type: "string",
+            description: "The appointment ID (from get_my_appointments)",
+          },
+          newStartTime: {
+            type: "string",
+            description: "New ISO 8601 datetime for the appointment start",
+          },
+        },
+        required: ["appointmentId", "newStartTime"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cancel_my_appointment",
+      description:
+        "Cancel one of the customer's own upcoming appointments. Always confirm with the customer before calling. Only works on appointments belonging to this customer.",
+      parameters: {
+        type: "object",
+        properties: {
+          appointmentId: {
+            type: "string",
+            description: "The appointment ID (from get_my_appointments)",
+          },
+        },
+        required: ["appointmentId"],
+      },
+    },
+  },
 ];
 
 async function executeAppointmentTool(
@@ -479,6 +528,153 @@ async function executeAppointmentTool(
       });
     }
 
+    if (toolName === "get_my_appointments") {
+      // ⚠️ Security: scope strictly to this contact. contactId is derived server-side
+      // from the conversation, never from LLM args — prevents enumeration / cross-user leaks.
+      if (!contactId) return JSON.stringify({ error: "Contact not identified." });
+
+      const now = new Date();
+      const appts = await prisma.appointment.findMany({
+        where: {
+          workspaceId,
+          contactId,
+          status: { notIn: ["CANCELLED"] },
+          endTime: { gte: now }, // upcoming only
+        },
+        orderBy: { startTime: "asc" },
+        take: 5,
+        select: {
+          id: true,
+          startTime: true,
+          status: true,
+          service: { select: { name: true, durationMin: true } },
+          staff: { select: { name: true } },
+        },
+      });
+
+      if (appts.length === 0) {
+        return JSON.stringify({
+          count: 0,
+          message: "You don't have any upcoming appointments with us.",
+        });
+      }
+
+      return JSON.stringify({
+        count: appts.length,
+        appointments: appts.map((a) => ({
+          id: a.id,
+          service: a.service.name,
+          staff: a.staff.name,
+          date: a.startTime.toLocaleDateString(),
+          time: a.startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true }),
+          durationMin: a.service.durationMin,
+          status: a.status,
+        })),
+      });
+    }
+
+    if (toolName === "reschedule_my_appointment") {
+      if (!contactId) return JSON.stringify({ error: "Contact not identified." });
+      const { appointmentId, newStartTime } = args;
+
+      // ⚠️ Ownership check: only allow reschedule if appt belongs to caller + workspace.
+      const appt = await prisma.appointment.findFirst({
+        where: { id: appointmentId, workspaceId, contactId },
+        include: { service: true },
+      });
+      if (!appt) return JSON.stringify({ error: "Appointment not found or not yours." });
+      if (appt.status === "CANCELLED" || appt.status === "COMPLETED") {
+        return JSON.stringify({ error: `Cannot reschedule a ${appt.status.toLowerCase()} appointment.` });
+      }
+
+      const newStart = new Date(newStartTime);
+      if (isNaN(newStart.getTime()) || newStart.getTime() < Date.now()) {
+        return JSON.stringify({ error: "New time must be in the future." });
+      }
+      const newEnd = new Date(newStart.getTime() + appt.service.durationMin * 60000);
+
+      // Conflict check against same staff
+      const overlap = await prisma.appointment.findFirst({
+        where: {
+          staffId: appt.staffId,
+          status: { in: ["SCHEDULED", "CONFIRMED"] },
+          id: { not: appt.id },
+          startTime: { lt: newEnd },
+          endTime: { gt: newStart },
+        },
+      });
+      if (overlap) {
+        return JSON.stringify({ error: "That time slot is already taken. Please choose another." });
+      }
+
+      const updated = await prisma.appointment.update({
+        where: { id: appt.id },
+        data: {
+          startTime: newStart,
+          endTime: newEnd,
+          // Reset reminder flags so new reminders fire for the new time
+          reminderSentAt: null,
+          reminder1hSentAt: null,
+        },
+        include: { service: { select: { name: true } }, staff: { select: { name: true } } },
+      });
+
+      await prisma.activityLog.create({
+        data: {
+          type: "APPOINTMENT_RESCHEDULED",
+          content: `Customer rescheduled via AI: ${updated.service.name} with ${updated.staff.name} → ${newStart.toLocaleString()}`,
+          contactId,
+          workspaceId,
+        },
+      });
+
+      return JSON.stringify({
+        success: true,
+        appointmentId: updated.id,
+        service: updated.service.name,
+        staff: updated.staff.name,
+        date: newStart.toLocaleDateString(),
+        time: newStart.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true }),
+      });
+    }
+
+    if (toolName === "cancel_my_appointment") {
+      if (!contactId) return JSON.stringify({ error: "Contact not identified." });
+      const { appointmentId } = args;
+
+      // ⚠️ Ownership check
+      const appt = await prisma.appointment.findFirst({
+        where: { id: appointmentId, workspaceId, contactId },
+        include: { service: { select: { name: true } }, staff: { select: { name: true } } },
+      });
+      if (!appt) return JSON.stringify({ error: "Appointment not found or not yours." });
+      if (appt.status === "CANCELLED") {
+        return JSON.stringify({ error: "This appointment is already cancelled." });
+      }
+      if (appt.status === "COMPLETED") {
+        return JSON.stringify({ error: "Cannot cancel a completed appointment." });
+      }
+
+      await prisma.appointment.update({
+        where: { id: appt.id },
+        data: { status: "CANCELLED" },
+      });
+
+      await prisma.activityLog.create({
+        data: {
+          type: "APPOINTMENT_CANCELLED",
+          content: `Customer cancelled via AI: ${appt.service.name} with ${appt.staff.name} on ${appt.startTime.toLocaleString()}`,
+          contactId,
+          workspaceId,
+        },
+      });
+
+      return JSON.stringify({
+        success: true,
+        message: `Your ${appt.service.name} appointment on ${appt.startTime.toLocaleDateString()} at ${appt.startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })} has been cancelled.`,
+      });
+    }
+
     return JSON.stringify({ error: "Unknown tool" });
   } catch (error: any) {
     console.error(`[AI Tool Error: ${toolName}]`, error);
@@ -545,17 +741,23 @@ export async function getAIResponse(
     const systemPrompt = [
       chatbot.instructions?.trim(),
       hasServices
-        ? `# Appointment Booking
-You can help customers book appointments. Use the provided tools to:
-1. Show available services when asked
-2. Show available staff for a service
-3. Check available time slots for a specific staff + service + date
-4. Book the appointment once the customer confirms
+        ? `# Appointment Booking & Self-Service
+You can help customers with the full appointment lifecycle. Tools available:
+1. list_services — show what can be booked
+2. list_staff — show staff (optionally filtered by service)
+3. check_availability — show open slots for a staff + service + date
+4. book_appointment — create a new booking (confirm details first)
+5. get_my_appointments — look up the customer's OWN upcoming appointments (use when they ask "do I have an appointment?", "when is my booking?", etc.)
+6. reschedule_my_appointment — move the customer's OWN appointment to a new time (confirm first)
+7. cancel_my_appointment — cancel the customer's OWN appointment (confirm first)
 
-Guide the customer step by step: service → staff → date → time slot → confirm.
-Always confirm details with the customer before calling book_appointment.
-When showing times, use a friendly format (e.g., "10:00 AM", "2:30 PM").
-Today's date is ${new Date().toISOString().slice(0, 10)}.`
+Rules:
+- For booking: guide step by step (service → staff → date → time → confirm).
+- For reschedule/cancel: always call get_my_appointments first to get the correct appointmentId, then confirm with the customer before calling reschedule/cancel.
+- You can ONLY view/modify appointments belonging to THIS customer (their phone number). If they ask about someone else's appointment, politely decline.
+- Keep appointment details brief and generic in responses — do not expose internal notes, IDs, or other customers' info.
+- When showing times, use a friendly format (e.g., "10:00 AM", "2:30 PM").
+- Today's date is ${new Date().toISOString().slice(0, 10)}.`
         : "",
       `# Escalation to Human Agent
 You have the ability to escalate conversations to a human agent. Use the escalate_to_agent tool when:
