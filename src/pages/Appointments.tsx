@@ -170,6 +170,8 @@ export default function Appointments() {
   // Template setup
   const [templateStatus, setTemplateStatus] = useState<'unknown' | 'missing' | 'pending' | 'ready'>('unknown');
   const [settingUpTemplates, setSettingUpTemplates] = useState(false);
+  const [waNumbers, setWaNumbers] = useState<{ id: string; phoneNumber: string; metaWabaId: string | null }[]>([]);
+  const [selectedNumberId, setSelectedNumberId] = useState<string>('');
 
   // Modals
   const [showBooking, setShowBooking] = useState(false);
@@ -185,13 +187,14 @@ export default function Appointments() {
     if (!wsId) return;
     setLoading(true);
     try {
-      const [apptRes, svcRes, staffRes, contactRes, tplRes, rulesRes] = await Promise.allSettled([
+      const [apptRes, svcRes, staffRes, contactRes, tplRes, rulesRes, numbersRes] = await Promise.allSettled([
         axios.get(`/api/appointments?workspaceId=${wsId}`),
         axios.get(`/api/services?workspaceId=${wsId}`),
         axios.get(`/api/staff?workspaceId=${wsId}`),
         axios.get(`/api/contacts?workspaceId=${wsId}`),
         axios.get(`/api/templates/whatsapp?workspaceId=${wsId}`),
         axios.get(`/api/reminder-rules?workspaceId=${wsId}`),
+        axios.get(`/api/numbers?workspaceId=${wsId}`),
       ]);
 
       setAppointments(apptRes.status === 'fulfilled' ? apptRes.value.data : []);
@@ -199,6 +202,11 @@ export default function Appointments() {
       setStaff(staffRes.status === 'fulfilled' ? staffRes.value.data : []);
       setContacts(contactRes.status === 'fulfilled' ? contactRes.value.data : []);
       setReminderRules(rulesRes.status === 'fulfilled' ? rulesRes.value.data : []);
+
+      const nums = numbersRes.status === 'fulfilled' && Array.isArray(numbersRes.value.data) ? numbersRes.value.data : [];
+      const realNums = nums.filter((n: any) => n.metaWabaId);
+      setWaNumbers(realNums);
+      if (realNums.length > 0 && !selectedNumberId) setSelectedNumberId(realNums[0].id);
 
       // Check whether the 3 appointment templates exist and are approved
       const rawTpl = tplRes.status === 'fulfilled' ? tplRes.value.data : [];
@@ -325,7 +333,7 @@ export default function Appointments() {
     if (!wsId) return;
     setSettingUpTemplates(true);
     try {
-      const res = await axios.post('/api/appointments/setup-templates', { workspaceId: wsId });
+      const res = await axios.post('/api/appointments/setup-templates', { workspaceId: wsId, whatsAppNumberId: selectedNumberId || undefined });
       const results: { name: string; status: string; detail?: string }[] = res.data?.results || [];
       const errors = results.filter(r => r.status === 'error');
       if (errors.length > 0) {
@@ -482,14 +490,27 @@ export default function Appointments() {
               We'll create them in your account automatically.
             </p>
           </div>
-          <button
-            onClick={setupTemplates}
-            disabled={settingUpTemplates}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium disabled:opacity-60 transition-colors"
-          >
-            {settingUpTemplates ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-            {settingUpTemplates ? 'Submitting…' : 'Set Up Now'}
-          </button>
+          <div className="shrink-0 flex items-center gap-2">
+            {waNumbers.length > 1 && (
+              <select
+                value={selectedNumberId}
+                onChange={e => setSelectedNumberId(e.target.value)}
+                className="text-xs border border-amber-300 dark:border-amber-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-amber-400"
+              >
+                {waNumbers.map(n => (
+                  <option key={n.id} value={n.id}>{n.phoneNumber}</option>
+                ))}
+              </select>
+            )}
+            <button
+              onClick={setupTemplates}
+              disabled={settingUpTemplates}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium disabled:opacity-60 transition-colors"
+            >
+              {settingUpTemplates ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              {settingUpTemplates ? 'Submitting…' : 'Set Up Now'}
+            </button>
+          </div>
         </div>
       )}
 
