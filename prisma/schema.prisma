@@ -574,7 +574,9 @@ model Appointment {
   endTime         DateTime
   status          String      @default("SCHEDULED") // SCHEDULED, CONFIRMED, COMPLETED, CANCELLED, NO_SHOW
   notes           String?
-  reminderSentAt  DateTime?
+  reminderSentAt    DateTime?   // 24h pre-appointment reminder
+  reminder1hSentAt  DateTime?   // 1h pre-appointment reminder
+  followUpSentAt    DateTime?   // post-visit follow-up
   contactId       String
   serviceId       String
   staffId         String

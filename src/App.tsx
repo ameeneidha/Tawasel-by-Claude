@@ -38,6 +38,7 @@ import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import DataDeletion from './pages/DataDeletion';
 import NotFound from './pages/NotFound';
+import BookingPage from './pages/BookingPage';
 import { Toaster } from 'sonner';
 
 export default function App() {
@@ -87,6 +88,7 @@ export default function App() {
               <Route path="web-chat-widget" element={<WebChatWidget />} />
               <Route path="settings/*" element={<Settings />} />
             </Route>
+            <Route path="/book/:slug" element={<BookingPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

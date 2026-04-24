@@ -606,6 +606,52 @@ export async function sendMetaMessage(
   }
 }
 
+// ── Template Messaging ─────────────────────────────────────────────
+// Sends a WhatsApp template message with positional body parameters.
+// Works outside the 24-hour session window.
+
+export async function sendTemplateMessage(
+  to: string,
+  templateName: string,
+  language: string,
+  parameters: string[],
+  config: { accessToken: string; phoneNumberId: string }
+): Promise<string | undefined> {
+  const graphVersion = process.env.META_GRAPH_VERSION || "v22.0";
+  const payload: any = {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: templateName,
+      language: { code: language },
+    },
+  };
+  if (parameters.length > 0) {
+    payload.template.components = [
+      {
+        type: "body",
+        parameters: parameters.map((text) => ({ type: "text", text })),
+      },
+    ];
+  }
+  try {
+    const response = await axios.post(
+      `https://graph.facebook.com/${graphVersion}/${config.phoneNumberId}/messages`,
+      payload,
+      { headers: { Authorization: `Bearer ${config.accessToken}` } }
+    );
+    return response.data?.messages?.[0]?.id as string | undefined;
+  } catch (error: any) {
+    const metaMessage =
+      error.response?.data?.error?.message ||
+      error.message ||
+      "Failed to send template message";
+    console.error("[sendTemplateMessage] error:", error.response?.data || error.message);
+    throw new Error(metaMessage);
+  }
+}
+
 export async function uploadWhatsAppMedia(
   file: Express.Multer.File,
   config: { accessToken: string; phoneNumberId: string }

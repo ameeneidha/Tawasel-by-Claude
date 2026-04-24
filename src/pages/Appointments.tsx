@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../contexts/AppContext';
@@ -15,9 +15,26 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
+  CheckCircle2,
+  List,
+  Calendar,
+  Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
+import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
+import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
+import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { enUS } from 'date-fns/locale';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
+
+// ─── Calendar setup ──────────────────────────────────────────────────────────
+
+const locales = { 'en-US': enUS };
+const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
+const DnDCalendar = withDragAndDrop(BigCalendar as any);
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -116,6 +133,9 @@ export default function Appointments() {
   const wsId = activeWorkspace?.id;
 
   const [tab, setTab] = useState<Tab>('appointments');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [calendarView, setCalendarView] = useState<View>(Views.WEEK);
+  const [calendarDate, setCalendarDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
 
   // Data
@@ -129,6 +149,10 @@ export default function Appointments() {
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterStaff, setFilterStaff] = useState<string>('ALL');
   const [search, setSearch] = useState('');
+
+  // Template setup
+  const [templateStatus, setTemplateStatus] = useState<'unknown' | 'missing' | 'pending' | 'ready'>('unknown');
+  const [settingUpTemplates, setSettingUpTemplates] = useState(false);
 
   // Modals
   const [showBooking, setShowBooking] = useState(false);
@@ -144,16 +168,26 @@ export default function Appointments() {
     if (!wsId) return;
     setLoading(true);
     try {
-      const [apptRes, svcRes, staffRes, contactRes] = await Promise.all([
+      const [apptRes, svcRes, staffRes, contactRes, tplRes] = await Promise.all([
         axios.get(`/api/appointments?workspaceId=${wsId}`),
         axios.get(`/api/services?workspaceId=${wsId}`),
         axios.get(`/api/staff?workspaceId=${wsId}`),
         axios.get(`/api/contacts?workspaceId=${wsId}`),
+        axios.get(`/api/templates?workspaceId=${wsId}`),
       ]);
       setAppointments(apptRes.data);
       setServices(svcRes.data);
       setStaff(staffRes.data);
       setContacts(contactRes.data);
+
+      // Check whether the 3 appointment templates exist and are approved
+      const templates: { name: string; status: string }[] = tplRes.data || [];
+      const needed = ['tawasel_booking_confirmation', 'tawasel_reminder_24h', 'tawasel_reminder_1h'];
+      const approved = needed.filter(n => templates.some(t => t.name === n && t.status === 'APPROVED'));
+      const pending  = needed.filter(n => templates.some(t => t.name === n && t.status !== 'APPROVED'));
+      if (approved.length === 3) setTemplateStatus('ready');
+      else if (pending.length > 0) setTemplateStatus('pending');
+      else setTemplateStatus('missing');
     } catch {
       toast.error(t('appointments.failedToLoad'));
     } finally {
@@ -235,6 +269,42 @@ export default function Appointments() {
     }
   };
 
+  // ─── Calendar drag reschedule ──────────────────────────────────────────────
+
+  const handleEventDrop = useCallback(async ({ event, start, end }: any) => {
+    const appt: Appointment = event.resource;
+    try {
+      await axios.patch(`/api/appointments/${appt.id}`, {
+        startTime: new Date(start).toISOString(),
+        endTime: new Date(end).toISOString(),
+      });
+      setAppointments(prev => prev.map(a =>
+        a.id === appt.id
+          ? { ...a, startTime: new Date(start).toISOString(), endTime: new Date(end).toISOString() }
+          : a
+      ));
+      toast.success('Appointment rescheduled');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to reschedule');
+    }
+  }, []);
+
+  // ─── Template setup ────────────────────────────────────────────────────
+
+  const setupTemplates = async () => {
+    if (!wsId) return;
+    setSettingUpTemplates(true);
+    try {
+      await axios.post('/api/appointments/setup-templates', { workspaceId: wsId });
+      setTemplateStatus('pending');
+      toast.success('Templates submitted to Meta! They\'ll be active within a few minutes.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to submit templates');
+    } finally {
+      setSettingUpTemplates(false);
+    }
+  };
+
   // ─── Navigation helpers ────────────────────────────────────────────────
 
   const navigateDate = (delta: number) => {
@@ -294,11 +364,80 @@ export default function Appointments() {
         ))}
       </div>
 
+      {/* ═══════════════ TEMPLATE SETUP BANNER ═══════════════ */}
+      {templateStatus === 'missing' && (
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+          <Sparkles className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+              Set up WhatsApp templates to enable automatic confirmations & reminders
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+              Booking confirmations, 24h reminders, and 1h reminders require approved WhatsApp templates.
+              We'll create them in your account automatically.
+            </p>
+          </div>
+          <button
+            onClick={setupTemplates}
+            disabled={settingUpTemplates}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium disabled:opacity-60 transition-colors"
+          >
+            {settingUpTemplates ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            {settingUpTemplates ? 'Submitting…' : 'Set Up Now'}
+          </button>
+        </div>
+      )}
+
+      {templateStatus === 'pending' && (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+          <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            WhatsApp templates are pending Meta approval — usually takes a few minutes. Confirmations & reminders will start sending automatically once approved.
+          </p>
+          <button onClick={fetchAll} className="shrink-0 text-xs text-blue-600 dark:text-blue-400 underline hover:no-underline">
+            Refresh
+          </button>
+        </div>
+      )}
+
+      {templateStatus === 'ready' && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-xs text-green-700 dark:text-green-300">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          WhatsApp templates active — booking confirmations, 24h reminders, and 1h reminders are enabled.
+        </div>
+      )}
+
       {/* ═══════════════ APPOINTMENTS TAB ═══════════════ */}
       {tab === 'appointments' && (
         <div className="space-y-4">
           {/* Toolbar */}
           <div className="flex flex-wrap items-center gap-3">
+            {/* List / Calendar toggle */}
+            <div className="flex items-center rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+              <button
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors',
+                  viewMode === 'list'
+                    ? 'bg-[#25D366] text-white'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800'
+                )}
+              >
+                <List className="w-3.5 h-3.5" /> List
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors',
+                  viewMode === 'calendar'
+                    ? 'bg-[#25D366] text-white'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800'
+                )}
+              >
+                <Calendar className="w-3.5 h-3.5" /> Calendar
+              </button>
+            </div>
+
             <div className="flex items-center gap-1">
               <button onClick={() => navigateDate(-1)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
                 <ChevronLeft className="w-4 h-4" />
@@ -362,77 +501,90 @@ export default function Appointments() {
             </button>
           </div>
 
-          {/* Table */}
-          {filtered.length === 0 ? (
-            <div className="text-center py-16 text-gray-500 dark:text-gray-400">
-              <CalendarCheck className="w-12 h-12 mx-auto mb-3 opacity-40" />
-              <p className="font-medium">{t('appointments.noAppointmentsFound')}</p>
-              <p className="text-sm mt-1">{t('appointments.noAppointmentsHint')}</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400">
-                  <tr>
-                    <th className="text-left px-4 py-3 font-medium">{t('appointments.time')}</th>
-                    <th className="text-left px-4 py-3 font-medium">{t('appointments.customer')}</th>
-                    <th className="text-left px-4 py-3 font-medium">{t('appointments.service')}</th>
-                    <th className="text-left px-4 py-3 font-medium">{t('appointments.staffLabel')}</th>
-                    <th className="text-left px-4 py-3 font-medium">{t('appointments.status')}</th>
-                    <th className="text-right px-4 py-3 font-medium">{t('appointments.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {filtered.map((appt) => (
-                    <tr key={appt.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {formatTime(appt.startTime)} – {formatTime(appt.endTime)}
-                        </div>
-                        <div className="text-xs text-gray-500">{formatDate(appt.startTime)}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-gray-900 dark:text-white">{appt.contact?.name || t('appointments.unknown')}</div>
-                        <div className="text-xs text-gray-500">{appt.contact?.phoneNumber}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: appt.service?.color }}
-                          />
-                          {appt.service?.name}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{appt.staff?.name}</td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={appt.status}
-                          onChange={(e) => updateAppointmentStatus(appt.id, e.target.value)}
-                          className={cn(
-                            'text-xs font-medium rounded-full px-2.5 py-1 border-0 cursor-pointer',
-                            STATUS_COLORS[appt.status] || 'bg-gray-100 text-gray-600'
-                          )}
-                        >
-                          {STATUS_OPTIONS.map((s) => (
-                            <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => deleteAppointment(appt.id)}
-                          className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
+          {/* ── LIST VIEW ── */}
+          {viewMode === 'list' && (
+            filtered.length === 0 ? (
+              <div className="text-center py-16 text-gray-500 dark:text-gray-400">
+                <CalendarCheck className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                <p className="font-medium">{t('appointments.noAppointmentsFound')}</p>
+                <p className="text-sm mt-1">{t('appointments.noAppointmentsHint')}</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium">{t('appointments.time')}</th>
+                      <th className="text-left px-4 py-3 font-medium">{t('appointments.customer')}</th>
+                      <th className="text-left px-4 py-3 font-medium">{t('appointments.service')}</th>
+                      <th className="text-left px-4 py-3 font-medium">{t('appointments.staffLabel')}</th>
+                      <th className="text-left px-4 py-3 font-medium">{t('appointments.status')}</th>
+                      <th className="text-right px-4 py-3 font-medium">{t('appointments.actions')}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {filtered.map((appt) => (
+                      <tr key={appt.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="font-medium text-gray-900 dark:text-white">
+                            {formatTime(appt.startTime)} – {formatTime(appt.endTime)}
+                          </div>
+                          <div className="text-xs text-gray-500">{formatDate(appt.startTime)}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-gray-900 dark:text-white">{appt.contact?.name || t('appointments.unknown')}</div>
+                          <div className="text-xs text-gray-500">{appt.contact?.phoneNumber}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: appt.service?.color }} />
+                            {appt.service?.name}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{appt.staff?.name}</td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={appt.status}
+                            onChange={(e) => updateAppointmentStatus(appt.id, e.target.value)}
+                            className={cn(
+                              'text-xs font-medium rounded-full px-2.5 py-1 border-0 cursor-pointer',
+                              STATUS_COLORS[appt.status] || 'bg-gray-100 text-gray-600'
+                            )}
+                          >
+                            {STATUS_OPTIONS.map((s) => (
+                              <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => deleteAppointment(appt.id)}
+                            className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          )}
+
+          {/* ── CALENDAR VIEW ── */}
+          {viewMode === 'calendar' && (
+            <AppointmentCalendar
+              appointments={appointments}
+              calendarDate={calendarDate}
+              calendarView={calendarView}
+              onNavigate={setCalendarDate}
+              onView={setCalendarView}
+              onEventDrop={handleEventDrop}
+              onStatusChange={updateAppointmentStatus}
+              onDelete={deleteAppointment}
+            />
           )}
         </div>
       )}
@@ -656,6 +808,156 @@ export default function Appointments() {
             setShowStaffModal(false);
           }}
         />
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// APPOINTMENT CALENDAR (react-big-calendar + drag-and-drop)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function AppointmentCalendar({
+  appointments,
+  calendarDate,
+  calendarView,
+  onNavigate,
+  onView,
+  onEventDrop,
+  onStatusChange,
+  onDelete,
+}: {
+  appointments: Appointment[];
+  calendarDate: Date;
+  calendarView: View;
+  onNavigate: (date: Date) => void;
+  onView: (view: View) => void;
+  onEventDrop: (args: any) => void;
+  onStatusChange: (id: string, status: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
+
+  // Map appointments to rbc event objects
+  const events = useMemo(() => appointments.map(a => ({
+    id: a.id,
+    title: `${a.service?.name} — ${a.contact?.name || a.contact?.phoneNumber || 'Unknown'}`,
+    start: new Date(a.startTime),
+    end: new Date(a.endTime),
+    resource: a,
+  })), [appointments]);
+
+  // Color each event by service color
+  const eventPropGetter = useCallback((event: any) => {
+    const color = event.resource?.service?.color || '#25D366';
+    return {
+      style: {
+        backgroundColor: color,
+        borderColor: color,
+        color: '#fff',
+        borderRadius: '6px',
+        fontSize: '12px',
+        padding: '2px 6px',
+      },
+    };
+  }, []);
+
+  const handleSelectEvent = useCallback((event: any, e: React.SyntheticEvent) => {
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    setPopoverPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX });
+    setSelectedAppt(event.resource as Appointment);
+  }, []);
+
+  return (
+    <div className="relative">
+      {/* Calendar styles override for dark mode compatibility */}
+      <style>{`
+        .rbc-calendar { font-family: inherit; }
+        .rbc-toolbar button { font-size: 13px; padding: 4px 12px; border-radius: 8px; }
+        .rbc-toolbar button.rbc-active { background-color: #25D366; border-color: #25D366; color: #fff; }
+        .rbc-today { background-color: #25D36610; }
+        .rbc-event:focus { outline: none; }
+        .rbc-show-more { color: #25D366; font-size: 11px; }
+      `}</style>
+
+      <div style={{ height: 620 }}>
+        <DnDCalendar
+          localizer={localizer}
+          events={events}
+          date={calendarDate}
+          view={calendarView}
+          onNavigate={onNavigate}
+          onView={onView}
+          onEventDrop={onEventDrop}
+          onEventResize={onEventDrop}
+          onSelectEvent={handleSelectEvent}
+          eventPropGetter={eventPropGetter}
+          resizable
+          draggableAccessor={() => true}
+          views={[Views.MONTH, Views.WEEK, Views.DAY]}
+          defaultView={Views.WEEK}
+          step={30}
+          timeslots={1}
+          popup
+        />
+      </div>
+
+      {/* Detail popover on event click */}
+      {selectedAppt && popoverPos && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setSelectedAppt(null)} />
+          <div
+            className="fixed z-50 w-72 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-gray-200 dark:border-slate-700 p-4"
+            style={{ top: Math.min(popoverPos.top, window.innerHeight - 260), left: Math.min(popoverPos.left, window.innerWidth - 300) }}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: selectedAppt.service?.color }} />
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{selectedAppt.service?.name}</p>
+                  <p className="text-xs text-gray-500">{selectedAppt.staff?.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedAppt(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400 mb-3">
+              <p><span className="font-medium text-gray-900 dark:text-white">{selectedAppt.contact?.name || 'Unknown'}</span></p>
+              {selectedAppt.contact?.phoneNumber && <p>{selectedAppt.contact.phoneNumber}</p>}
+              <p>{formatTime(selectedAppt.startTime)} – {formatTime(selectedAppt.endTime)}</p>
+              <p>{formatDate(selectedAppt.startTime)}</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedAppt.status}
+                onChange={(e) => {
+                  onStatusChange(selectedAppt.id, e.target.value);
+                  setSelectedAppt(prev => prev ? { ...prev, status: e.target.value } : null);
+                }}
+                className={cn(
+                  'flex-1 text-xs font-medium rounded-lg px-2 py-1.5 border-0 cursor-pointer',
+                  STATUS_COLORS[selectedAppt.status] || 'bg-gray-100 text-gray-600'
+                )}
+              >
+                {STATUS_OPTIONS.map(s => (
+                  <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => { onDelete(selectedAppt.id); setSelectedAppt(null); }}
+                className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <p className="text-[10px] text-gray-400 mt-2">Drag the event on the calendar to reschedule</p>
+          </div>
+        </>
       )}
     </div>
   );

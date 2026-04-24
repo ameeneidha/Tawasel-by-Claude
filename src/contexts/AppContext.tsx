@@ -6,6 +6,7 @@ interface User {
   name: string;
   email: string;
   emailVerified: boolean;
+  image?: string | null;
 }
 
 interface VerificationRequestResult {
@@ -30,6 +31,7 @@ interface Workspace {
   subscriptionCurrentPeriodEnd?: string | null;
   subscriptionCancelAtPeriodEnd?: boolean;
   membership?: WorkspaceMembership;
+  members?: { userId: string; role: string }[];
 }
 
 interface ConnectedAccount {

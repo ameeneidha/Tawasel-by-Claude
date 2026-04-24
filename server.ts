@@ -1517,6 +1517,225 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // ── Public Booking (no auth) ────────────────────────────────────────
+  // Used by the client-facing /book/:slug page. No requireAuth.
+
+  // GET /api/public/book/:slug — workspace info + services + staff
+  app.get("/api/public/book/:slug", async (req, res) => {
+    try {
+      const workspace = await prisma.workspace.findUnique({
+        where: { slug: req.params.slug },
+        select: {
+          id: true, name: true, suspended: true,
+          services: {
+            where: { enabled: true },
+            orderBy: { name: "asc" },
+            select: { id: true, name: true, description: true, durationMin: true, price: true, currency: true, color: true },
+          },
+          staffMembers: {
+            where: { enabled: true },
+            orderBy: { name: "asc" },
+            select: { id: true, name: true, avatar: true, workingHours: true, staffServices: { select: { serviceId: true } } },
+          },
+        },
+      });
+      if (!workspace) return res.status(404).json({ error: "Booking page not found" });
+      if (workspace.suspended) return res.status(403).json({ error: "This business is currently unavailable" });
+      res.json({ id: workspace.id, name: workspace.name, services: workspace.services, staff: workspace.staffMembers });
+    } catch (err) {
+      console.error("[public-book:info]", err);
+      res.status(500).json({ error: "Failed to load booking page" });
+    }
+  });
+
+  // GET /api/public/book/:slug/availability — available time slots
+  app.get("/api/public/book/:slug/availability", async (req, res) => {
+    try {
+      const { serviceId, staffId, date } = req.query as Record<string, string>;
+      if (!serviceId || !date) return res.status(400).json({ error: "serviceId and date are required" });
+
+      const workspace = await prisma.workspace.findUnique({ where: { slug: req.params.slug }, select: { id: true } });
+      if (!workspace) return res.status(404).json({ error: "Not found" });
+
+      const service = await prisma.service.findFirst({
+        where: { id: serviceId, workspaceId: workspace.id, enabled: true },
+      });
+      if (!service) return res.status(404).json({ error: "Service not found" });
+
+      // Build staff list — specific staff or all staff eligible for this service
+      const staffWhere: any = { workspaceId: workspace.id, enabled: true };
+      if (staffId && staffId !== "any") {
+        staffWhere.id = staffId;
+      } else {
+        staffWhere.staffServices = { some: { serviceId } };
+      }
+      const staffList = await prisma.staffMember.findMany({ where: staffWhere });
+
+      const d = new Date(date);
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const dayEnd   = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+      const dayName  = dayNames[d.getDay()];
+
+      const existingAppointments = await prisma.appointment.findMany({
+        where: {
+          workspaceId: workspace.id,
+          staffId: { in: staffList.map((s) => s.id) },
+          status: { not: "CANCELLED" },
+          startTime: { gte: dayStart, lt: dayEnd },
+        },
+      });
+
+      // Collect all unique available slots across eligible staff
+      const slotSet = new Set<string>();
+
+      for (const staff of staffList) {
+        let hours: any = null;
+        try { hours = JSON.parse(staff.workingHours || "{}")[dayName]; } catch {}
+        if (!hours?.start || !hours?.end) continue;
+
+        const staffAppts = existingAppointments.filter((a) => a.staffId === staff.id);
+        const [sh, sm] = hours.start.split(":").map(Number);
+        const [eh, em] = hours.end.split(":").map(Number);
+        const workStart = new Date(dayStart.getTime() + sh * 3600000 + sm * 60000);
+        const workEnd   = new Date(dayStart.getTime() + eh * 3600000 + em * 60000);
+
+        let cursor = new Date(workStart);
+        while (cursor.getTime() + service.durationMin * 60000 <= workEnd.getTime()) {
+          const slotEnd = new Date(cursor.getTime() + service.durationMin * 60000);
+          const hasConflict = staffAppts.some((a) => a.startTime < slotEnd && a.endTime > cursor);
+          if (!hasConflict) {
+            slotSet.add(
+              `${String(cursor.getHours()).padStart(2, "0")}:${String(cursor.getMinutes()).padStart(2, "0")}`
+            );
+          }
+          cursor = new Date(cursor.getTime() + 30 * 60000);
+        }
+      }
+
+      const slots = Array.from(slotSet).sort();
+      res.json({ slots });
+    } catch (err) {
+      console.error("[public-book:availability]", err);
+      res.status(500).json({ error: "Failed to check availability" });
+    }
+  });
+
+  // POST /api/public/book/:slug — create the appointment
+  app.post("/api/public/book/:slug", async (req, res) => {
+    try {
+      const { serviceId, staffId, date, slot, customerName, customerPhone } = req.body;
+      if (!serviceId || !date || !slot || !customerPhone?.trim()) {
+        return res.status(400).json({ error: "serviceId, date, slot, and customerPhone are required" });
+      }
+
+      const workspace = await prisma.workspace.findUnique({ where: { slug: req.params.slug }, select: { id: true, name: true } });
+      if (!workspace) return res.status(404).json({ error: "Not found" });
+
+      const service = await prisma.service.findFirst({ where: { id: serviceId, workspaceId: workspace.id, enabled: true } });
+      if (!service) return res.status(404).json({ error: "Service not found" });
+
+      // Resolve staff — pick first available if "any"
+      let resolvedStaffId = staffId;
+      if (!staffId || staffId === "any") {
+        const d = new Date(date);
+        const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+        const dayName  = dayNames[d.getDay()];
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const dayEnd   = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+        const [slotH, slotM] = slot.split(":").map(Number);
+        const slotStart = new Date(dayStart.getTime() + slotH * 3600000 + slotM * 60000);
+        const slotEnd   = new Date(slotStart.getTime() + service.durationMin * 60000);
+
+        const eligibleStaff = await prisma.staffMember.findMany({
+          where: { workspaceId: workspace.id, enabled: true, staffServices: { some: { serviceId } } },
+        });
+        for (const sm of eligibleStaff) {
+          let hours: any = null;
+          try { hours = JSON.parse(sm.workingHours || "{}")[dayName]; } catch {}
+          if (!hours?.start || !hours?.end) continue;
+          const conflict = await prisma.appointment.findFirst({
+            where: { staffId: sm.id, status: { not: "CANCELLED" }, startTime: { gte: dayStart, lt: dayEnd },
+              AND: [{ startTime: { lt: slotEnd } }, { endTime: { gt: slotStart } }] },
+          });
+          if (!conflict) { resolvedStaffId = sm.id; break; }
+        }
+        if (!resolvedStaffId || resolvedStaffId === "any") {
+          return res.status(409).json({ error: "No available staff for this slot. Please choose another time." });
+        }
+      }
+
+      const staffMember = await prisma.staffMember.findFirst({ where: { id: resolvedStaffId, workspaceId: workspace.id } });
+      if (!staffMember) return res.status(404).json({ error: "Staff not found" });
+
+      // Build start/end times
+      const d = new Date(date);
+      const [slotH, slotM] = slot.split(":").map(Number);
+      const startTime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), slotH, slotM, 0);
+      const endTime   = new Date(startTime.getTime() + service.durationMin * 60000);
+
+      // Upsert contact by phone number
+      const phone = normalizePhone(customerPhone.trim());
+      if (!phone) return res.status(400).json({ error: "Invalid phone number" });
+
+      let contact = await prisma.contact.findFirst({ where: { workspaceId: workspace.id, phoneNumber: phone } });
+      if (!contact) {
+        contact = await prisma.contact.create({
+          data: { workspaceId: workspace.id, phoneNumber: phone, name: customerName?.trim() || undefined, leadSource: "BOOKING_LINK" },
+        });
+      }
+
+      // Create appointment
+      const appointment = await prisma.appointment.create({
+        data: { workspaceId: workspace.id, contactId: contact.id, serviceId, staffId: resolvedStaffId, startTime, endTime, status: "SCHEDULED" },
+        include: { service: true, staff: true },
+      });
+
+      // Send WhatsApp confirmation (fire-and-forget)
+      (async () => {
+        try {
+          const waNumber = await prisma.whatsAppNumber.findFirst({ where: { workspaceId: workspace.id } });
+          if (!waNumber) return;
+          const { getWhatsAppChannelConfig, sendMetaMessage } = await import("./server/services/meta.js");
+          const { sendTemplateMessage } = await import("./server/services/meta.js");
+          const config = getWhatsAppChannelConfig(waNumber);
+          if (!config.accessToken || !config.phoneNumberId) return;
+
+          const graphVersion = process.env.META_GRAPH_VERSION || "v22.0";
+          const confirmedTemplate = await prisma.whatsAppTemplate.findFirst({
+            where: { workspaceId: workspace.id, name: "tawasel_booking_confirmation", status: "APPROVED" },
+          });
+
+          const dateTimeStr = startTime.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })
+            + " at " + startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
+
+          if (confirmedTemplate) {
+            await sendTemplateMessage(phone, "tawasel_booking_confirmation", "en",
+              [customerName?.trim() || "there", service.name, staffMember.name, dateTimeStr, workspace.name],
+              config as { accessToken: string; phoneNumberId: string }
+            );
+          } else {
+            const msg = `Hi ${customerName?.trim() || "there"}! ✅\n\nYour appointment is confirmed:\n📋 *Service:* ${service.name}\n👤 *With:* ${staffMember.name}\n📅 *Date & Time:* ${dateTimeStr}\n\nSee you soon! — ${workspace.name}`;
+            await sendMetaMessage(phone, msg, "whatsapp", config);
+          }
+        } catch (err: any) {
+          console.error("[public-book:confirmation]", err.message);
+        }
+      })();
+
+      res.json({
+        appointmentId: appointment.id,
+        serviceName: appointment.service.name,
+        staffName: appointment.staff.name,
+        startTime: appointment.startTime,
+        endTime: appointment.endTime,
+      });
+    } catch (err) {
+      console.error("[public-book:create]", err);
+      res.status(500).json({ error: "Failed to create appointment" });
+    }
+  });
+
   app.post("/api/auth/login", authRateLimiter('login'), async (req, res) => {
     const { email, password } = req.body;
     const user = await prisma.user.findUnique({
@@ -2366,6 +2585,132 @@ async function startServer() {
       console.error('[template-sync] Meta API error:', err.response?.data || err.message);
       return res.status(502).json({ error: "Failed to fetch templates from WhatsApp. Check your WABA configuration." });
     }
+  });
+
+  // ── Appointment Template Setup ─────────────────────────────────────
+  // Creates the 3 standard Tawasel appointment templates in the workspace's
+  // WABA using their stored OAuth token. Safe to call multiple times —
+  // Meta returns an error for duplicate names which we treat as "already exists".
+
+  const APPOINTMENT_TEMPLATES = [
+    {
+      name: "tawasel_booking_confirmation",
+      category: "UTILITY",
+      language: "en",
+      bodyText:
+        "Hi {{1}}! ✅\n\nYour appointment is confirmed:\n📋 *Service:* {{2}}\n👤 *With:* {{3}}\n📅 *Date & Time:* {{4}}\n\nWe'll send you a reminder before your appointment. See you soon! — {{5}}",
+    },
+    {
+      name: "tawasel_reminder_24h",
+      category: "UTILITY",
+      language: "en",
+      bodyText:
+        "Hi {{1}}! 👋\n\nReminder about your upcoming appointment:\n📋 *Service:* {{2}}\n👤 *With:* {{3}}\n🕐 *Time:* {{4}}\n\nNeed to reschedule? Just reply to this message. — {{5}}",
+    },
+    {
+      name: "tawasel_reminder_1h",
+      category: "UTILITY",
+      language: "en",
+      bodyText:
+        "Hi {{1}}! ⏰\n\nYour {{2}} with {{3}} is in 1 hour at {{4}}. See you soon! — {{5}}",
+    },
+  ];
+
+  app.post("/api/appointments/setup-templates", requireAuth, requireRole("ADMIN", "OWNER"), requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+    const workspaceId = String(req.body.workspaceId || "").trim();
+    if (!workspaceId) return res.status(400).json({ error: "Workspace ID required" });
+
+    const waNumber = await prisma.whatsAppNumber.findFirst({ where: { workspaceId } });
+    const accessToken = waNumber?.metaAccessToken?.trim() || process.env.META_ACCESS_TOKEN || "";
+    const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || "";
+    if (!accessToken || !wabaId) {
+      return res.status(400).json({ error: "No WhatsApp number connected. Connect a number first." });
+    }
+
+    const graphVersion = process.env.META_GRAPH_VERSION || "v22.0";
+    const results: { name: string; status: string; detail?: string }[] = [];
+
+    for (const tpl of APPOINTMENT_TEMPLATES) {
+      try {
+        await axios.post(
+          `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
+          {
+            name: tpl.name,
+            category: tpl.category,
+            language: tpl.language,
+            components: [{ type: "BODY", text: tpl.bodyText }],
+          },
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        // Upsert into local DB as PENDING
+        await prisma.whatsAppTemplate.upsert({
+          where: {
+            id: await prisma.whatsAppTemplate.findFirst({
+              where: { workspaceId, name: tpl.name, language: tpl.language },
+              select: { id: true },
+            }).then((r) => r?.id || "nonexistent"),
+          },
+          update: { status: "PENDING" },
+          create: {
+            workspaceId,
+            name: tpl.name,
+            content: tpl.bodyText,
+            category: tpl.category,
+            language: tpl.language,
+            status: "PENDING",
+          },
+        });
+        results.push({ name: tpl.name, status: "submitted" });
+        console.log(`[setup-templates] ✅ Submitted ${tpl.name}`);
+      } catch (err: any) {
+        const code = err.response?.data?.error?.code;
+        const detail = err.response?.data?.error?.message || err.message;
+        // Code 2388085 = template already exists — treat as success
+        if (code === 2388085 || detail?.includes("already exists")) {
+          results.push({ name: tpl.name, status: "already_exists" });
+        } else {
+          results.push({ name: tpl.name, status: "error", detail });
+          console.error(`[setup-templates] ❌ ${tpl.name}:`, detail);
+        }
+      }
+    }
+
+    // Auto-sync so the new templates appear in the DB right away
+    try {
+      const syncRes = await axios.get(
+        `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
+        { params: { access_token: accessToken, limit: 250 }, timeout: 10000 }
+      );
+      const metaTemplates = syncRes.data?.data || [];
+      for (const t of metaTemplates) {
+        const bodyComponent = t.components?.find((c: any) => c.type === "BODY");
+        const content = bodyComponent?.text || "";
+        await prisma.whatsAppTemplate.upsert({
+          where: {
+            id: await prisma.whatsAppTemplate.findFirst({
+              where: { workspaceId, name: t.name, language: t.language },
+              select: { id: true },
+            }).then((r) => r?.id || "nonexistent"),
+          },
+          update: { content, category: t.category || "UTILITY", status: t.status || "PENDING" },
+          create: {
+            workspaceId,
+            name: t.name,
+            content,
+            category: t.category || "UTILITY",
+            language: t.language || "en",
+            status: t.status || "PENDING",
+          },
+        });
+      }
+    } catch (syncErr: any) {
+      console.warn("[setup-templates] auto-sync after create failed:", syncErr.message);
+    }
+
+    res.json({
+      results,
+      message: "Templates submitted to Meta for approval. They will be active within a few minutes.",
+    });
   });
 
   // ── Compose (outbound template message) ────────────────────────────
