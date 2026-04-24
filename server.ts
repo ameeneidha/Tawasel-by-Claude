@@ -2548,7 +2548,8 @@ async function startServer() {
       where: { workspaceId }
     });
 
-    const accessToken = waNumber?.metaAccessToken?.trim() || process.env.META_ACCESS_TOKEN || '';
+    // Template listing also needs whatsapp_business_management — use System User token first
+    const accessToken = process.env.META_ACCESS_TOKEN?.trim() || waNumber?.metaAccessToken?.trim() || '';
     const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || '';
 
     if (!accessToken || !wabaId) {
@@ -2642,7 +2643,10 @@ async function startServer() {
     if (!workspaceId) return res.status(400).json({ error: "Workspace ID required" });
 
     const waNumber = await prisma.whatsAppNumber.findFirst({ where: { workspaceId } });
-    const accessToken = waNumber?.metaAccessToken?.trim() || process.env.META_ACCESS_TOKEN || "";
+    // Template management requires whatsapp_business_management scope.
+    // System User token (META_ACCESS_TOKEN env) has this; per-number Embedded Signup
+    // token only covers messaging. Use System User token first for template ops.
+    const accessToken = process.env.META_ACCESS_TOKEN?.trim() || waNumber?.metaAccessToken?.trim() || "";
     const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || "";
     if (!accessToken || !wabaId) {
       return res.status(400).json({ error: "No WhatsApp number connected. Connect a number first." });
@@ -2747,7 +2751,9 @@ async function startServer() {
     }
 
     const waNumber = await prisma.whatsAppNumber.findFirst({ where: { workspaceId } });
-    const accessToken = waNumber?.metaAccessToken?.trim() || process.env.META_ACCESS_TOKEN || "";
+    // Use System User token for template management (needs whatsapp_business_management scope).
+    // Per-number Embedded Signup token only has messaging scope — insufficient for templates.
+    const accessToken = process.env.META_ACCESS_TOKEN?.trim() || waNumber?.metaAccessToken?.trim() || "";
     const wabaId = waNumber?.metaWabaId?.trim() || process.env.META_WABA_ID || "";
     if (!accessToken || !wabaId) {
       return res.status(400).json({ error: "No WhatsApp number connected. Connect a number in Channels first." });
