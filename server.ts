@@ -874,6 +874,9 @@ async function startServer() {
 
   // Refresh an expired/short-lived Embedded Signup token to a fresh long-lived one.
   // Call this when template operations fail with "missing permissions" after token expiry.
+  // Fix expired tokens — tries to assign Tawasel's System User to the WABA
+  // (permanent fix), or falls back to switching stored token to System User token
+  // if it already has WABA access, or prompts reconnect as last resort.
   app.post("/api/meta/embedded-signup/refresh-token", requireAuth, requireRole('ADMIN', 'OWNER'), async (req: any, res) => {
     const workspaceId = String(req.body.workspaceId || '').trim();
     const numberId = String(req.body.numberId || '').trim();
@@ -882,46 +885,68 @@ async function startServer() {
     const waNumber = numberId
       ? await prisma.whatsAppNumber.findFirst({ where: { id: numberId, workspaceId } })
       : await prisma.whatsAppNumber.findFirst({
-          where: { workspaceId, metaWabaId: { not: null }, metaAccessToken: { not: null } },
+          where: { workspaceId, metaWabaId: { not: null } },
         });
 
-    if (!waNumber?.metaAccessToken) {
-      return res.status(404).json({ error: "No connected WhatsApp number with a stored token found" });
+    if (!waNumber?.metaWabaId) {
+      return res.status(404).json({ error: "No connected WhatsApp number with a WABA found" });
     }
 
-    const appId = process.env.META_APP_ID;
-    const appSecret = process.env.META_APP_SECRET;
-    if (!appId || !appSecret) return res.status(500).json({ error: "Meta app credentials not configured" });
+    const systemUserToken = process.env.META_ACCESS_TOKEN?.trim();
+    if (!systemUserToken) {
+      return res.status(500).json({ error: "META_ACCESS_TOKEN not configured on server" });
+    }
 
+    const wabaId = waNumber.metaWabaId;
+
+    // Strategy 1: Try to use System User token directly against this WABA
+    // (works if system user was already assigned, e.g. from same Business Manager)
     try {
-      const r = await axios.get(`https://graph.facebook.com/${META_GRAPH_VERSION}/oauth/access_token`, {
-        params: {
-          grant_type: 'fb_exchange_token',
-          client_id: appId,
-          client_secret: appSecret,
-          fb_exchange_token: waNumber.metaAccessToken,
-        },
+      await axios.get(`https://graph.facebook.com/${META_GRAPH_VERSION}/${wabaId}`, {
+        params: { access_token: systemUserToken, fields: 'id,name' },
       });
-      const newToken: string = r.data.access_token;
-      const expiresIn: number | undefined = r.data.expires_in;
+      // System User already has access — just store its token
       await prisma.whatsAppNumber.update({
         where: { id: waNumber.id },
-        data: {
-          metaAccessToken: newToken,
-          metaTokenExpiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000) : null,
-        },
+        data: { metaAccessToken: systemUserToken, metaTokenExpiresAt: null },
       });
-      console.log(`[token-refresh] ✅ Refreshed token for number ${waNumber.phoneNumber}`);
-      res.json({ ok: true, expiresIn, phone: waNumber.phoneNumber });
-    } catch (e: any) {
-      const msg = e?.response?.data?.error?.message || e?.message;
-      console.error('[token-refresh] ❌', msg);
-      // Token is fully expired — cannot extend. User must reconnect.
-      res.status(400).json({
-        error: msg || "Token refresh failed",
-        hint: "The token has fully expired and cannot be renewed. Go to Channels and reconnect the WhatsApp number to get a fresh token.",
-      });
+      console.log(`[token-fix] ✅ System User already has WABA access — stored permanent token`);
+      return res.json({ ok: true, method: 'system-user-direct', phone: waNumber.phoneNumber });
+    } catch (_) {
+      console.log(`[token-fix] System User doesn't have direct WABA access, trying assignment...`);
     }
+
+    // Strategy 2: Use the stored per-number token (may still be valid) to assign System User
+    if (waNumber.metaAccessToken) {
+      try {
+        const meRes = await axios.get(`https://graph.facebook.com/${META_GRAPH_VERSION}/me`, {
+          params: { access_token: systemUserToken, fields: 'id' },
+        });
+        const systemUserId: string = meRes.data.id;
+
+        await axios.post(
+          `https://graph.facebook.com/${META_GRAPH_VERSION}/${wabaId}/assigned_users`,
+          { user: systemUserId, tasks: ['MANAGE'] },
+          { headers: { Authorization: `Bearer ${waNumber.metaAccessToken}` } }
+        );
+        await prisma.whatsAppNumber.update({
+          where: { id: waNumber.id },
+          data: { metaAccessToken: systemUserToken, metaTokenExpiresAt: null },
+        });
+        console.log(`[token-fix] ✅ Assigned System User via per-number token — stored permanent token`);
+        return res.json({ ok: true, method: 'assigned-system-user', phone: waNumber.phoneNumber });
+      } catch (e: any) {
+        console.warn(`[token-fix] Assignment failed (token likely expired):`, e?.response?.data?.error?.message || e?.message);
+      }
+    }
+
+    // Strategy 3: All automated options exhausted — must reconnect
+    return res.status(400).json({
+      error: "The stored token has fully expired and cannot be used to grant permanent access.",
+      hint: "Go to Channels → delete this number → reconnect via Embedded Signup. The reconnect will permanently assign Tawasel's System User to your WABA so this never happens again.",
+      phone: waNumber.phoneNumber,
+      wabaId,
+    });
   });
 
   app.post("/api/meta/embedded-signup/resolve-assets", requireAuth, requireRole('ADMIN', 'OWNER'), async (req, res) => {
@@ -1045,6 +1070,41 @@ async function startServer() {
         console.log(`[embedded-signup] subscribed WABA ${wabaId} to webhooks`);
       } catch (e: any) {
         console.warn('[embedded-signup] webhook subscription failed:', e?.response?.data || e?.message);
+      }
+
+      // ── Assign Tawasel System User to the WABA ──────────────────────
+      // This is the key step that makes template management permanent.
+      // The Embedded Signup token expires in 60 days, but the System User
+      // token (META_ACCESS_TOKEN) never expires. By assigning our System User
+      // to the customer's WABA right now (while we still have their valid token),
+      // we can use META_ACCESS_TOKEN for all future template operations on this WABA.
+      const systemUserToken = process.env.META_ACCESS_TOKEN?.trim();
+      if (systemUserToken) {
+        try {
+          // Get our System User's ID
+          const meRes = await axios.get(`https://graph.facebook.com/${META_GRAPH_VERSION}/me`, {
+            params: { access_token: systemUserToken, fields: 'id,name' },
+          });
+          const systemUserId: string = meRes.data.id;
+
+          // Assign System User to WABA with MANAGE tasks (includes template management)
+          await axios.post(
+            `https://graph.facebook.com/${META_GRAPH_VERSION}/${wabaId}/assigned_users`,
+            { user: systemUserId, tasks: ['MANAGE'] },
+            { headers: { Authorization: `Bearer ${normalizedAccessToken}` } }
+          );
+          console.log(`[embedded-signup] ✅ Assigned System User ${systemUserId} to WABA ${wabaId} — template management now permanent`);
+
+          // Update the stored token to use the System User token instead of the expiring user token
+          await prisma.whatsAppNumber.update({
+            where: { id: savedNumber.id },
+            data: { metaAccessToken: systemUserToken, metaTokenExpiresAt: null },
+          });
+          console.log(`[embedded-signup] ✅ Stored permanent System User token for ${normalizedDisplayPhone}`);
+        } catch (e: any) {
+          // Non-fatal — template ops will use per-number token (expires in 60 days)
+          console.warn('[embedded-signup] System User WABA assignment failed (non-fatal):', e?.response?.data?.error?.message || e?.message);
+        }
       }
     }
 
