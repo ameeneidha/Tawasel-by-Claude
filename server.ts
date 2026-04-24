@@ -2740,8 +2740,9 @@ async function startServer() {
       });
       res.json({ synced, templates });
     } catch (err: any) {
-      console.error('[template-sync] Meta API error:', err.response?.data || err.message);
-      return res.status(502).json({ error: "Failed to fetch templates from WhatsApp. Check your WABA configuration." });
+      const detail = err.response?.data || err.message || String(err);
+      console.error('[template-sync] error:', detail);
+      return res.status(502).json({ error: "Failed to fetch templates from WhatsApp. Check your WABA configuration.", detail });
     }
   });
 
