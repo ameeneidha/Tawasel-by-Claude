@@ -2785,28 +2785,30 @@ async function startServer() {
     const whatsAppNumberId = String(req.body.whatsAppNumberId || "").trim();
     if (!workspaceId) return res.status(400).json({ error: "Workspace ID required" });
 
-    // Build a list of (wabaId, token) combos to try — one per connected number + system user fallback.
-    // This way if the first number's token lacks whatsapp_business_management permission, we try the next.
+    // Fetch ALL connected numbers for this workspace (always — selected number goes first as preferred WABA,
+    // but we fall through to every other number if that one lacks whatsapp_business_management permission).
     const allNumbers = await prisma.whatsAppNumber.findMany({
-      where: whatsAppNumberId
-        ? { id: whatsAppNumberId, workspaceId }
-        : { workspaceId, metaWabaId: { not: null }, metaAccessToken: { not: null } },
+      where: { workspaceId, metaWabaId: { not: null }, metaAccessToken: { not: null } },
     });
     if (allNumbers.length === 0) {
       return res.status(400).json({ error: "No WhatsApp number connected. Connect a number first." });
     }
 
-    // Build ordered credential list: each number's own token first, then system user as final fallback
+    // Sort: put the user-selected number first so its WABA is preferred
+    const sorted = whatsAppNumberId
+      ? [...allNumbers].sort((a, b) => (a.id === whatsAppNumberId ? -1 : b.id === whatsAppNumberId ? 1 : 0))
+      : allNumbers;
+
+    // Build credential list: every number's own token + system-user fallback against each WABA
     type Cred = { label: string; wabaId: string; token: string };
     const credList: Cred[] = [];
-    for (const n of allNumbers) {
+    for (const n of sorted) {
       if (n.metaWabaId?.trim() && n.metaAccessToken?.trim()) {
         credList.push({ label: `per-number(${n.phoneNumber})`, wabaId: n.metaWabaId.trim(), token: n.metaAccessToken.trim() });
       }
     }
     if (process.env.META_ACCESS_TOKEN?.trim()) {
-      // Try system user against every known WABA
-      for (const n of allNumbers) {
+      for (const n of sorted) {
         if (n.metaWabaId?.trim()) {
           credList.push({ label: `system-user(${n.phoneNumber})`, wabaId: n.metaWabaId.trim(), token: process.env.META_ACCESS_TOKEN.trim() });
         }
