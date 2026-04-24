@@ -1569,7 +1569,15 @@ async function startServer() {
       } else {
         staffWhere.staffServices = { some: { serviceId } };
       }
-      const staffList = await prisma.staffMember.findMany({ where: staffWhere });
+      let staffList = await prisma.staffMember.findMany({ where: staffWhere });
+
+      // Fallback: if "any" staff was requested but no StaffService links exist,
+      // use all enabled staff in the workspace (common when owner hasn't assigned services yet).
+      if (staffList.length === 0 && (!staffId || staffId === "any")) {
+        staffList = await prisma.staffMember.findMany({
+          where: { workspaceId: workspace.id, enabled: true },
+        });
+      }
 
       const d = new Date(date);
       const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -1592,7 +1600,11 @@ async function startServer() {
       for (const staff of staffList) {
         let hours: any = null;
         try { hours = JSON.parse(staff.workingHours || "{}")[dayName]; } catch {}
-        if (!hours?.start || !hours?.end) continue;
+        // Fallback to default working hours (09:00–17:00, Sun–Thu) when not configured.
+        if (!hours?.start || !hours?.end) {
+          if (dayName === "fri" || dayName === "sat") continue;
+          hours = { start: "09:00", end: "17:00" };
+        }
 
         const staffAppts = existingAppointments.filter((a) => a.staffId === staff.id);
         const [sh, sm] = hours.start.split(":").map(Number);
@@ -1647,13 +1659,22 @@ async function startServer() {
         const slotStart = new Date(dayStart.getTime() + slotH * 3600000 + slotM * 60000);
         const slotEnd   = new Date(slotStart.getTime() + service.durationMin * 60000);
 
-        const eligibleStaff = await prisma.staffMember.findMany({
+        let eligibleStaff = await prisma.staffMember.findMany({
           where: { workspaceId: workspace.id, enabled: true, staffServices: { some: { serviceId } } },
         });
+        if (eligibleStaff.length === 0) {
+          // Fallback when no StaffService links exist — use all enabled staff
+          eligibleStaff = await prisma.staffMember.findMany({
+            where: { workspaceId: workspace.id, enabled: true },
+          });
+        }
         for (const sm of eligibleStaff) {
           let hours: any = null;
           try { hours = JSON.parse(sm.workingHours || "{}")[dayName]; } catch {}
-          if (!hours?.start || !hours?.end) continue;
+          if (!hours?.start || !hours?.end) {
+            if (dayName === "fri" || dayName === "sat") continue;
+            hours = { start: "09:00", end: "17:00" };
+          }
           const conflict = await prisma.appointment.findFirst({
             where: { staffId: sm.id, status: { not: "CANCELLED" }, startTime: { gte: dayStart, lt: dayEnd },
               AND: [{ startTime: { lt: slotEnd } }, { endTime: { gt: slotStart } }] },

@@ -168,26 +168,37 @@ export default function Appointments() {
     if (!wsId) return;
     setLoading(true);
     try {
-      const [apptRes, svcRes, staffRes, contactRes, tplRes] = await Promise.all([
+      const [apptRes, svcRes, staffRes, contactRes, tplRes] = await Promise.allSettled([
         axios.get(`/api/appointments?workspaceId=${wsId}`),
         axios.get(`/api/services?workspaceId=${wsId}`),
         axios.get(`/api/staff?workspaceId=${wsId}`),
         axios.get(`/api/contacts?workspaceId=${wsId}`),
         axios.get(`/api/templates?workspaceId=${wsId}`),
       ]);
-      setAppointments(apptRes.data);
-      setServices(svcRes.data);
-      setStaff(staffRes.data);
-      setContacts(contactRes.data);
+
+      setAppointments(apptRes.status === 'fulfilled' ? apptRes.value.data : []);
+      setServices(svcRes.status === 'fulfilled' ? svcRes.value.data : []);
+      setStaff(staffRes.status === 'fulfilled' ? staffRes.value.data : []);
+      setContacts(contactRes.status === 'fulfilled' ? contactRes.value.data : []);
 
       // Check whether the 3 appointment templates exist and are approved
-      const templates: { name: string; status: string }[] = tplRes.data || [];
+      const templates: { name: string; status: string }[] =
+        tplRes.status === 'fulfilled' ? (tplRes.value.data || []) : [];
       const needed = ['tawasel_booking_confirmation', 'tawasel_reminder_24h', 'tawasel_reminder_1h'];
       const approved = needed.filter(n => templates.some(t => t.name === n && t.status === 'APPROVED'));
       const pending  = needed.filter(n => templates.some(t => t.name === n && t.status !== 'APPROVED'));
       if (approved.length === 3) setTemplateStatus('ready');
       else if (pending.length > 0) setTemplateStatus('pending');
       else setTemplateStatus('missing');
+
+      // Log which endpoint failed (helps debugging) but don't block the UI
+      const failures = [
+        ['appointments', apptRes], ['services', svcRes], ['staff', staffRes],
+        ['contacts', contactRes], ['templates', tplRes],
+      ].filter(([_, r]: any) => r.status === 'rejected');
+      if (failures.length > 0) {
+        console.warn('[Appointments] Partial load failures:', failures.map(([n, r]: any) => ({ n, err: r.reason?.response?.data || r.reason?.message })));
+      }
     } catch {
       toast.error(t('appointments.failedToLoad'));
     } finally {
