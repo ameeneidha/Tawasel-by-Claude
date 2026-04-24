@@ -2900,8 +2900,9 @@ async function startServer() {
   });
 
   // ── Template Creator (create custom WhatsApp template in Meta) ─────
-  app.post("/api/templates/whatsapp/create", requireAuth, requireRole("ADMIN", "OWNER"), requireSubscribedWorkspaceFromBody, async (req: any, res) => {
-    const { workspaceId, name, category, language, bodyText, variableCount, whatsAppNumberId, buttons } = req.body;
+  app.post("/api/templates/whatsapp/create", requireAuth, requireRole("ADMIN", "OWNER"), upload.single('headerFile'), requireSubscribedWorkspaceFromBody, async (req: any, res) => {
+    const { workspaceId, name, category, language, bodyText, variableCount, whatsAppNumberId, buttons, headerType, headerText } = req.body;
+    const headerFile = req.file;
     if (!workspaceId || !name || !category || !language || !bodyText) {
       return res.status(400).json({ error: "name, category, language, and bodyText are required" });
     }
@@ -2963,9 +2964,58 @@ async function startServer() {
       exampleValues.push(namedKey ? (SAMPLE_VALUES[namedKey] || `Sample${i}`) : `Sample${i}`);
     }
 
-    const components: any[] = [{ type: "BODY", text: numberedText }];
+    const graphVersion = process.env.META_GRAPH_VERSION || "v22.0";
+
+    // ── Build HEADER component ──────────────────────────────────────
+    let headerComponent: any = null;
+    if (headerType === 'TEXT' && headerText?.trim()) {
+      headerComponent = { type: 'HEADER', format: 'TEXT', text: headerText.trim() };
+    } else if ((headerType === 'IMAGE' || headerType === 'VIDEO') && headerFile && waNumber) {
+      // Upload file to Meta to get a header handle for template review
+      try {
+        const activeToken = waNumber.metaAccessToken || process.env.META_ACCESS_TOKEN || '';
+        // Step 1: Create upload session
+        const sessionRes = await axios.post(
+          `https://graph.facebook.com/${graphVersion}/${process.env.META_APP_ID}/uploads`,
+          null,
+          {
+            params: {
+              file_length: headerFile.size,
+              file_type: headerFile.mimetype,
+              access_token: activeToken,
+            },
+          }
+        );
+        const uploadSessionId: string = sessionRes.data.id;
+        // Step 2: Upload file bytes
+        const uploadRes = await axios.post(
+          `https://graph.facebook.com/${uploadSessionId}`,
+          headerFile.buffer,
+          {
+            headers: {
+              Authorization: `OAuth ${activeToken}`,
+              'Content-Type': headerFile.mimetype,
+              file_offset: '0',
+            },
+          }
+        );
+        const handle: string = uploadRes.data.h;
+        headerComponent = {
+          type: 'HEADER',
+          format: headerType,
+          example: { header_handle: [handle] },
+        };
+      } catch (uploadErr: any) {
+        console.error('[templates/create] header upload failed:', uploadErr?.response?.data || uploadErr?.message);
+        return res.status(400).json({ error: 'Failed to upload header image/video to Meta. Try again or use a Text header.' });
+      }
+    }
+
+    const components: any[] = [];
+    if (headerComponent) components.push(headerComponent);
+    components.push({ type: "BODY", text: numberedText });
     if (exampleValues.length > 0) {
-      components[0].example = { body_text: [exampleValues] };
+      components[components.length - 1].example = { body_text: [exampleValues] };
     }
 
     // Add BUTTONS component if any buttons were provided
@@ -2985,7 +3035,6 @@ async function startServer() {
       }
     }
 
-    const graphVersion = process.env.META_GRAPH_VERSION || "v22.0";
     let lastError: string = "";
     let lastCode: number | undefined;
     let success = false;

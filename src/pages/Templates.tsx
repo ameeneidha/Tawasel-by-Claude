@@ -50,6 +50,8 @@ type WaButton =
   | { type: 'URL'; text: string; url: string }
   | { type: 'PHONE_NUMBER'; text: string; phone_number: string };
 
+type WaHeaderType = 'NONE' | 'TEXT' | 'IMAGE' | 'VIDEO';
+
 type WaBuilderState = {
   name: string;
   category: string;
@@ -57,6 +59,10 @@ type WaBuilderState = {
   bodyText: string;
   whatsAppNumberId: string;
   buttons: WaButton[];
+  headerType: WaHeaderType;
+  headerText: string;
+  headerFile: File | null;
+  headerFilePreview: string;
 };
 
 const EMPTY_WA_BUILDER: WaBuilderState = {
@@ -66,6 +72,10 @@ const EMPTY_WA_BUILDER: WaBuilderState = {
   bodyText: '',
   whatsAppNumberId: '',
   buttons: [],
+  headerType: 'NONE',
+  headerText: '',
+  headerFile: null,
+  headerFilePreview: '',
 };
 
 type WaNumberOption = {
@@ -357,17 +367,26 @@ export default function Templates() {
     if (!/^[a-z0-9_]+$/.test(name)) return toast.error('Name must be lowercase letters, numbers, underscores only');
     if (!waBuilder.bodyText.trim()) return toast.error('Template body is required');
     if (waBuilder.bodyText.length > 1024) return toast.error('Body text must be under 1024 characters');
+    if ((waBuilder.headerType === 'IMAGE' || waBuilder.headerType === 'VIDEO') && !waBuilder.headerFile) {
+      return toast.error(`Please upload a ${waBuilder.headerType === 'IMAGE' ? 'image' : 'video'} for the header`);
+    }
 
     setIsWaBuilderSaving(true);
     try {
-      const res = await axios.post('/api/templates/whatsapp/create', {
-        workspaceId: activeWorkspace.id,
-        name,
-        category: waBuilder.category,
-        language: waBuilder.language,
-        bodyText: waBuilder.bodyText,
-        whatsAppNumberId: waBuilder.whatsAppNumberId || undefined,
-        buttons: waBuilder.buttons.length > 0 ? waBuilder.buttons : undefined,
+      const fd = new FormData();
+      fd.append('workspaceId', activeWorkspace.id);
+      fd.append('name', name);
+      fd.append('category', waBuilder.category);
+      fd.append('language', waBuilder.language);
+      fd.append('bodyText', waBuilder.bodyText);
+      if (waBuilder.whatsAppNumberId) fd.append('whatsAppNumberId', waBuilder.whatsAppNumberId);
+      if (waBuilder.buttons.length > 0) fd.append('buttons', JSON.stringify(waBuilder.buttons));
+      if (waBuilder.headerType !== 'NONE') fd.append('headerType', waBuilder.headerType);
+      if (waBuilder.headerType === 'TEXT' && waBuilder.headerText) fd.append('headerText', waBuilder.headerText);
+      if (waBuilder.headerFile) fd.append('headerFile', waBuilder.headerFile);
+
+      const res = await axios.post('/api/templates/whatsapp/create', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       setWaTemplates(prev => [res.data.template, ...prev]);
       setIsWaBuilderOpen(false);
@@ -588,6 +607,80 @@ export default function Templates() {
                   maxLength={60}
                   className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 font-mono outline-none focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                 />
+              </div>
+
+              {/* Header */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                  Header <span className="font-normal normal-case tracking-normal text-gray-400">(optional)</span>
+                </label>
+                <div className="flex gap-2">
+                  {(['NONE', 'TEXT', 'IMAGE', 'VIDEO'] as WaHeaderType[]).map(ht => (
+                    <button
+                      key={ht}
+                      type="button"
+                      onClick={() => setWaBuilder(b => ({ ...b, headerType: ht, headerFile: null, headerFilePreview: '', headerText: '' }))}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        waBuilder.headerType === ht
+                          ? 'border-[#25D366] bg-[#25D366]/10 text-[#128C7E]'
+                          : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-400'
+                      }`}
+                    >
+                      {ht === 'NONE' ? 'None' : ht === 'TEXT' ? '📝 Text' : ht === 'IMAGE' ? '🖼 Image' : '🎬 Video'}
+                    </button>
+                  ))}
+                </div>
+                {waBuilder.headerType === 'TEXT' && (
+                  <input
+                    type="text"
+                    value={waBuilder.headerText}
+                    maxLength={60}
+                    placeholder="Header text (max 60 chars)"
+                    onChange={e => setWaBuilder(b => ({ ...b, headerText: e.target.value }))}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  />
+                )}
+                {(waBuilder.headerType === 'IMAGE' || waBuilder.headerType === 'VIDEO') && (
+                  <div className="space-y-2">
+                    <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 p-6 text-center transition hover:border-[#25D366]/40 dark:border-slate-700 dark:bg-slate-800">
+                      {waBuilder.headerFilePreview ? (
+                        waBuilder.headerType === 'IMAGE' ? (
+                          <img src={waBuilder.headerFilePreview} alt="Preview" className="max-h-32 rounded-lg object-contain" />
+                        ) : (
+                          <span className="text-sm text-gray-600 dark:text-gray-300">🎬 {waBuilder.headerFile?.name}</span>
+                        )
+                      ) : (
+                        <>
+                          <span className="text-2xl">{waBuilder.headerType === 'IMAGE' ? '🖼' : '🎬'}</span>
+                          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                            Click to upload {waBuilder.headerType === 'IMAGE' ? 'image' : 'video'}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {waBuilder.headerType === 'IMAGE' ? 'JPG, PNG — max 5MB' : 'MP4 — max 16MB'}
+                          </span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept={waBuilder.headerType === 'IMAGE' ? 'image/jpeg,image/png' : 'video/mp4'}
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setWaBuilder(b => ({
+                            ...b,
+                            headerFile: file,
+                            headerFilePreview: waBuilder.headerType === 'IMAGE' ? URL.createObjectURL(file) : file.name,
+                          }));
+                        }}
+                      />
+                    </label>
+                    {waBuilder.headerFile && (
+                      <button type="button" onClick={() => setWaBuilder(b => ({ ...b, headerFile: null, headerFilePreview: '' }))}
+                        className="text-xs text-red-500 hover:underline">Remove file</button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Category + Language */}
