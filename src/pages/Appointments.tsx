@@ -491,7 +491,7 @@ export default function Appointments() {
             </p>
           </div>
           <div className="shrink-0 flex items-center gap-2">
-            {waNumbers.length > 1 && (
+            {waNumbers.length >= 1 ? (
               <select
                 value={selectedNumberId}
                 onChange={e => setSelectedNumberId(e.target.value)}
@@ -501,10 +501,12 @@ export default function Appointments() {
                   <option key={n.id} value={n.id}>{n.phoneNumber}</option>
                 ))}
               </select>
+            ) : (
+              <span className="text-xs text-amber-600 dark:text-amber-400">No number connected</span>
             )}
             <button
               onClick={setupTemplates}
-              disabled={settingUpTemplates}
+              disabled={settingUpTemplates || waNumbers.length === 0}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium disabled:opacity-60 transition-colors"
             >
               {settingUpTemplates ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
