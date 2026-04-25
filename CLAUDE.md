@@ -94,6 +94,10 @@ npx vite build       # Production build
 - Time slot buttons showed "Invalid Date" — slots are plain strings like "09:00" but were passed through `new Date(s).toLocaleTimeString()`. Fixed to render the string directly.
 - "Failed to create appointment" — booking modal sent `startTime: slot` ("09:00"), server did `new Date("09:00")` = Invalid Date → Prisma error. Fixed: send `startTime: \`${date}T${slot}:00\`` (e.g. "2026-04-25T09:00:00")
 
+### Annual billing toggle (plans.ts + Settings.tsx)
+- `plans.ts`: filled `annualStripePriceId` for all 3 plans (STARTER/GROWTH/PRO)
+- Billing plans page: Monthly/Annual toggle with "Save 20%" badge; price display switches dynamically; annual shows "Billed AED X/year — save AED Y/year"; checkout sends correct Stripe price ID based on selected cycle; removed "annual coming soon" banner
+
 ### Standing rule
 Every code change going forward must also update `README.md` and `CLAUDE.md` before pushing.
 
