@@ -1548,7 +1548,7 @@ function BookingModal({
                         : 'border-gray-200 dark:border-gray-700 hover:border-[#25D366] text-gray-700 dark:text-gray-300'
                     )}
                   >
-                    {new Date(s).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {s}
                   </button>
                 ))}
               </div>
