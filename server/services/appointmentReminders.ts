@@ -9,12 +9,17 @@ import { sendMetaMessage, sendTemplateMessage, getWhatsAppChannelConfig } from "
 const REMINDER_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const SCHEDULER_TOLERANCE_MS = 20 * 60 * 1000; // ±20 min window around target time
 
+// Use the workspace timezone for all reminder formatting.
+// Defaults to Asia/Dubai (UAE, UTC+4) — the primary market for Tawasel.
+// TODO: store timezone per workspace and pass it in here.
+const REMINDER_TIMEZONE = process.env.REMINDER_TIMEZONE || "Asia/Dubai";
+
 function formatReminderTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
+  return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: REMINDER_TIMEZONE });
 }
 
 function formatReminderDate(date: Date): string {
-  return date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: REMINDER_TIMEZONE });
 }
 
 // ── Helper: get WhatsApp number for a workspace ────────────────────

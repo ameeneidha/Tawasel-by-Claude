@@ -1840,8 +1840,9 @@ async function startServer() {
             where: { workspaceId: workspace.id, name: "tawasel_booking_confirmation", status: "APPROVED" },
           });
 
-          const dateTimeStr = startTime.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })
-            + " at " + startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
+          const tz = process.env.REMINDER_TIMEZONE || "Asia/Dubai";
+          const dateTimeStr = startTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: tz })
+            + " at " + startTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz });
 
           if (confirmedTemplate) {
             await sendTemplateMessage(phone, "tawasel_booking_confirmation", "en_US",
