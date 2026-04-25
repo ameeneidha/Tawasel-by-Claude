@@ -1987,6 +1987,26 @@ async function startServer() {
     res.json(memberships.map(m => ({ ...m.workspace, membership: { role: m.role } })));
   });
 
+  app.patch("/api/workspaces/:id", requireAuth, async (req: any, res) => {
+    const { id } = req.params;
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: "Workspace name is required" });
+
+    // Verify requester belongs to this workspace with ADMIN or OWNER role
+    const membership = await prisma.workspaceMembership.findFirst({
+      where: { workspaceId: id, userId: req.user.userId }
+    });
+    if (!membership) return res.status(403).json({ error: "Access denied" });
+    const role = String(membership.role || '').toUpperCase();
+    if (!['OWNER', 'ADMIN'].includes(role)) return res.status(403).json({ error: "Admin or Owner role required" });
+
+    const updated = await prisma.workspace.update({
+      where: { id },
+      data: { name: name.trim() }
+    });
+    res.json(updated);
+  });
+
   app.post("/api/workspaces", requireAuth, requireVerifiedEmail, async (req: any, res) => {
     const { name } = req.body;
     const userId = req.user.userId;

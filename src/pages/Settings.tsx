@@ -223,7 +223,30 @@ function PersonalSettings() {
 }
 
 function BusinessSettings() {
-  const { activeWorkspace } = useApp();
+  const { activeWorkspace, setActiveWorkspace } = useApp();
+  const [businessName, setBusinessName] = useState(activeWorkspace?.name || '');
+  const [saving, setSaving] = useState(false);
+
+  // Sync if workspace changes (e.g. on first load)
+  useEffect(() => {
+    setBusinessName(activeWorkspace?.name || '');
+  }, [activeWorkspace?.id]);
+
+  const handleSave = async () => {
+    if (!activeWorkspace || !businessName.trim()) return;
+    setSaving(true);
+    try {
+      const res = await axios.patch(`/api/workspaces/${activeWorkspace.id}`, { name: businessName.trim() });
+      // Update context so sidebar + everywhere else reflects immediately
+      setActiveWorkspace({ ...activeWorkspace, name: res.data.name });
+      toast.success('Business name updated!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-12">
       <div>
@@ -235,7 +258,12 @@ function BusinessSettings() {
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Business Name</label>
-            <input type="text" defaultValue={activeWorkspace?.name || ''} className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 transition-all" />
+            <input
+              type="text"
+              value={businessName}
+              onChange={e => setBusinessName(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 transition-all"
+            />
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Timezone</label>
@@ -245,8 +273,12 @@ function BusinessSettings() {
             </select>
           </div>
         </div>
-        <button className="px-6 py-2.5 bg-[#25D366] text-white text-sm font-bold rounded-xl hover:bg-[#128C7E] transition-all shadow-sm">
-          Save Changes
+        <button
+          onClick={handleSave}
+          disabled={saving || !businessName.trim() || businessName.trim() === activeWorkspace?.name}
+          className="px-6 py-2.5 bg-[#25D366] text-white text-sm font-bold rounded-xl hover:bg-[#128C7E] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Saving…' : 'Save Changes'}
         </button>
       </div>
     </div>
