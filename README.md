@@ -89,6 +89,16 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### April 25, 2026 — Bug Fixes: Appointments page, template setup, timezone, Business Name save
+
+- **Fixed "Failed to load appointments data"** — wrong URL `/api/templates` (returned 200 HTML catch-all) changed to `/api/templates/whatsapp`; added `Array.isArray()` guard so HTML response doesn't throw a TypeError and trigger the error toast
+- **Fixed template setup "Object does not exist" error** — rewrote `setupTemplates()` in the frontend to call the proven `/api/templates/whatsapp/create` endpoint directly (3 times, once per template) instead of the internal `/api/appointments/setup-templates` route that was picking the wrong WABA credential
+- **Fixed Meta policy violation** — reminder template bodies were ending with a variable (`{{business}}`); restructured so all templates end with static punctuation and business name is placed mid-body
+- **Added WhatsApp number picker to template setup banner** — when a workspace has a connected number the banner shows a dropdown so the owner can choose which WABA to submit templates on
+- **Fixed reminder time showing wrong timezone (UTC instead of UAE)** — `toLocaleTimeString([])` was using server UTC; all date/time formatting in `appointmentReminders.ts` and the booking confirmation now passes explicit `timeZone: process.env.REMINDER_TIMEZONE || "Asia/Dubai"`
+- **Fixed Business Name not saving in Settings** — `BusinessSettings` component was using `defaultValue` (uncontrolled input) with a Save button that had no `onClick` handler. Fixed: controlled input with `useState`, `useEffect` sync, Save button calls new `PATCH /api/workspaces/:id` endpoint, updates `AppContext` immediately so the sidebar and reminder messages reflect the new name without a page reload
+- **New API endpoint**: `PATCH /api/workspaces/:id` — updates workspace name, requires ADMIN or OWNER role
+
 ### April 25, 2026 — Phase 2: Flexible Reminders & Template Builder
 
 - **In-app WhatsApp Template Builder** — Create and submit Meta-reviewed templates directly from Tawasel without ever opening Meta Business Manager

@@ -70,6 +70,27 @@ npx vite build       # Production build
 - RESEND_API_KEY, EMAIL_FROM (e.g., `Tawasel <noreply@tawasel.io>`)
 - INSTAGRAM_ACCESS_TOKEN
 
+## Recently Completed (April 25, 2026) — Bug Fixes
+
+### Business Name save in Settings (Settings.tsx + server.ts)
+- `BusinessSettings` component converted from uncontrolled (`defaultValue`) to controlled (`value` + `useState`)
+- `useEffect` syncs state when `activeWorkspace` changes (first load, workspace switch)
+- Save button wired to new `PATCH /api/workspaces/:id` endpoint; calls `setActiveWorkspace()` on success so sidebar + reminder messages reflect the new name immediately without a page reload
+- Button disabled when name is unchanged or empty; shows "Saving…" during request
+- New endpoint: `PATCH /api/workspaces/:id` — requireAuth + inline ADMIN/OWNER role check, updates `workspace.name` in Prisma
+
+### Appointments page & template setup fixes (Appointments.tsx + server.ts + appointmentReminders.ts)
+- Wrong URL `/api/templates` → `/api/templates/whatsapp`; added `Array.isArray()` guard (was throwing TypeError on 200 HTML response from catch-all, triggering "Failed to load" toast)
+- `setupTemplates()` rewired to call proven `/api/templates/whatsapp/create` endpoint 3 times instead of `/api/appointments/setup-templates` (was picking wrong WABA credential, returning "Object does not exist")
+- WhatsApp number picker shown on template setup banner when `waNumbers.length >= 1` (was `> 1`, hidden when only 1 number)
+- Template bodies restructured: business name moved to mid-body, all templates end with static punctuation — fixes Meta policy violation (variable at start/end)
+- Timezone fix: all date/time formatting in `appointmentReminders.ts` and booking confirmation now passes explicit `timeZone: process.env.REMINDER_TIMEZONE || "Asia/Dubai"` — was showing UTC time (4h wrong)
+
+### Standing rule
+Every code change going forward must also update `README.md` and `CLAUDE.md` before pushing.
+
+---
+
 ## Recently Completed (April 25, 2026) — Phase 2: Flexible Reminders & Template Builder
 
 ### WhatsApp Template Builder (Templates page)
