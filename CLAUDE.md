@@ -91,6 +91,7 @@ npx vite build       # Production build
 - Fix: `const staffResult = Array.isArray(res.data) ? res.data[0] : res.data; setSlots(staffResult?.slots || [])`
 - Also: internal availability endpoint now matches public booking fallback — if staff has no hours for Fri/Sat, returns `dayOff: true` + empty slots; for other days defaults to 09:00–17:00 instead of always returning empty
 - UX: date label now shows day of week ("Friday") so agent knows immediately if they picked a day off; "no slots" message hints "staff may not work on weekends" on Fri/Sat
+- Time slot buttons showed "Invalid Date" — slots are plain strings like "09:00" but were passed through `new Date(s).toLocaleTimeString()`. Fixed to render the string directly.
 
 ### Standing rule
 Every code change going forward must also update `README.md` and `CLAUDE.md` before pushing.
