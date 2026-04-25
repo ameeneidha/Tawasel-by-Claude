@@ -675,6 +675,7 @@ function ApiKeys() {
 function Billing() {
   const location = useLocation();
   const { activeWorkspace, refreshWorkspaces, hasVerifiedEmail } = useApp();
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [ledger, setLedger] = useState<any[]>([]);
   const [usageLogs, setUsageLogs] = useState<any[]>([]);
   const [billingSummary, setBillingSummary] = useState({
@@ -966,14 +967,40 @@ function Billing() {
                 You selected the <span className="font-semibold text-[#25D366]">{PLANS[selectedPlanFromQuery]?.name || selectedPlanFromQuery}</span> plan from the homepage. Review it below and continue to checkout when you're ready.
               </div>
             )}
-            <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-5 py-4 text-sm text-blue-700 dark:border-blue-900/30 dark:bg-blue-950/20 dark:text-blue-200">
-              Monthly checkout works now. Annual pricing is already packaged below and can be connected once deployment billing is finalized.
+
+            {/* Monthly / Annual toggle */}
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setBillingCycle('monthly')}
+                className={cn(
+                  'px-5 py-2 rounded-xl text-sm font-semibold transition-all',
+                  billingCycle === 'monthly'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                )}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBillingCycle('annual')}
+                className={cn(
+                  'px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2',
+                  billingCycle === 'annual'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                )}
+              >
+                Annual
+                <span className="bg-[#25D366] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Save 20%</span>
+              </button>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {PLAN_ORDER.map((key) => {
                 const plan = PLANS[key];
                 const isCurrent = isPaidPlan(currentPlan) && currentPlan === key;
                 const isRecommended = selectedPlanFromQuery === key && !isCurrent;
+                const priceId = billingCycle === 'annual' ? (plan.annualStripePriceId || plan.stripePriceId) : plan.stripePriceId;
                 return (
               <div key={key} className={cn(
                 "bg-white dark:bg-slate-900 p-8 rounded-2xl border transition-all relative overflow-hidden",
@@ -1003,10 +1030,16 @@ function Billing() {
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{plan.name}</h3>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 mb-4">{plan.shortLabel}</p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white">AED {getPlanPrice(plan, 'monthly')}</span>
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                    AED {billingCycle === 'annual' ? plan.annualPrice : plan.price}
+                  </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">/month</span>
                 </div>
-                <p className="mt-1 text-xs font-medium text-[#128C7E]">AED {plan.annualPrice}/month on annual billing</p>
+                {billingCycle === 'annual' ? (
+                  <p className="mt-1 text-xs font-medium text-[#128C7E]">Billed AED {plan.annualBilledPrice}/year — save AED {(plan.price - plan.annualPrice) * 12}/year</p>
+                ) : (
+                  <p className="mt-1 text-xs font-medium text-[#128C7E]">AED {plan.annualPrice}/month on annual billing</p>
+                )}
                 <p className="mt-4 text-sm leading-relaxed text-gray-500 dark:text-gray-400">{plan.description}</p>
                 <ul className="space-y-4 mb-8">
                   {plan.billingHighlights.map((item) => (
@@ -1028,7 +1061,7 @@ function Billing() {
                     }
                     try {
                       const res = await axios.post('/api/billing/create-checkout-session', {
-                        planId: PLANS[key].stripePriceId,
+                        planId: priceId,
                         planKey: key,
                         workspaceId: activeWorkspace?.id,
                         successUrl: `${window.location.origin}/app/settings/billing?success=true`,
