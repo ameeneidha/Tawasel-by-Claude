@@ -1419,7 +1419,7 @@ function BookingModal({
         contactId,
         serviceId,
         staffId,
-        startTime: slot,
+        startTime: `${date}T${slot}:00`,   // e.g. "2026-04-25T09:00:00"
         notes: notes.trim() || undefined,
       });
       toast.success('Appointment booked!');
