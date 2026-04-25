@@ -86,6 +86,12 @@ npx vite build       # Production build
 - Template bodies restructured: business name moved to mid-body, all templates end with static punctuation — fixes Meta policy violation (variable at start/end)
 - Timezone fix: all date/time formatting in `appointmentReminders.ts` and booking confirmation now passes explicit `timeZone: process.env.REMINDER_TIMEZONE || "Asia/Dubai"` — was showing UTC time (4h wrong)
 
+### Booking modal "No available slots" always shown (Appointments.tsx + server.ts)
+- Root cause: availability endpoint returns an **array** `[{ staffId, staffName, slots }]` but frontend read `res.data.slots` (undefined on an array) → always fell back to `[]`
+- Fix: `const staffResult = Array.isArray(res.data) ? res.data[0] : res.data; setSlots(staffResult?.slots || [])`
+- Also: internal availability endpoint now matches public booking fallback — if staff has no hours for Fri/Sat, returns `dayOff: true` + empty slots; for other days defaults to 09:00–17:00 instead of always returning empty
+- UX: date label now shows day of week ("Friday") so agent knows immediately if they picked a day off; "no slots" message hints "staff may not work on weekends" on Fri/Sat
+
 ### Standing rule
 Every code change going forward must also update `README.md` and `CLAUDE.md` before pushing.
 

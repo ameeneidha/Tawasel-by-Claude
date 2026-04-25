@@ -91,6 +91,7 @@ The repo also includes an App Platform spec:
 
 ### April 25, 2026 — Bug Fixes: Appointments page, template setup, timezone, Business Name save
 
+- **Fixed booking modal always showing "No available slots"** — availability endpoint returns an array `[{ staffId, staffName, slots }]` but frontend was reading `res.data.slots` (undefined on an array), always falling back to `[]`. Fixed to read `res.data[0].slots`. Also: internal endpoint now has the same Fri/Sat fallback as the public booking page, and the date label now shows the day of week so agents know if they picked a day off
 - **Fixed "Failed to load appointments data"** — wrong URL `/api/templates` (returned 200 HTML catch-all) changed to `/api/templates/whatsapp`; added `Array.isArray()` guard so HTML response doesn't throw a TypeError and trigger the error toast
 - **Fixed template setup "Object does not exist" error** — rewrote `setupTemplates()` in the frontend to call the proven `/api/templates/whatsapp/create` endpoint directly (3 times, once per template) instead of the internal `/api/appointments/setup-templates` route that was picking the wrong WABA credential
 - **Fixed Meta policy violation** — reminder template bodies were ending with a variable (`{{business}}`); restructured so all templates end with static punctuation and business name is placed mid-body

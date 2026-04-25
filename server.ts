@@ -6475,7 +6475,12 @@ async function startServer() {
         } catch {}
 
         if (!hours || !hours.start || !hours.end) {
-          return { staffId: staff.id, staffName: staff.name, slots: [] };
+          // If staff has no hours configured for this day:
+          // Fri/Sat = day off (return empty). Other days = fall back to 09:00–17:00.
+          if (dayName === "fri" || dayName === "sat") {
+            return { staffId: staff.id, staffName: staff.name, slots: [], dayOff: true };
+          }
+          hours = { start: "09:00", end: "17:00" };
         }
 
         const staffAppointments = existingAppointments.filter((a) => a.staffId === staff.id);

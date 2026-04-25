@@ -1384,7 +1384,9 @@ function BookingModal({
         const res = await axios.get(
           `/api/appointments/availability?workspaceId=${wsId}&staffId=${staffId}&serviceId=${serviceId}&date=${date}`
         );
-        if (!cancelled) setSlots(res.data.slots || []);
+        // Endpoint returns an array of { staffId, staffName, slots }
+        const staffResult = Array.isArray(res.data) ? res.data[0] : res.data;
+        if (!cancelled) setSlots(staffResult?.slots || []);
       } catch {
         if (!cancelled) setSlots([]);
       } finally {
@@ -1501,7 +1503,14 @@ function BookingModal({
 
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Date *
+              {date && (
+                <span className="ml-2 text-xs font-normal text-gray-400">
+                  {new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })}
+                </span>
+              )}
+            </label>
             <input
               type="date"
               value={date}
@@ -1520,7 +1529,12 @@ function BookingModal({
             ) : !staffId || !serviceId ? (
               <p className="text-xs text-gray-400 py-2">Select a service, staff, and date first</p>
             ) : slots.length === 0 ? (
-              <p className="text-xs text-gray-500 py-2">No available slots for this date</p>
+              <p className="text-xs text-gray-500 py-2">
+                No available slots for this date
+                {date && ['Saturday','Friday'].includes(new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' }))
+                  ? ' — staff may not work on weekends'
+                  : ' — all slots are booked'}
+              </p>
             ) : (
               <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
                 {slots.map((s) => (
