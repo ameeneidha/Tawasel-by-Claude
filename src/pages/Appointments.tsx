@@ -209,9 +209,21 @@ export default function Appointments() {
       if (realNums.length > 0 && !selectedNumberId) setSelectedNumberId(realNums[0].id);
 
       // Check whether the 3 appointment templates exist and are approved
-      const rawTpl = tplRes.status === 'fulfilled' ? tplRes.value.data : [];
-      const templates: { name: string; status: string }[] = Array.isArray(rawTpl) ? rawTpl : [];
+      let rawTpl = tplRes.status === 'fulfilled' ? tplRes.value.data : [];
+      let templates: { name: string; status: string }[] = Array.isArray(rawTpl) ? rawTpl : [];
       const needed = ['tawasel_booking_confirmation', 'tawasel_reminder_24h', 'tawasel_reminder_1h'];
+
+      // If any needed template is pending, sync from Meta first so we get the latest status
+      const hasPending = needed.some(n => templates.some(t => t.name === n && t.status !== 'APPROVED'));
+      const hasMissing = needed.some(n => !templates.find(t => t.name === n));
+      if ((hasPending || hasMissing) && wsId) {
+        try {
+          await axios.post('/api/templates/whatsapp/sync', { workspaceId: wsId });
+          const refreshed = await axios.get(`/api/templates/whatsapp?workspaceId=${wsId}`);
+          templates = Array.isArray(refreshed.data) ? refreshed.data : [];
+        } catch { /* non-fatal — use stale data */ }
+      }
+
       const approved = needed.filter(n => templates.some(t => t.name === n && t.status === 'APPROVED'));
       const pending  = needed.filter(n => templates.some(t => t.name === n && t.status !== 'APPROVED'));
       if (approved.length === 3) setTemplateStatus('ready');
