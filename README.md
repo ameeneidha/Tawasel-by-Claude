@@ -91,6 +91,7 @@ The repo also includes an App Platform spec:
 
 ### April 25, 2026 — Bug Fixes: Appointments page, template setup, timezone, Business Name save
 
+- **Fixed reminder rules not firing when template specified** — scheduler checked local DB approval status (stale) instead of trying the template directly; also fixed wrong parameter order (service name was in business name slot) across all 3 reminder templates
 - **Fixed template status banner stuck on "pending"** — Appointments page never synced from Meta, only read local DB. Now auto-syncs on load when any template is pending, so the banner updates immediately after Meta approves
 - **Fixed appointment times 4 hours off** — availability endpoint used UTC midnight as day start so all slots were in UTC not UAE time. Fixed: parse date as UAE midnight, generate slot strings in local time, send `+04:00` offset from booking modal, display with explicit `Asia/Dubai` timezone
 - **Fixed "Failed to create appointment"** — booking modal sent `startTime: "09:00"` (slot only), server did `new Date("09:00")` = Invalid Date → Prisma failure. Fixed to send `"2026-04-25T09:00:00"` by combining date + slot

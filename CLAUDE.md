@@ -86,6 +86,10 @@ npx vite build       # Production build
 - Template bodies restructured: business name moved to mid-body, all templates end with static punctuation — fixes Meta policy violation (variable at start/end)
 - Timezone fix: all date/time formatting in `appointmentReminders.ts` and booking confirmation now passes explicit `timeZone: process.env.REMINDER_TIMEZONE || "Asia/Dubai"` — was showing UTC time (4h wrong)
 
+### Reminder rules not firing when template is specified (appointmentReminders.ts)
+- Bug 1: `hasApprovedTemplate()` checked local DB which may be stale (PENDING even after Meta approved). When false, fell back to plain text which requires an open 24h session window — fails silently for customers who haven't messaged recently. Fix: when a template name is set in the rule, always try it directly on Meta without the local DB check.
+- Bug 2: Wrong parameter order for all 3 standard templates. Templates expect `[customerName, businessName, staffName, time]` but code sent `[customerName, serviceName, staffName, time, businessName]` — service name in the business name slot. Fixed in both rules-based and legacy 24h/1h reminder functions.
+
 ### Template status banner stuck on "pending" after Meta approval (Appointments.tsx)
 - Root cause: Appointments page only read template status from local DB — never called the sync endpoint. Meta could approve templates but local DB still showed PENDING.
 - Fix: on load, if any needed template is pending or missing, silently call `POST /api/templates/whatsapp/sync` first, then re-fetch — banner now reflects real Meta status. Refresh button benefits from the same fix via `fetchAll()`.
