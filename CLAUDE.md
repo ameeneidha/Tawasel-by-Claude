@@ -86,6 +86,10 @@ npx vite build       # Production build
 - Template bodies restructured: business name moved to mid-body, all templates end with static punctuation — fixes Meta policy violation (variable at start/end)
 - Timezone fix: all date/time formatting in `appointmentReminders.ts` and booking confirmation now passes explicit `timeZone: process.env.REMINDER_TIMEZONE || "Asia/Dubai"` — was showing UTC time (4h wrong)
 
+### Template status banner stuck on "pending" after Meta approval (Appointments.tsx)
+- Root cause: Appointments page only read template status from local DB — never called the sync endpoint. Meta could approve templates but local DB still showed PENDING.
+- Fix: on load, if any needed template is pending or missing, silently call `POST /api/templates/whatsapp/sync` first, then re-fetch — banner now reflects real Meta status. Refresh button benefits from the same fix via `fetchAll()`.
+
 ### Appointment times 4 hours off (Appointments.tsx + server.ts)
 - Root cause: availability endpoint used UTC midnight as day start → slots generated in UTC not UAE time ("09:00" = 09:00 UTC = 1:00 PM UAE). Booking modal sent `startTime` without tz offset → stored as UTC → browser displayed in UAE = 4h ahead
 - Fix: both availability endpoints parse date as UAE midnight (`Date.UTC(y,m,d) - 4h`), generate slot strings as `(utcHours + 4) % 24`
