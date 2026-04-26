@@ -1692,18 +1692,20 @@ async function startServer() {
         });
       }
 
-      const d = new Date(date);
-      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const dayEnd   = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      // All slot times in Asia/Dubai (UTC+4). Parse date as UAE midnight.
+      const TZ_OFFSET_MS = 4 * 60 * 60 * 1000;
+      const [y, mo, dNum] = (date as string).split("-").map(Number);
+      const dayStartUTC = new Date(Date.UTC(y, mo - 1, dNum) - TZ_OFFSET_MS);
+      const dayEndUTC   = new Date(dayStartUTC.getTime() + 24 * 3600 * 1000);
       const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-      const dayName  = dayNames[d.getDay()];
+      const dayName  = dayNames[new Date(dayStartUTC.getTime() + TZ_OFFSET_MS).getUTCDay()];
 
       const existingAppointments = await prisma.appointment.findMany({
         where: {
           workspaceId: workspace.id,
           staffId: { in: staffList.map((s) => s.id) },
           status: { not: "CANCELLED" },
-          startTime: { gte: dayStart, lt: dayEnd },
+          startTime: { gte: dayStartUTC, lt: dayEndUTC },
         },
       });
 
@@ -1713,7 +1715,6 @@ async function startServer() {
       for (const staff of staffList) {
         let hours: any = null;
         try { hours = JSON.parse(staff.workingHours || "{}")[dayName]; } catch {}
-        // Fallback to default working hours (09:00–17:00, Sun–Thu) when not configured.
         if (!hours?.start || !hours?.end) {
           if (dayName === "fri" || dayName === "sat") continue;
           hours = { start: "09:00", end: "17:00" };
@@ -1722,17 +1723,17 @@ async function startServer() {
         const staffAppts = existingAppointments.filter((a) => a.staffId === staff.id);
         const [sh, sm] = hours.start.split(":").map(Number);
         const [eh, em] = hours.end.split(":").map(Number);
-        const workStart = new Date(dayStart.getTime() + sh * 3600000 + sm * 60000);
-        const workEnd   = new Date(dayStart.getTime() + eh * 3600000 + em * 60000);
+        const workStart = new Date(dayStartUTC.getTime() + sh * 3600000 + sm * 60000);
+        const workEnd   = new Date(dayStartUTC.getTime() + eh * 3600000 + em * 60000);
 
         let cursor = new Date(workStart);
         while (cursor.getTime() + service.durationMin * 60000 <= workEnd.getTime()) {
           const slotEnd = new Date(cursor.getTime() + service.durationMin * 60000);
           const hasConflict = staffAppts.some((a) => a.startTime < slotEnd && a.endTime > cursor);
           if (!hasConflict) {
-            slotSet.add(
-              `${String(cursor.getHours()).padStart(2, "0")}:${String(cursor.getMinutes()).padStart(2, "0")}`
-            );
+            const uaeH = (cursor.getUTCHours() + 4) % 24;
+            const uaeM = cursor.getUTCMinutes();
+            slotSet.add(`${String(uaeH).padStart(2, "0")}:${String(uaeM).padStart(2, "0")}`);
           }
           cursor = new Date(cursor.getTime() + 30 * 60000);
         }
@@ -1760,16 +1761,19 @@ async function startServer() {
       const service = await prisma.service.findFirst({ where: { id: serviceId, workspaceId: workspace.id, enabled: true } });
       if (!service) return res.status(404).json({ error: "Service not found" });
 
+      // All times are Asia/Dubai (UTC+4)
+      const TZ_OFFSET_MS = 4 * 60 * 60 * 1000;
+      const [dy, dm, dd] = (date as string).split("-").map(Number);
+      const dayStartUTC = new Date(Date.UTC(dy, dm - 1, dd) - TZ_OFFSET_MS);
+      const dayEndUTC   = new Date(dayStartUTC.getTime() + 24 * 3600 * 1000);
+
       // Resolve staff — pick first available if "any"
       let resolvedStaffId = staffId;
       if (!staffId || staffId === "any") {
-        const d = new Date(date);
         const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-        const dayName  = dayNames[d.getDay()];
-        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        const dayEnd   = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+        const dayName  = dayNames[new Date(dayStartUTC.getTime() + TZ_OFFSET_MS).getUTCDay()];
         const [slotH, slotM] = slot.split(":").map(Number);
-        const slotStart = new Date(dayStart.getTime() + slotH * 3600000 + slotM * 60000);
+        const slotStart = new Date(dayStartUTC.getTime() + slotH * 3600000 + slotM * 60000);
         const slotEnd   = new Date(slotStart.getTime() + service.durationMin * 60000);
 
         let eligibleStaff = await prisma.staffMember.findMany({
@@ -1789,7 +1793,7 @@ async function startServer() {
             hours = { start: "09:00", end: "17:00" };
           }
           const conflict = await prisma.appointment.findFirst({
-            where: { staffId: sm.id, status: { not: "CANCELLED" }, startTime: { gte: dayStart, lt: dayEnd },
+            where: { staffId: sm.id, status: { not: "CANCELLED" }, startTime: { gte: dayStartUTC, lt: dayEndUTC },
               AND: [{ startTime: { lt: slotEnd } }, { endTime: { gt: slotStart } }] },
           });
           if (!conflict) { resolvedStaffId = sm.id; break; }
@@ -1802,10 +1806,9 @@ async function startServer() {
       const staffMember = await prisma.staffMember.findFirst({ where: { id: resolvedStaffId, workspaceId: workspace.id } });
       if (!staffMember) return res.status(404).json({ error: "Staff not found" });
 
-      // Build start/end times
-      const d = new Date(date);
+      // Build start/end times in UTC from UAE slot string
       const [slotH, slotM] = slot.split(":").map(Number);
-      const startTime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), slotH, slotM, 0);
+      const startTime = new Date(dayStartUTC.getTime() + slotH * 3600000 + slotM * 60000);
       const endTime   = new Date(startTime.getTime() + service.durationMin * 60000);
 
       // Upsert contact by phone number
@@ -6452,18 +6455,20 @@ async function startServer() {
 
       const staffList = await prisma.staffMember.findMany({ where: staffWhere });
 
-      const d = new Date(date as string);
-      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      // All slot times are in Asia/Dubai (UTC+4). Parse the date as UAE midnight.
+      const TZ_OFFSET_MS = 4 * 60 * 60 * 1000; // UTC+4
+      const [y, mo, dNum] = (date as string).split("-").map(Number);
+      const dayStartUTC = new Date(Date.UTC(y, mo - 1, dNum) - TZ_OFFSET_MS); // midnight UAE in UTC
+      const dayEndUTC   = new Date(dayStartUTC.getTime() + 24 * 3600 * 1000);
       const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-      const dayName = dayNames[d.getDay()];
+      const dayName  = dayNames[new Date(dayStartUTC.getTime() + TZ_OFFSET_MS).getUTCDay()];
 
       const existingAppointments = await prisma.appointment.findMany({
         where: {
           workspaceId: workspaceId as string,
           staffId: { in: staffList.map((s) => s.id) },
           status: { not: "CANCELLED" },
-          startTime: { gte: dayStart, lt: dayEnd },
+          startTime: { gte: dayStartUTC, lt: dayEndUTC },
         },
       });
 
@@ -6475,8 +6480,7 @@ async function startServer() {
         } catch {}
 
         if (!hours || !hours.start || !hours.end) {
-          // If staff has no hours configured for this day:
-          // Fri/Sat = day off (return empty). Other days = fall back to 09:00–17:00.
+          // Fri/Sat = day off. Other days fall back to 09:00–17:00 UAE.
           if (dayName === "fri" || dayName === "sat") {
             return { staffId: staff.id, staffName: staff.name, slots: [], dayOff: true };
           }
@@ -6487,9 +6491,10 @@ async function startServer() {
         const slots: string[] = [];
 
         const [startH, startM] = hours.start.split(":").map(Number);
-        const [endH, endM] = hours.end.split(":").map(Number);
-        const workStart = new Date(dayStart.getTime() + startH * 3600000 + startM * 60000);
-        const workEnd = new Date(dayStart.getTime() + endH * 3600000 + endM * 60000);
+        const [endH, endM]     = hours.end.split(":").map(Number);
+        // workStart/workEnd are UTC timestamps representing UAE working hours
+        const workStart = new Date(dayStartUTC.getTime() + startH * 3600000 + startM * 60000);
+        const workEnd   = new Date(dayStartUTC.getTime() + endH   * 3600000 + endM   * 60000);
 
         let cursor = new Date(workStart);
         while (cursor.getTime() + service.durationMin * 60000 <= workEnd.getTime()) {
@@ -6498,9 +6503,10 @@ async function startServer() {
             (a) => a.startTime < slotEnd && a.endTime > cursor
           );
           if (!hasConflict) {
-            slots.push(
-              `${String(cursor.getHours()).padStart(2, "0")}:${String(cursor.getMinutes()).padStart(2, "0")}`
-            );
+            // Express slot as UAE local time string "HH:MM"
+            const uaeH = (cursor.getUTCHours() + 4) % 24;
+            const uaeM = cursor.getUTCMinutes();
+            slots.push(`${String(uaeH).padStart(2, "0")}:${String(uaeM).padStart(2, "0")}`);
           }
           cursor = new Date(cursor.getTime() + 30 * 60000);
         }

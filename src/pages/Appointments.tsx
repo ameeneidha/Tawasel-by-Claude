@@ -124,11 +124,11 @@ const DEFAULT_WORKING_HOURS: Record<string, { start: string; end: string } | nul
 };
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Dubai' });
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Dubai' });
 }
 
 function toInputDate(d: Date) {
@@ -241,7 +241,7 @@ export default function Appointments() {
 
   const filtered = useMemo(() => {
     return appointments.filter((a) => {
-      const apptDate = new Date(a.startTime).toISOString().slice(0, 10);
+      const apptDate = new Date(a.startTime).toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' }); // YYYY-MM-DD in UAE tz
       if (filterDate && apptDate !== filterDate) return false;
       if (filterStatus !== 'ALL' && a.status !== filterStatus) return false;
       if (filterStaff !== 'ALL' && a.staffId !== filterStaff) return false;
@@ -1419,7 +1419,7 @@ function BookingModal({
         contactId,
         serviceId,
         staffId,
-        startTime: `${date}T${slot}:00`,   // e.g. "2026-04-25T09:00:00"
+        startTime: `${date}T${slot}:00+04:00`,  // UAE time → server stores correct UTC
         notes: notes.trim() || undefined,
       });
       toast.success('Appointment booked!');
