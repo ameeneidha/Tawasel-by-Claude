@@ -190,21 +190,26 @@ async function runRulesBasedReminders() {
         try {
           let messageContent: string;
 
-          // Try template first
-          const tplName = rule.templateName;
-          if (tplName && await hasApprovedTemplate(rule.workspaceId, tplName)) {
+          const tplName = rule.templateName?.trim();
+          if (tplName) {
+            // Template specified — always try it directly without checking local DB status.
+            // Local DB may be stale (PENDING) even though Meta already approved it.
+            // Parameter order matches the standard tawasel_reminder templates:
+            //   {{1}} customer_name, {{2}} business, {{3}} staff, {{4}} date/time
+            const tplParams = rule.triggerType === "BEFORE_START"
+              ? [customerName, businessName, appt.staff.name, dateStr]
+              : [customerName, businessName, appt.staff.name, timeStr];
+
             await sendTemplateMessage(
               appt.contact.phoneNumber,
               tplName,
-              "en",
-              [customerName, appt.service.name, appt.staff.name,
-               rule.triggerType === "BEFORE_START" ? dateStr : timeStr,
-               businessName],
+              "en_US",
+              tplParams,
               config as { accessToken: string; phoneNumberId: string }
             );
             messageContent = `[${rule.name} template "${tplName}" sent to ${customerName}]`;
           } else {
-            // Fallback: custom messageBody or auto-generated text
+            // No template — use plain text (only works within open 24h session window)
             messageContent =
               rule.messageBody?.trim() ||
               buildReminderBody(rule.triggerType, rule.offsetMinutes, customerName,
@@ -313,7 +318,7 @@ async function send24hReminders() {
 
       if (useTemplate) {
         await sendTemplateMessage(appt.contact.phoneNumber, "tawasel_reminder_24h", "en_US",
-          [customerName, appt.service.name, appt.staff.name, dateTimeStr, businessName],
+          [customerName, businessName, appt.staff.name, dateTimeStr],
           config as { accessToken: string; phoneNumberId: string }
         );
         messageContent = `[24h reminder template sent to ${customerName}]`;
@@ -378,7 +383,7 @@ async function send1hReminders() {
 
       if (useTemplate) {
         await sendTemplateMessage(appt.contact.phoneNumber, "tawasel_reminder_1h", "en_US",
-          [customerName, appt.service.name, appt.staff.name, formatReminderTime(startTime), businessName],
+          [customerName, businessName, appt.staff.name, formatReminderTime(startTime)],
           config as { accessToken: string; phoneNumberId: string }
         );
         messageContent = `[1h reminder template sent to ${customerName}]`;
