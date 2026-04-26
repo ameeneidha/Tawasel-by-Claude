@@ -86,6 +86,14 @@ npx vite build       # Production build
 - Template bodies restructured: business name moved to mid-body, all templates end with static punctuation — fixes Meta policy violation (variable at start/end)
 - Timezone fix: all date/time formatting in `appointmentReminders.ts` and booking confirmation now passes explicit `timeZone: process.env.REMINDER_TIMEZONE || "Asia/Dubai"` — was showing UTC time (4h wrong)
 
+### Appointment times 4 hours off (Appointments.tsx + server.ts)
+- Root cause: availability endpoint used UTC midnight as day start → slots generated in UTC not UAE time ("09:00" = 09:00 UTC = 1:00 PM UAE). Booking modal sent `startTime` without tz offset → stored as UTC → browser displayed in UAE = 4h ahead
+- Fix: both availability endpoints parse date as UAE midnight (`Date.UTC(y,m,d) - 4h`), generate slot strings as `(utcHours + 4) % 24`
+- Fix: booking modal sends `startTime: \`${date}T${slot}:00+04:00\`` so server stores correct UTC
+- Fix: `formatTime`/`formatDate` use explicit `timeZone: 'Asia/Dubai'`
+- Fix: appointment list date filter uses `en-CA + Asia/Dubai` to get `YYYY-MM-DD` in UAE time
+- Fix: public booking server builds `startTime` from UAE-aware `dayStartUTC`
+
 ### Booking modal "No available slots" always shown (Appointments.tsx + server.ts)
 - Root cause: availability endpoint returns an **array** `[{ staffId, staffName, slots }]` but frontend read `res.data.slots` (undefined on an array) → always fell back to `[]`
 - Fix: `const staffResult = Array.isArray(res.data) ? res.data[0] : res.data; setSlots(staffResult?.slots || [])`

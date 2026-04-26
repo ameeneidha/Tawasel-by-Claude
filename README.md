@@ -91,6 +91,7 @@ The repo also includes an App Platform spec:
 
 ### April 25, 2026 — Bug Fixes: Appointments page, template setup, timezone, Business Name save
 
+- **Fixed appointment times 4 hours off** — availability endpoint used UTC midnight as day start so all slots were in UTC not UAE time. Fixed: parse date as UAE midnight, generate slot strings in local time, send `+04:00` offset from booking modal, display with explicit `Asia/Dubai` timezone
 - **Fixed "Failed to create appointment"** — booking modal sent `startTime: "09:00"` (slot only), server did `new Date("09:00")` = Invalid Date → Prisma failure. Fixed to send `"2026-04-25T09:00:00"` by combining date + slot
 - **Fixed time slot buttons showing "Invalid Date"** — slots are plain `"HH:MM"` strings but were passed through `new Date(s).toLocaleTimeString()` which returns Invalid Date. Fixed to render the string directly
 - **Fixed booking modal always showing "No available slots"** — availability endpoint returns an array `[{ staffId, staffName, slots }]` but frontend was reading `res.data.slots` (undefined on an array), always falling back to `[]`. Fixed to read `res.data[0].slots`. Also: internal endpoint now has the same Fri/Sat fallback as the public booking page, and the date label now shows the day of week so agents know if they picked a day off
