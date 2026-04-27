@@ -82,6 +82,7 @@ npx vite build       # Production build
 - Inbox no longer auto-generates AI reply suggestion chips when a conversation opens, keeping the reply composer focused on the agent's message.
 - Contacts mobile view now renders phone-friendly cards with a compact horizontal list bar, easier create/import actions, and tappable selection for bulk list actions.
 - CRM mobile view now renders a phone-friendly stage tab layout with lead cards, deal value editing, and a move-stage control while preserving the desktop pipeline board.
+- Settings mobile view now uses a compact horizontal nav, tighter spacing, full-width primary actions, responsive profile/business forms, and horizontal scrolling for billing/API tables.
 - Contacts bulk removal now infers the current selected contact list, so "remove from list" works without selecting the same list again in the picker.
 - Manual CRM/Contacts create and edit now normalize phone numbers and block duplicate same-number contacts in the same workspace.
 - Contacts page now has safe delete actions; contacts with conversation or appointment history are protected and return a merge-needed message.

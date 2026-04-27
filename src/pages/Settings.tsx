@@ -44,8 +44,8 @@ export default function Settings() {
   const { theme } = useTheme();
 
   return (
-    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 flex transition-colors">
-      <div className="w-64 border-r border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 flex flex-col gap-2 transition-colors">
+    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 flex flex-col md:flex-row transition-colors">
+      <div className="hidden w-64 border-r border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 md:flex flex-col gap-2 transition-colors">
         <div className="mb-6">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Settings</h1>
         </div>
@@ -69,15 +69,47 @@ export default function Settings() {
         })}
       </div>
 
+      <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 md:hidden">
+        <div className="mb-3 flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Settings</h1>
+          <button
+            onClick={() => navigate(-1)}
+            className="rounded-xl border border-gray-200 bg-white p-2 text-gray-400 shadow-sm transition-colors hover:text-gray-600 dark:border-slate-700 dark:bg-slate-800 dark:hover:text-gray-200"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {settingsNav.map((item) => {
+            const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-all",
+                  isActive
+                    ? "border-[#25D366]/30 bg-[#25D366]/10 text-[#128C7E] dark:text-[#4ADE80]"
+                    : "border-gray-200 text-gray-500 dark:border-slate-800 dark:text-gray-400"
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto relative">
         <button 
           onClick={() => navigate(-1)}
-          className="absolute top-8 right-8 p-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shadow-sm z-10 transition-colors"
+          className="absolute top-8 right-8 hidden p-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shadow-sm z-10 transition-colors md:block"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        <div className="p-12 max-w-4xl">
+        <div className="max-w-4xl p-4 md:p-12">
           <Routes>
             <Route path="personal" element={<PersonalSettings />} />
             <Route path="business" element={<BusinessSettings />} />
@@ -134,14 +166,14 @@ function PersonalSettings() {
   };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-6 md:space-y-12">
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Personal Settings</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">Personal Settings</h2>
         <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your profile and account preferences.</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-8 transition-colors">
-        <div className="flex items-center gap-6">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-6 md:space-y-8 transition-colors">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
           <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
             <div className="w-24 h-24 bg-gray-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-gray-400 dark:text-gray-500 text-2xl font-bold transition-colors overflow-hidden">
               {avatarPreview
@@ -152,45 +184,45 @@ function PersonalSettings() {
               <Camera className="w-6 h-6 text-white" />
             </div>
           </div>
-          <div>
+          <div className="w-full sm:w-auto">
             <h3 className="font-semibold text-gray-900 dark:text-white">Profile Picture</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">JPG, GIF or PNG. Max size of 800K</p>
-            <div className="flex gap-2 mt-3">
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:flex">
               <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif" className="hidden" onChange={handleFileChange} />
-              <button onClick={() => fileInputRef.current?.click()} className="px-4 py-1.5 bg-[#25D366] text-white text-xs font-bold rounded-lg hover:bg-[#128C7E] transition-colors">Upload</button>
+              <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-[#25D366] text-white text-xs font-bold rounded-lg hover:bg-[#128C7E] transition-colors sm:py-1.5">Upload</button>
               {avatarPreview && (
-                <button onClick={handleRemoveAvatar} className="px-4 py-1.5 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">Remove</button>
+                <button onClick={handleRemoveAvatar} className="px-4 py-2 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors sm:py-1.5">Remove</button>
               )}
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 transition-all" />
+            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-3 md:py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 transition-all" />
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
-            <input type="email" defaultValue={user?.email || ''} disabled className="w-full px-4 py-2 bg-gray-100 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl outline-none text-gray-500 dark:text-gray-500 cursor-not-allowed transition-all" />
+            <input type="email" defaultValue={user?.email || ''} disabled className="w-full px-4 py-3 md:py-2 bg-gray-100 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl outline-none text-gray-500 dark:text-gray-500 cursor-not-allowed transition-all" />
           </div>
         </div>
 
         <div className="flex justify-end">
-          <button onClick={handleSave} disabled={saving} className="px-6 py-2 bg-[#25D366] text-white text-sm font-semibold rounded-xl hover:bg-[#128C7E] transition-colors disabled:opacity-60">
+          <button onClick={handleSave} disabled={saving} className="w-full px-6 py-3 md:w-auto md:py-2 bg-[#25D366] text-white text-sm font-semibold rounded-xl hover:bg-[#128C7E] transition-colors disabled:opacity-60">
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-8 border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
         <h3 className="font-semibold text-gray-900 dark:text-white mb-6">Appearance</h3>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Color Mode</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Choose between light and dark theme.</p>
           </div>
-          <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-xl transition-colors">
+          <div className="grid grid-cols-2 bg-gray-100 dark:bg-slate-800 p-1 rounded-xl transition-colors sm:flex">
             <button 
               onClick={() => theme === 'dark' && toggleTheme()}
               className={cn(
@@ -248,26 +280,26 @@ function BusinessSettings() {
   };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-6 md:space-y-12">
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Business Settings</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">Business Settings</h2>
         <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your workspace and business information.</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-8 transition-colors">
-        <div className="grid grid-cols-2 gap-6">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-6 md:space-y-8 transition-colors">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Business Name</label>
             <input
               type="text"
               value={businessName}
               onChange={e => setBusinessName(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 transition-all"
+              className="w-full px-4 py-3 md:py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 transition-all"
             />
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Timezone</label>
-            <select className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 transition-all">
+            <select className="w-full px-4 py-3 md:py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 transition-all">
               <option>Asia/Dubai (GMT+04:00)</option>
               <option>UTC (GMT+00:00)</option>
             </select>
@@ -276,7 +308,7 @@ function BusinessSettings() {
         <button
           onClick={handleSave}
           disabled={saving || !businessName.trim() || businessName.trim() === activeWorkspace?.name}
-          className="px-6 py-2.5 bg-[#25D366] text-white text-sm font-bold rounded-xl hover:bg-[#128C7E] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full px-6 py-3 md:w-auto md:py-2.5 bg-[#25D366] text-white text-sm font-bold rounded-xl hover:bg-[#128C7E] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? 'Saving…' : 'Save Changes'}
         </button>
@@ -324,15 +356,15 @@ function AutomationRules() {
   };
 
   return (
-    <div className="space-y-12">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 md:space-y-12">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Automation Rules</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">Automation Rules</h2>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Automate repetitive tasks and workflows.</p>
         </div>
         <button 
           onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white font-medium rounded-xl hover:bg-[#128C7E] transition-all shadow-sm"
+          className="flex w-full items-center justify-center gap-2 px-4 py-3 bg-[#25D366] text-white font-medium rounded-xl hover:bg-[#128C7E] transition-all shadow-sm sm:w-auto sm:py-2"
         >
           <Plus className="w-4 h-4" />
           Create Rule
@@ -340,8 +372,8 @@ function AutomationRules() {
       </div>
 
       {isAdding && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border-2 border-[#25D366]/20 dark:border-[#25D366]/10 shadow-xl space-y-6 transition-colors">
-          <div className="grid grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-8 border-2 border-[#25D366]/20 dark:border-[#25D366]/10 shadow-xl space-y-6 transition-colors">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Rule Name</label>
               <input 
@@ -379,7 +411,7 @@ function AutomationRules() {
               </select>
             </div>
           </div>
-          <div className="flex justify-end gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end sm:gap-3">
             <button 
               onClick={() => setIsAdding(false)}
               className="px-6 py-2 text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
@@ -396,7 +428,7 @@ function AutomationRules() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
+      <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
         <table className="w-full text-left">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800 transition-colors">
@@ -527,15 +559,15 @@ function CustomAttributes() {
   };
 
   return (
-    <div className="space-y-12">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 md:space-y-12">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('inbox.customAttributes')}</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">{t('inbox.customAttributes')}</h2>
           <p className="text-gray-500 dark:text-gray-400 mt-1">{t('common.description')}</p>
         </div>
         <button
           onClick={() => setShowAdd(!showAdd)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white font-medium rounded-xl hover:bg-[#128C7E] transition-all shadow-sm"
+          className="flex w-full items-center justify-center gap-2 px-4 py-3 bg-[#25D366] text-white font-medium rounded-xl hover:bg-[#128C7E] transition-all shadow-sm sm:w-auto sm:py-2"
         >
           <Plus className="w-4 h-4" />
           {t('common.add')}
@@ -543,7 +575,7 @@ function CustomAttributes() {
       </div>
 
       {showAdd && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm p-6 space-y-4 transition-colors">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm p-4 md:p-6 space-y-4 transition-colors">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('common.name')}</label>
@@ -566,14 +598,14 @@ function CustomAttributes() {
               </select>
             </div>
           </div>
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">{t('common.cancel')}</button>
-            <button onClick={handleAdd} className="px-4 py-2 bg-[#25D366] text-white text-sm font-medium rounded-lg hover:bg-[#128C7E] transition-colors">{t('common.create')}</button>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+            <button onClick={() => setShowAdd(false)} className="px-4 py-3 text-sm text-gray-500 hover:text-gray-700 transition-colors sm:py-2">{t('common.cancel')}</button>
+            <button onClick={handleAdd} className="px-4 py-3 bg-[#25D366] text-white text-sm font-medium rounded-lg hover:bg-[#128C7E] transition-colors sm:py-2">{t('common.create')}</button>
           </div>
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
+      <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
         <table className="w-full text-left">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800 transition-colors">
@@ -622,19 +654,19 @@ function CustomAttributes() {
 
 function ApiKeys() {
   return (
-    <div className="space-y-12">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 md:space-y-12">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">API Keys</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">API Keys</h2>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Access your account via our REST API.</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white font-medium rounded-xl hover:bg-[#128C7E] transition-all shadow-sm">
+        <button className="flex w-full items-center justify-center gap-2 px-4 py-3 bg-[#25D366] text-white font-medium rounded-xl hover:bg-[#128C7E] transition-all shadow-sm sm:w-auto sm:py-2">
           <Plus className="w-4 h-4" />
           Create New Key
         </button>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
+      <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
         <div className="p-6 border-b border-gray-200 dark:border-slate-800">
           <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
             Use these keys to authenticate requests to our API. Keep them secret and never share them in public repositories.
@@ -789,17 +821,17 @@ function Billing() {
   };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-6 md:space-y-12">
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Billing & Usage</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">Billing & Usage</h2>
         <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your subscription and view usage history.</p>
       </div>
 
-      <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-gray-200 dark:border-slate-800 w-fit transition-colors">
+      <div className="grid grid-cols-3 bg-white dark:bg-slate-900 p-1 rounded-xl border border-gray-200 dark:border-slate-800 w-full transition-colors sm:w-fit sm:flex">
         <Link 
           to="/app/settings/billing" 
           className={cn(
-            "px-6 py-2 text-sm font-medium rounded-lg transition-all",
+            "px-3 py-2 text-center text-sm font-medium rounded-lg transition-all sm:px-6",
             location.pathname === '/app/settings/billing' ? "bg-[#25D366] text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           )}
         >
@@ -808,7 +840,7 @@ function Billing() {
         <Link 
           to="/app/settings/billing/plans" 
           className={cn(
-            "px-6 py-2 text-sm font-medium rounded-lg transition-all",
+            "px-3 py-2 text-center text-sm font-medium rounded-lg transition-all sm:px-6",
             location.pathname === '/app/settings/billing/plans' ? "bg-[#25D366] text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           )}
         >
@@ -817,7 +849,7 @@ function Billing() {
         <Link 
           to="/app/settings/billing/usage" 
           className={cn(
-            "px-6 py-2 text-sm font-medium rounded-lg transition-all",
+            "px-3 py-2 text-center text-sm font-medium rounded-lg transition-all sm:px-6",
             location.pathname === '/app/settings/billing/usage' ? "bg-[#25D366] text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           )}
         >
@@ -830,7 +862,7 @@ function Billing() {
           <div className="space-y-8">
             <ActivationChecklist />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
+              <div className="bg-white dark:bg-slate-900 p-4 md:p-8 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-semibold text-gray-900 dark:text-white">Current Plan</h3>
                   <span className={cn(
@@ -923,7 +955,7 @@ function Billing() {
                   ) : null}
                 </div>
               </div>
-              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
+              <div className="bg-white dark:bg-slate-900 p-4 md:p-8 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-semibold text-gray-900 dark:text-white">Credit Balance</h3>
                   <button
@@ -969,11 +1001,11 @@ function Billing() {
             )}
 
             {/* Monthly / Annual toggle */}
-            <div className="flex items-center justify-center gap-3">
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-white p-1 dark:bg-slate-900 sm:flex sm:items-center sm:justify-center sm:gap-3 sm:bg-transparent sm:p-0">
               <button
                 onClick={() => setBillingCycle('monthly')}
                 className={cn(
-                  'px-5 py-2 rounded-xl text-sm font-semibold transition-all',
+                  'px-4 py-2 rounded-xl text-sm font-semibold transition-all',
                   billingCycle === 'monthly'
                     ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -984,7 +1016,7 @@ function Billing() {
               <button
                 onClick={() => setBillingCycle('annual')}
                 className={cn(
-                  'px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2',
+                  'px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2',
                   billingCycle === 'annual'
                     ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -1094,7 +1126,7 @@ function Billing() {
           </div>
         } />
         <Route path="usage" element={
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
+          <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800 transition-colors">

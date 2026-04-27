@@ -101,6 +101,7 @@ The repo also includes an App Platform spec:
 - **Inbox reply composer cleanup** - automatic AI reply suggestion chips were removed from chat conversations so the composer stays focused on the agent's message.
 - **Mobile contacts polish** - Contacts now uses phone-friendly cards on small screens, a compact horizontal list bar, easier create/import actions, and tappable selection for bulk list actions.
 - **Mobile CRM polish** - CRM now uses a phone-friendly stage tab view with lead cards, deal value editing, and a move-stage control while keeping the desktop pipeline board unchanged.
+- **Mobile settings polish** - Settings now uses a compact horizontal mobile nav, tighter page spacing, full-width primary actions, responsive profile/business forms, and safer horizontal scrolling for billing/API tables.
 - **Contacts list removal fix** - when viewing a specific contact list, selecting contacts and clicking remove now removes them from the current list without requiring the list picker first.
 - **Contact duplicate guard** - manual CRM/Contacts create and edit now normalize phone numbers and block another contact in the same workspace from using the same number in a different format.
 - **Safe contact delete** - Contacts page now has delete actions; contacts with conversation or appointment history are protected and return a merge-needed message instead of being removed.
