@@ -526,25 +526,27 @@ export default function Contacts() {
 
   return (
     <div className="h-full overflow-hidden bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
-      <div className="flex h-full">
-        <aside className="w-72 border-r border-gray-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex h-full flex-col md:flex-row">
+        <aside className="w-full shrink-0 border-b border-gray-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 md:w-72 md:border-b-0 md:border-r md:p-5">
           <button
             disabled={!hasFullAccess}
             onClick={() => {
               fetchLists();
               setShowListModal(true);
             }}
-            className="mb-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#128C7E] disabled:opacity-60"
+            className="mb-3 inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-[#128C7E] disabled:opacity-60 md:mb-5 md:flex md:w-full md:rounded-2xl md:px-4 md:py-3"
+            title={t('contacts.newContactList')}
           >
             <Plus className="h-4 w-4" />
-            {t('contacts.newContactList')}
+            <span className="md:hidden">List</span>
+            <span className="hidden md:inline">{t('contacts.newContactList')}</span>
           </button>
 
-          <div className="space-y-2">
+          <div className="flex gap-2 overflow-x-auto pb-1 md:block md:space-y-2 md:overflow-visible md:pb-0">
             <button
               onClick={() => setSelectedListId('ALL')}
               className={cn(
-                "flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm transition-colors",
+                "flex shrink-0 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm transition-colors md:w-full",
                 selectedListId === 'ALL'
                   ? "bg-[#25D366]/10 text-[#128C7E]"
                   : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-slate-800"
@@ -558,7 +560,7 @@ export default function Contacts() {
                 key={list.id}
                 onClick={() => setSelectedListId(list.id)}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                  "flex max-w-[180px] shrink-0 items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors md:w-full md:max-w-none",
                   selectedListId === list.id
                     ? "bg-[#25D366]/10 text-[#128C7E]"
                     : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-slate-800"
