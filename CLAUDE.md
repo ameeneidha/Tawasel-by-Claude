@@ -76,6 +76,7 @@ npx vite build       # Production build
 - New endpoint: `GET /api/appointments/:id/reminder-timeline?workspaceId=...` returns active rule schedule entries plus legacy 24h/1h/follow-up sends.
 - `AppointmentReminderLog` now stores `status`, `scheduledFor`, and `errorMessage` for visible SENT / SCHEDULED / FAILED / MISSED states.
 - Rules scheduler now records failed sends durably and retries later; only successful `SENT` logs suppress future sends for that rule/appointment pair.
+- Appointments mobile list now renders phone-friendly cards with compact filters and a bottom-sheet reminder timeline modal.
 - Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ## Recently Completed (April 25, 2026) — Bug Fixes

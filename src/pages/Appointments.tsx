@@ -551,13 +551,13 @@ export default function Appointments() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-gray-700">
+      <div className="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700">
         {(['appointments', 'services', 'staff', 'reminders'] as Tab[]).map((tabKey) => (
           <button
             key={tabKey}
             onClick={() => setTab(tabKey)}
             className={cn(
-              'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
+              'shrink-0 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
               tab === tabKey
                 ? 'border-[#25D366] text-[#25D366]'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
@@ -630,13 +630,13 @@ export default function Appointments() {
       {tab === 'appointments' && (
         <div className="space-y-4">
           {/* Toolbar */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             {/* List / Calendar toggle */}
-            <div className="flex items-center rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+            <div className="grid grid-cols-2 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden sm:flex sm:items-center">
               <button
                 onClick={() => setViewMode('list')}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors',
+                  'flex items-center justify-center gap-1.5 px-3 py-2 text-sm transition-colors sm:py-1.5',
                   viewMode === 'list'
                     ? 'bg-[#25D366] text-white'
                     : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800'
@@ -647,7 +647,7 @@ export default function Appointments() {
               <button
                 onClick={() => setViewMode('calendar')}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors',
+                  'flex items-center justify-center gap-1.5 px-3 py-2 text-sm transition-colors sm:py-1.5',
                   viewMode === 'calendar'
                     ? 'bg-[#25D366] text-white'
                     : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800'
@@ -658,62 +658,64 @@ export default function Appointments() {
             </div>
 
             <div className="flex items-center gap-1">
-              <button onClick={() => navigateDate(-1)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+              <button onClick={() => navigateDate(-1)} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <input
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
-                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-800 dark:text-white"
+                className="min-w-0 flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white sm:flex-none sm:py-1.5"
               />
-              <button onClick={() => navigateDate(1)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+              <button onClick={() => navigateDate(1)} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
                 <ChevronRight className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setFilterDate(toInputDate(new Date()))}
-                className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+                className="text-xs px-2.5 py-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 sm:py-1"
               >
                 {t('appointments.today')}
               </button>
             </div>
 
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-800 dark:text-white"
-            >
-              <option value="ALL">{t('appointments.allStatuses')}</option>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>{s.replace('_', ' ')}</option>
-              ))}
-            </select>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="min-w-0 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white sm:py-1.5"
+              >
+                <option value="ALL">{t('appointments.allStatuses')}</option>
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                ))}
+              </select>
 
-            <select
-              value={filterStaff}
-              onChange={(e) => setFilterStaff(e.target.value)}
-              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-800 dark:text-white"
-            >
-              <option value="ALL">{t('appointments.allStaff')}</option>
-              {staff.filter((s) => s.enabled).map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
+              <select
+                value={filterStaff}
+                onChange={(e) => setFilterStaff(e.target.value)}
+                className="min-w-0 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white sm:py-1.5"
+              >
+                <option value="ALL">{t('appointments.allStaff')}</option>
+                {staff.filter((s) => s.enabled).map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
 
-            <div className="relative flex-1 min-w-[180px]">
+            <div className="relative flex-1 sm:min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t('appointments.searchPlaceholder')}
-                className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white sm:py-1.5"
               />
             </div>
 
             <button
               onClick={() => setShowBooking(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-medium transition-colors"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-medium transition-colors sm:py-2"
             >
               <Plus className="w-4 h-4" />
               {t('appointments.bookAppointment')}
@@ -729,7 +731,67 @@ export default function Appointments() {
                 <p className="text-sm mt-1">{t('appointments.noAppointmentsHint')}</p>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+              <>
+              <div className="space-y-3 md:hidden">
+                {filtered.map((appt) => (
+                  <div key={appt.id} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: appt.service?.color }} />
+                          <p className="truncate font-semibold text-gray-900 dark:text-white">{appt.service?.name}</p>
+                        </div>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                          {formatDate(appt.startTime)} · {formatTime(appt.startTime)} - {formatTime(appt.endTime)}
+                        </p>
+                      </div>
+                      <select
+                        value={appt.status}
+                        onChange={(e) => updateAppointmentStatus(appt.id, e.target.value)}
+                        className={cn(
+                          'shrink-0 text-xs font-medium rounded-full px-2.5 py-1 border-0 cursor-pointer',
+                          STATUS_COLORS[appt.status] || 'bg-gray-100 text-gray-600'
+                        )}
+                      >
+                        {STATUS_OPTIONS.map((s) => (
+                          <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{t('appointments.customer')}</p>
+                        <p className="truncate font-medium text-gray-900 dark:text-white">{appt.contact?.name || t('appointments.unknown')}</p>
+                        {appt.contact?.phoneNumber && <p className="truncate text-xs text-gray-500">{appt.contact.phoneNumber}</p>}
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{t('appointments.staffLabel')}</p>
+                        <p className="truncate font-medium text-gray-900 dark:text-white">{appt.staff?.name}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-end gap-2 border-t border-gray-100 dark:border-gray-800 pt-3">
+                      <button
+                        onClick={() => setTimelineAppointment(appt)}
+                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800"
+                      >
+                        <Clock className="w-4 h-4" />
+                        Timeline
+                      </button>
+                      <button
+                        onClick={() => deleteAppointment(appt.id)}
+                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 md:block">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400">
                     <tr>
@@ -796,6 +858,7 @@ export default function Appointments() {
                   </tbody>
                 </table>
               </div>
+              </>
             )
           )}
 
@@ -1285,30 +1348,30 @@ function ReminderTimelineModal({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-2xl max-h-[88vh] overflow-hidden rounded-lg bg-white dark:bg-slate-900 shadow-xl border border-gray-200 dark:border-slate-700">
-        <div className="flex items-start justify-between gap-4 border-b border-gray-200 dark:border-slate-700 px-5 py-4">
-          <div>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <div className="w-full max-h-[92vh] overflow-hidden rounded-t-xl bg-white shadow-xl dark:bg-slate-900 sm:max-w-2xl sm:rounded-lg sm:border sm:border-gray-200 sm:dark:border-slate-700">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-4 py-4 dark:border-slate-700 sm:px-5">
+          <div className="min-w-0">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Reminder timeline</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {appointment.contact?.name || appointment.contact?.phoneNumber || 'Unknown'} · {appointment.service?.name} · {formatDateTime(appointment.startTime)}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500">
+          <button onClick={onClose} className="shrink-0 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="grid grid-cols-4 border-b border-gray-200 dark:border-slate-700 text-center text-xs">
           {(['SCHEDULED', 'SENT', 'FAILED', 'MISSED'] as ReminderTimelineItem['status'][]).map((status) => (
-            <div key={status} className="px-3 py-3">
+            <div key={status} className="px-1.5 py-3 sm:px-3">
               <p className="font-semibold text-gray-900 dark:text-white">{counts[status] || 0}</p>
-              <p className="text-gray-500 dark:text-gray-400">{status.replace('_', ' ')}</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 sm:text-xs">{status.replace('_', ' ')}</p>
             </div>
           ))}
         </div>
 
-        <div className="max-h-[58vh] overflow-y-auto p-5">
+        <div className="max-h-[62vh] overflow-y-auto p-4 sm:max-h-[58vh] sm:p-5">
           {loading ? (
             <div className="flex items-center justify-center py-12 text-gray-500">
               <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -1323,7 +1386,7 @@ function ReminderTimelineModal({
           ) : (
             <div className="space-y-3">
               {items.map((item) => (
-                <div key={item.id} className="flex gap-3 rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                <div key={item.id} className="flex gap-3 rounded-lg border border-gray-200 p-3 dark:border-slate-700 sm:p-4">
                   <div className={cn(
                     'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border',
                     REMINDER_STATUS_STYLES[item.status]
