@@ -311,6 +311,10 @@ function QuoteThumbnail({ message }: { message: Message }) {
   );
 }
 
+function isMobileViewport() {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+}
+
 export default function Inbox() {
   const { t } = useTranslation();
   const { activeWorkspace, workspaces, setActiveWorkspace, user, hasFullAccess, hasVerifiedEmail } = useApp();
@@ -545,7 +549,7 @@ export default function Inbox() {
         }
       }
 
-      if (data.length > 0 && !selectedConv) {
+      if (data.length > 0 && !selectedConv && !isMobileViewport()) {
         setSelectedConv(data[0]);
       }
     } catch (error) {
@@ -1266,10 +1270,11 @@ export default function Inbox() {
             <div className="min-h-16 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-3 py-2 md:px-6 md:py-0 flex items-center justify-between shrink-0 transition-colors">
               <div className="flex min-w-0 items-center gap-2 md:gap-3">
                 <button
-                  className="md:hidden p-2 -ml-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  className="md:hidden -ml-1 inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:bg-slate-800 dark:hover:text-gray-100"
                   onClick={() => setSelectedConv(null)}
                 >
                   <ArrowLeft className="w-5 h-5" />
+                  Chats
                 </button>
                 <div className="w-9 h-9 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400 shrink-0 md:w-8 md:h-8">
                   <User className="w-4 h-4" />

@@ -77,7 +77,7 @@ npx vite build       # Production build
 - `AppointmentReminderLog` now stores `status`, `scheduledFor`, and `errorMessage` for visible SENT / SCHEDULED / FAILED / MISSED states.
 - Rules scheduler now records failed sends durably and retries later; only successful `SENT` logs suppress future sends for that rule/appointment pair.
 - Appointments mobile list now renders phone-friendly cards with compact filters and a bottom-sheet reminder timeline modal.
-- Inbox mobile view now has a cleaner chat header, wider message bubbles, touch-sized composer controls, a full-width template picker, and a full-screen contact panel.
+- Inbox mobile view now opens to the conversation list on phones, has a clear Chats back button, wider message bubbles, touch-sized composer controls, a full-width template picker, and a full-screen contact panel.
 - Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ## Recently Completed (April 25, 2026) — Bug Fixes
