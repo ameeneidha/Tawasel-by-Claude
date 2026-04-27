@@ -1025,6 +1025,9 @@ export default function Inbox() {
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-[#25D366] rounded-full" />
             <span className="font-medium text-sm dark:text-gray-200">{t('inbox.active')}</span>
+            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-slate-800 dark:text-gray-400 md:hidden">
+              {filteredConversations.length}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <AppTooltip content={t('inbox.searchConversations')} side="bottom">
@@ -1062,7 +1065,7 @@ export default function Inbox() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('inbox.searchPlaceholder')}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none transition-colors focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white md:py-2"
               />
             )}
 
@@ -1071,7 +1074,7 @@ export default function Inbox() {
                 <select
                   value={channelFilter}
                   onChange={(e) => setChannelFilter(e.target.value as 'ALL' | 'WHATSAPP' | 'INSTAGRAM')}
-                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700 outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200"
+                  className="min-w-0 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-xs font-medium text-gray-700 outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200 md:py-2"
                 >
                   <option value="ALL">{t('inbox.allChannels')}</option>
                   <option value="WHATSAPP">{t('inbox.whatsapp')}</option>
@@ -1080,7 +1083,7 @@ export default function Inbox() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as 'ALL' | 'OPEN' | 'WAITING_FOR_CUSTOMER' | 'WAITING_FOR_INTERNAL' | 'RESOLVED')}
-                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700 outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200"
+                  className="min-w-0 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-xs font-medium text-gray-700 outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200 md:py-2"
                 >
                   <option value="ALL">All statuses</option>
                   <option value="OPEN">Open</option>
@@ -1095,7 +1098,7 @@ export default function Inbox() {
                     setChannelFilter('ALL');
                     setStatusFilter('ALL');
                   }}
-                  className="col-span-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-500 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:text-gray-400"
+                  className="col-span-2 rounded-xl border border-gray-200 px-3 py-3 text-xs font-semibold text-gray-500 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:text-gray-400 md:py-2"
                 >
                   Clear search and filters
                 </button>
@@ -1114,7 +1117,7 @@ export default function Inbox() {
               key={conv.id}
               onClick={() => setSelectedConv(conv)}
               className={cn(
-                "relative w-full p-4 flex items-center gap-3 transition-colors border-b border-gray-50 dark:border-slate-800/50 before:absolute before:left-0 before:top-3 before:bottom-3 before:rounded-r-full",
+                "relative w-full p-4 flex items-center gap-3 transition-colors border-b border-gray-50 dark:border-slate-800/50 before:absolute before:left-0 before:top-3 before:bottom-3 before:rounded-r-full md:p-4",
                 getConversationStatusStyles(conv.internalStatus).rail,
                 selectedConv?.id === conv.id
                   ? "bg-[#25D366]/5 dark:bg-[#25D366]/10"
@@ -1260,27 +1263,27 @@ export default function Inbox() {
         )}
         {selectedConv ? (
           <>
-            <div className="h-16 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 md:px-6 flex items-center justify-between shrink-0 transition-colors">
-              <div className="flex items-center gap-3">
+            <div className="min-h-16 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-3 py-2 md:px-6 md:py-0 flex items-center justify-between shrink-0 transition-colors">
+              <div className="flex min-w-0 items-center gap-2 md:gap-3">
                 <button
-                  className="md:hidden mr-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  className="md:hidden p-2 -ml-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                   onClick={() => setSelectedConv(null)}
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
-                <div className="w-8 h-8 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400">
+                <div className="w-9 h-9 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400 shrink-0 md:w-8 md:h-8">
                   <User className="w-4 h-4" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h2 className="truncate text-sm font-semibold text-gray-900 dark:text-white">
                       {getConversationContactLabel(selectedConv.contact)}
                     </h2>
                     <select 
                       value={selectedConv.priority}
                       onChange={(e) => updateConversation(selectedConv.id, { priority: e.target.value as any })}
                       className={cn(
-                        "text-[10px] font-bold px-1.5 py-0.5 rounded border-none outline-none cursor-pointer",
+                        "hidden text-[10px] font-bold px-1.5 py-0.5 rounded border-none outline-none cursor-pointer sm:block",
                         selectedConv.priority === 'URGENT' ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" :
                         selectedConv.priority === 'HIGH' ? "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400" :
                         selectedConv.priority === 'MEDIUM' ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" :
@@ -1296,7 +1299,7 @@ export default function Inbox() {
                       value={selectedConv.internalStatus}
                       onChange={(e) => updateConversation(selectedConv.id, { internalStatus: e.target.value as any })}
                       className={cn(
-                        "text-[10px] font-bold px-1.5 py-0.5 rounded border-none outline-none cursor-pointer",
+                        "hidden text-[10px] font-bold px-1.5 py-0.5 rounded border-none outline-none cursor-pointer lg:block",
                         selectedConv.internalStatus === 'RESOLVED' ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" :
                         selectedConv.internalStatus === 'WAITING_FOR_CUSTOMER' ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400" :
                         selectedConv.internalStatus === 'WAITING_FOR_INTERNAL' ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400" :
@@ -1319,7 +1322,7 @@ export default function Inbox() {
                   )}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
+              <div className="flex shrink-0 items-center justify-end gap-1 md:gap-3">
                 {conversationHasAiBot(selectedConv) && (
                   <AppTooltip
                     content={
@@ -1334,11 +1337,11 @@ export default function Inbox() {
                       onClick={handleAiToggle}
                       disabled={isRestrictedMode}
                       className={cn(
-                        "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
-                        selectedConv.aiPaused
-                          ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300"
-                          : "border-[#25D366]/20 bg-[#25D366]/10 text-[#128C7E] dark:border-[#25D366]/30 dark:bg-[#25D366]/15 dark:text-[#7DE2A8]",
-                        isRestrictedMode ? "cursor-not-allowed opacity-60" : "hover:opacity-90"
+                        "hidden items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors sm:flex",
+                      selectedConv.aiPaused
+                        ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300"
+                        : "border-[#25D366]/20 bg-[#25D366]/10 text-[#128C7E] dark:border-[#25D366]/30 dark:bg-[#25D366]/15 dark:text-[#7DE2A8]",
+                      isRestrictedMode ? "cursor-not-allowed opacity-60" : "hover:opacity-90"
                       )}
                     >
                       {selectedConv.aiPaused ? <BotOff className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
@@ -1352,7 +1355,7 @@ export default function Inbox() {
                   </AppTooltip>
                 )}
                 <div
-                  className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800"
+                  className="hidden items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800 sm:flex"
                   style={{
                     borderColor: `${activePipelineStageColor}4D`,
                     backgroundColor: `${activePipelineStageColor}14`,
@@ -1403,7 +1406,7 @@ export default function Inbox() {
                     </span>
                   </div>
                 <button
-                  className="md:hidden p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
+                  className="md:hidden p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-500"
                   onClick={() => setMobileContactPanel(true)}
                 >
                   <PanelRightOpen className="w-5 h-5" />
@@ -1483,7 +1486,7 @@ export default function Inbox() {
 
             <div 
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-6 space-y-6"
+              className="flex-1 overflow-y-auto space-y-4 p-3 md:space-y-6 md:p-6"
             >
               {messages.map((msg) => {
                 const quotedMsg = msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null;
@@ -1493,13 +1496,13 @@ export default function Inbox() {
                   id={`msg-${msg.id}`}
                   className={cn(
                     "flex flex-col group/msg transition-all duration-300",
-                    msg.isInternal ? "items-center w-full" : (msg.direction === 'OUTGOING' ? "ml-auto items-end max-w-[70%]" : "mr-auto items-start max-w-[70%]")
+                    msg.isInternal ? "items-center w-full" : (msg.direction === 'OUTGOING' ? "ml-auto items-end max-w-[86%] md:max-w-[70%]" : "mr-auto items-start max-w-[86%] md:max-w-[70%]")
                   )}
                 >
                   <div className={cn("flex items-center gap-1", msg.direction === 'OUTGOING' ? "flex-row-reverse" : "flex-row")}>
                     <div
                       className={cn(
-                        "px-4 py-2.5 rounded-2xl text-sm shadow-sm transition-colors",
+                        "px-3.5 py-2.5 rounded-2xl text-sm shadow-sm transition-colors md:px-4",
                         msg.isInternal
                           ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-900/30 text-yellow-800 dark:text-yellow-200 w-full max-w-2xl italic"
                           : (msg.direction === 'OUTGOING'
@@ -1552,7 +1555,7 @@ export default function Inbox() {
                     {!msg.isInternal && (
                       <button
                         onClick={() => setReplyToMessage(msg)}
-                        className="opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      className="opacity-100 md:opacity-0 md:group-hover/msg:opacity-100 transition-opacity p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                         title="Reply"
                       >
                         <Reply className="w-4 h-4" />
@@ -1616,13 +1619,13 @@ export default function Inbox() {
               </div>
             )}
 
-            <div className="p-4 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 shrink-0 transition-colors">
-              <div className="flex items-center gap-4 mb-3 px-1">
+            <div className="shrink-0 border-t border-gray-200 bg-white p-3 transition-colors dark:border-slate-800 dark:bg-slate-900 md:p-4">
+              <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1 dark:bg-slate-800 md:flex md:bg-transparent md:p-0">
                 <button 
                   onClick={() => setIsInternalMode(false)}
                   className={cn(
-                    "text-xs font-bold uppercase tracking-widest pb-1 transition-all border-b-2",
-                    !isInternalMode ? "text-[#25D366] border-[#25D366]" : "text-gray-400 dark:text-gray-500 border-transparent hover:text-gray-600 dark:hover:text-gray-300"
+                    "rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest transition-all md:border-b-2 md:rounded-none md:px-0 md:py-0 md:pb-1",
+                    !isInternalMode ? "bg-white text-[#25D366] shadow-sm md:bg-transparent md:border-[#25D366] md:shadow-none" : "text-gray-400 dark:text-gray-500 md:border-transparent hover:text-gray-600 dark:hover:text-gray-300"
                   )}
                 >
                   Reply
@@ -1630,8 +1633,8 @@ export default function Inbox() {
                 <button 
                   onClick={() => setIsInternalMode(true)}
                   className={cn(
-                    "text-xs font-bold uppercase tracking-widest pb-1 transition-all border-b-2",
-                    isInternalMode ? "text-yellow-600 border-yellow-600" : "text-gray-400 dark:text-gray-500 border-transparent hover:text-gray-600 dark:hover:text-gray-300"
+                    "rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest transition-all md:border-b-2 md:rounded-none md:px-0 md:py-0 md:pb-1",
+                    isInternalMode ? "bg-white text-yellow-600 shadow-sm md:bg-transparent md:border-yellow-600 md:shadow-none dark:bg-slate-900 md:dark:bg-transparent" : "text-gray-400 dark:text-gray-500 md:border-transparent hover:text-gray-600 dark:hover:text-gray-300"
                   )}
                 >
                   Internal Note
@@ -1639,7 +1642,7 @@ export default function Inbox() {
               </div>
 
               {!isInternalMode && (
-                <div className="mb-3 flex flex-wrap gap-2">
+                <div className="mb-3 flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0">
                   {isLoadingSuggestions ? (
                     <div className="flex items-center gap-2 text-[10px] text-gray-400 animate-pulse px-2">
                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -1651,7 +1654,7 @@ export default function Inbox() {
                         key={idx}
                         onClick={() => setNewMessage(suggestion)}
                         className={cn(
-                          "px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-full text-xs text-gray-600 dark:text-gray-300 hover:border-[#25D366] hover:text-[#25D366] transition-all shadow-sm"
+                          "shrink-0 px-3 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-full text-xs text-gray-600 dark:text-gray-300 hover:border-[#25D366] hover:text-[#25D366] transition-all shadow-sm md:py-1.5"
                         )}
                       >
                         {suggestion}
@@ -1688,7 +1691,7 @@ export default function Inbox() {
                 </div>
               )}
 
-              <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+              <form onSubmit={handleSendMessage} className="flex items-end gap-2">
                 <input
                   ref={attachmentInputRef}
                   type="file"
@@ -1705,7 +1708,7 @@ export default function Inbox() {
                           setShowEmojiPicker((prev) => !prev);
                           setShowTemplatePicker(false);
                         }}
-                        className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
+                        className="hidden p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400 sm:block"
                       >
                         <Smile className="w-5 h-5" />
                       </button>
@@ -1729,7 +1732,7 @@ export default function Inbox() {
                     <button
                       type="button"
                       onClick={() => attachmentInputRef.current?.click()}
-                      className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
+                    className="p-2.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
                     >
                       <Paperclip className="w-5 h-5" />
                     </button>
@@ -1739,13 +1742,13 @@ export default function Inbox() {
                       <button
                         type="button"
                         onClick={handleTemplatePickerToggle}
-                        className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
+                        className="p-2.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
                       >
                         <FileText className="w-5 h-5" />
                       </button>
                     </AppTooltip>
                     {showTemplatePicker && (
-                      <div className="absolute bottom-12 left-0 z-20 w-80 max-h-[26rem] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                      <div className="fixed inset-x-3 bottom-20 z-20 max-h-[70vh] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 sm:absolute sm:bottom-12 sm:left-0 sm:inset-x-auto sm:w-80 sm:max-h-[26rem]">
                         <div className="border-b border-gray-200 px-3 py-3 dark:border-slate-800">
                           <div className="flex items-center justify-between gap-3">
                             <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
@@ -1808,14 +1811,14 @@ export default function Inbox() {
                   disabled={isRestrictedMode}
                   placeholder={isInternalMode ? "Type an internal note (only your team sees this)..." : "Type a message..."}
                   className={cn(
-                    "flex-1 border-none rounded-xl px-4 py-2.5 text-sm outline-none transition-all",
+                    "min-w-0 flex-1 border-none rounded-xl px-4 py-3 text-sm outline-none transition-all md:py-2.5",
                     isInternalMode 
                       ? "bg-yellow-50 dark:bg-yellow-900/20 focus:ring-2 focus:ring-yellow-200 dark:focus:ring-yellow-900/40 text-yellow-900 dark:text-yellow-100 placeholder:text-yellow-400 dark:placeholder:text-yellow-700" 
                       : "bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-[#25D366]/20 dark:focus:ring-[#25D366]/10 text-gray-900 dark:text-gray-100 transition-colors"
                   )}
                 />
                 <AppTooltip content="Voice note recording is coming soon" side="top">
-                  <button type="button" className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400">
+                  <button type="button" className="hidden p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400 sm:block">
                     <Mic className="w-5 h-5" />
                   </button>
                 </AppTooltip>
@@ -1824,7 +1827,7 @@ export default function Inbox() {
                     type="submit"
                     disabled={(!newMessage.trim() && pendingAttachments.length === 0) || isSending || isRestrictedMode}
                     className={cn(
-                      "p-2.5 text-white rounded-xl transition-colors disabled:opacity-50",
+                      "p-3 text-white rounded-xl transition-colors disabled:opacity-50 md:p-2.5",
                       isInternalMode ? "bg-yellow-500 hover:bg-yellow-600" : "bg-[#25D366] hover:bg-[#128C7E]"
                     )}
                   >
@@ -1879,7 +1882,7 @@ export default function Inbox() {
       )}
       {/* Right Column: Contact Info / Tasks / Activity */}
       <div className={cn(
-        "w-80 border-l border-gray-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-all duration-300",
+        "w-full border-l border-gray-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-all duration-300 md:w-80",
         "fixed inset-y-0 right-0 z-50 md:relative md:translate-x-0",
         mobileContactPanel ? "translate-x-0" : "translate-x-full md:translate-x-0",
         "hidden md:flex",
@@ -1923,7 +1926,7 @@ export default function Inbox() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4 md:p-6">
               {rightTab === 'info' && (
                 <div className="space-y-8">
                   <div className="text-center">
