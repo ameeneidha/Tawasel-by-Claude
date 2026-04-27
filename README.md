@@ -98,6 +98,7 @@ The repo also includes an App Platform spec:
 - **Mobile appointments polish** - Appointments now uses phone-friendly cards instead of a horizontal table on small screens, with compact filters and a bottom-sheet reminder timeline modal.
 - **Mobile inbox polish** - Inbox now opens to the conversation list on phones, has a clear Chats back button, wider message bubbles, touch-sized composer controls, a full-width template picker, and a full-screen contact panel on mobile.
 - **Mobile contacts polish** - Contacts now uses phone-friendly cards on small screens, a compact horizontal list bar, easier create/import actions, and tappable selection for bulk list actions.
+- **Mobile CRM polish** - CRM now uses a phone-friendly stage tab view with lead cards, deal value editing, and a move-stage control while keeping the desktop pipeline board unchanged.
 - **Contacts list removal fix** - when viewing a specific contact list, selecting contacts and clicking remove now removes them from the current list without requiring the list picker first.
 - **Contact duplicate guard** - manual CRM/Contacts create and edit now normalize phone numbers and block another contact in the same workspace from using the same number in a different format.
 - **Safe contact delete** - Contacts page now has delete actions; contacts with conversation or appointment history are protected and return a merge-needed message instead of being removed.

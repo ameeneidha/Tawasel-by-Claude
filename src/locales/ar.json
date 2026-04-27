@@ -1099,7 +1099,8 @@
     "noLeadsHere": "لا يوجد عملاء هنا",
     "unknown": "غير معروف",
     "active": "نشط",
-    "moveToStage": "نقل إلى {{name}}"
+    "moveToStage": "نقل إلى {{name}}",
+    "moveStage": "نقل إلى مرحلة"
   },
   "team": {
     "title": "الفريق",

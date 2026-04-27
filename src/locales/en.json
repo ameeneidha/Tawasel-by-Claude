@@ -1099,7 +1099,8 @@
     "noLeadsHere": "No leads here",
     "unknown": "Unknown",
     "active": "Active",
-    "moveToStage": "Move to {{name}}"
+    "moveToStage": "Move to {{name}}",
+    "moveStage": "Move to stage"
   },
   "team": {
     "title": "Team",
