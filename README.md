@@ -103,6 +103,7 @@ The repo also includes an App Platform spec:
 - **Mobile CRM polish** - CRM now uses a phone-friendly stage tab view with lead cards, deal value editing, and a move-stage control while keeping the desktop pipeline board unchanged.
 - **Mobile settings polish** - Settings now uses a compact horizontal mobile nav, tighter page spacing, full-width primary actions, responsive profile/business forms, and safer horizontal scrolling for billing/API tables.
 - **Mobile team polish** - Team now uses phone-friendly member cards, full-width invite actions, and mobile sheet dialogs for inviting/editing team members while preserving the desktop table.
+- **Mobile dashboard polish** - Dashboard now has tighter phone spacing, two-column mobile KPI cards, full-width filter controls, stacked team rows, and mobile campaign summary cards.
 - **Contacts list removal fix** - when viewing a specific contact list, selecting contacts and clicking remove now removes them from the current list without requiring the list picker first.
 - **Contact duplicate guard** - manual CRM/Contacts create and edit now normalize phone numbers and block another contact in the same workspace from using the same number in a different format.
 - **Safe contact delete** - Contacts page now has delete actions; contacts with conversation or appointment history are protected and return a merge-needed message instead of being removed.

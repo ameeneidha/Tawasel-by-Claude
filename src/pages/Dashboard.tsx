@@ -245,7 +245,7 @@ export default function Dashboard() {
   if (isLoading || !summary) {
     return (
       <div className="h-full overflow-y-auto bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
-        <div className="max-w-[1600px] mx-auto p-8">
+        <div className="max-w-[1600px] mx-auto p-4 md:p-8">
           <div className="flex flex-col gap-6">
             {/* Header skeleton */}
             <div className="space-y-2">
@@ -255,7 +255,7 @@ export default function Dashboard() {
             </div>
 
             {/* Metric cards grid */}
-            <div className="grid md:grid-cols-2 2xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-2 2xl:grid-cols-4 gap-3 md:gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
                 <SkeletonCard key={i} />
               ))}
@@ -285,15 +285,15 @@ export default function Dashboard() {
 
   return (
     <div className="h-full overflow-y-auto bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
-      <div className="max-w-[1600px] mx-auto p-8">
-        <div className="flex flex-col gap-6">
+      <div className="max-w-[1600px] mx-auto p-4 md:p-8">
+        <div className="flex flex-col gap-4 md:gap-6">
           <div className="relative z-20 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex items-center gap-2 text-[#25D366] mb-1">
                 <Gauge className="w-5 h-5" />
                 <span className="text-xs font-bold uppercase tracking-[0.2em]">{t('dashboard.businessDashboard')}</span>
               </div>
-              <h1 className="text-3xl font-semibold text-gray-900 dark:text-white">{t('dashboard.performanceCenter')}</h1>
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white md:text-3xl">{t('dashboard.performanceCenter')}</h1>
               <p className="text-gray-500 dark:text-gray-400 mt-1">
                 {t('dashboard.performanceSubtitle', { name: activeWorkspace.name })}
               </p>
@@ -304,22 +304,22 @@ export default function Dashboard() {
               onClick={() => fetchDashboard('refresh')}
               disabled={isRefreshing}
               aria-label="Refresh dashboard metrics"
-              className="relative z-20 inline-flex shrink-0 cursor-pointer pointer-events-auto items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-[#25D366]/40 disabled:cursor-wait disabled:opacity-70 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-200"
+              className="relative z-20 inline-flex w-full shrink-0 cursor-pointer pointer-events-auto items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-[#25D366]/40 disabled:cursor-wait disabled:opacity-70 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-200 sm:w-auto sm:py-2.5"
             >
               <RefreshCw className={cn('w-4 h-4', isRefreshing && 'animate-spin')} />
               {isRefreshing ? t('dashboard.refreshing') : t('dashboard.refresh')}
             </button>
           </div>
 
-          <SectionCard className="p-5">
+          <SectionCard className="p-4 md:p-5">
             <div className="flex flex-col xl:flex-row gap-4 xl:items-end">
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 {RANGE_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => setFilters((prev) => ({ ...prev, range: option.value }))}
                     className={cn(
-                      'px-4 py-2 rounded-xl text-sm font-semibold transition-colors',
+                      'px-3 py-2 rounded-xl text-sm font-semibold transition-colors sm:px-4',
                       filters.range === option.value
                         ? 'bg-[#25D366] text-white shadow-sm'
                         : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700'
@@ -331,26 +331,26 @@ export default function Dashboard() {
               </div>
 
               {filters.range === 'custom' && (
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input type="date" value={filters.from} onChange={(event) => setFilters((prev) => ({ ...prev, from: event.target.value }))} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white" />
-                  <input type="date" value={filters.to} onChange={(event) => setFilters((prev) => ({ ...prev, to: event.target.value }))} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white" />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <input type="date" value={filters.from} onChange={(event) => setFilters((prev) => ({ ...prev, from: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white" />
+                  <input type="date" value={filters.to} onChange={(event) => setFilters((prev) => ({ ...prev, to: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white" />
                 </div>
               )}
 
-              <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3 flex-1">
-                <select value={filters.agentId} onChange={(event) => setFilters((prev) => ({ ...prev, agentId: event.target.value }))} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 flex-1">
+                <select value={filters.agentId} onChange={(event) => setFilters((prev) => ({ ...prev, agentId: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
                   <option value="">{t('dashboard.allAgents')}</option>
                   {summary.meta.availableFilters.agents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}
                 </select>
-                <select value={filters.channelType} onChange={(event) => setFilters((prev) => ({ ...prev, channelType: event.target.value }))} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
+                <select value={filters.channelType} onChange={(event) => setFilters((prev) => ({ ...prev, channelType: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
                   <option value="">{t('dashboard.allChannels')}</option>
                   <option value="WHATSAPP">{t('dashboard.whatsapp')}</option>
                 </select>
-                <select value={filters.leadSource} onChange={(event) => setFilters((prev) => ({ ...prev, leadSource: event.target.value }))} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
+                <select value={filters.leadSource} onChange={(event) => setFilters((prev) => ({ ...prev, leadSource: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
                   <option value="">{t('dashboard.allLeadSources')}</option>
                   {summary.meta.availableFilters.leadSources.map((source) => <option key={source} value={source}>{source}</option>)}
                 </select>
-                <select value={filters.priority} onChange={(event) => setFilters((prev) => ({ ...prev, priority: event.target.value }))} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
+                <select value={filters.priority} onChange={(event) => setFilters((prev) => ({ ...prev, priority: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
                   <option value="">{t('dashboard.allPriorities')}</option>
                   <option value="LOW">{t('dashboard.priorityLow')}</option>
                   <option value="MEDIUM">{t('dashboard.priorityMedium')}</option>
@@ -363,7 +363,7 @@ export default function Dashboard() {
 
           <div className="grid xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
             <div className="space-y-6">
-              <div className="grid md:grid-cols-2 2xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-2 2xl:grid-cols-4 gap-3 md:gap-4">
                 {topMetrics.map((metric) => (
                   <MetricCard
                     key={metric.label}
@@ -447,12 +447,12 @@ export default function Dashboard() {
                   <div className="space-y-3">
                     {summary.team.workload.length > 0 ? summary.team.workload.map((member) => (
                       <div key={member.id} className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 px-4 py-3">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                          <div className="min-w-0">
                             <p className="font-semibold text-gray-900 dark:text-white">{member.name}</p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">{member.role}</p>
                           </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 min-w-[260px]">
+                          <div className="grid grid-cols-2 gap-2 sm:min-w-[260px] sm:grid-cols-4">
                             <MiniMetric label={t('dashboard.open')} value={member.openChats} />
                             <MiniMetric label={t('dashboard.overdue')} value={member.overdueChats} tone={member.overdueChats > 0 ? 'danger' : 'neutral'} />
                             <MiniMetric label={t('dashboard.resolved')} value={member.resolvedConversations} />
@@ -515,15 +515,15 @@ export default function Dashboard() {
                 {summary.adPerformance?.conversionFunnel && summary.adPerformance.conversionFunnel.newLeads > 0 && (
                   <div className="mb-5">
                     <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">{t('dashboard.conversionFunnel')}</h4>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {[
                         { label: t('dashboard.newLeads'), count: summary.adPerformance.conversionFunnel.newLeads, rate: 100 },
                         { label: t('dashboard.contacted'), count: summary.adPerformance.conversionFunnel.contacted, rate: summary.adPerformance.conversionFunnel.contactedRate },
                         { label: t('dashboard.qualified'), count: summary.adPerformance.conversionFunnel.qualified, rate: summary.adPerformance.conversionFunnel.qualifiedRate },
                         { label: t('dashboard.won'), count: summary.adPerformance.conversionFunnel.won, rate: summary.adPerformance.conversionFunnel.wonRate },
                       ].map((step) => (
-                        <div key={step.label} className="flex items-center gap-3">
-                          <span className="text-xs w-20 text-gray-500 dark:text-gray-400">{step.label}</span>
+                        <div key={step.label} className="grid grid-cols-[72px_minmax(0,1fr)_36px] items-center gap-2 sm:grid-cols-[80px_minmax(0,1fr)_40px] sm:gap-3">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{step.label}</span>
                           <div className="flex-1 h-6 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-[#25D366] rounded-full transition-all flex items-center justify-end pr-2"
@@ -534,7 +534,7 @@ export default function Dashboard() {
                               )}
                             </div>
                           </div>
-                          <span className="text-xs w-10 text-right text-gray-500 dark:text-gray-400">{step.rate}%</span>
+                          <span className="text-xs text-right text-gray-500 dark:text-gray-400">{step.rate}%</span>
                         </div>
                       ))}
                     </div>
@@ -585,7 +585,31 @@ export default function Dashboard() {
                   <StatPill label={t('dashboard.replied')} value={summary.campaigns.totals.replied} />
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="space-y-3 md:hidden">
+                  {summary.campaigns.recent.length > 0 ? summary.campaigns.recent.map((campaign) => (
+                    <div key={campaign.id} className="rounded-2xl border border-gray-200 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-gray-900 dark:text-white">{campaign.name}</p>
+                          <p className="mt-1 text-xs capitalize text-gray-500 dark:text-gray-400">{campaign.status.toLowerCase()} · {formatDateTime(campaign.createdAt, t('dashboard.justNow'))}</p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold text-gray-500 dark:bg-slate-800 dark:text-gray-400">
+                          {campaign.recipientCount}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">{campaign.senderName}</p>
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        <MiniMetric label={t('dashboard.delivered')} value={`${campaign.deliveredCount}`} />
+                        <MiniMetric label={t('dashboard.read')} value={`${campaign.readCount}`} />
+                        <MiniMetric label={t('dashboard.replied')} value={`${campaign.repliedCount}`} />
+                      </div>
+                    </div>
+                  )) : (
+                    <EmptyState message={t('dashboard.broadcastEmpty')} />
+                  )}
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
                   <table className="w-full min-w-[760px] text-left">
                     <thead>
                       <tr className="border-b border-gray-200 dark:border-slate-800 text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
@@ -684,15 +708,15 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon: Icon, tone,
   };
 
   return (
-    <SectionCard className="p-5">
+    <SectionCard className="p-3.5 sm:p-5">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">{label}</p>
-          <p className="mt-3 text-3xl font-semibold text-gray-900 dark:text-white">{value}</p>
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{helper}</p>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 sm:text-sm">{label}</p>
+          <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white sm:mt-3 sm:text-3xl">{value}</p>
+          <p className="mt-2 hidden text-xs text-gray-500 dark:text-gray-400 sm:block">{helper}</p>
         </div>
-        <div className={cn('rounded-2xl p-3', toneClasses[tone])}>
-          <Icon className="w-5 h-5" />
+        <div className={cn('rounded-xl p-2 sm:rounded-2xl sm:p-3', toneClasses[tone])}>
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
       </div>
     </SectionCard>
@@ -700,13 +724,13 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon: Icon, tone,
 };
 
 function SectionCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn('rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-6 transition-colors', className)}>{children}</div>;
+  return <div className={cn('rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-4 md:p-6 transition-colors', className)}>{children}</div>;
 }
 
 function SectionHeader({ title, description }: { title: string; description: string }) {
   return (
-    <div className="mb-5">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
+    <div className="mb-4 md:mb-5">
+      <h2 className="text-base font-semibold text-gray-900 dark:text-white md:text-lg">{title}</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{description}</p>
     </div>
   );
