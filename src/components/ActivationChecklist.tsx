@@ -1,6 +1,18 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import axios from 'axios';
-import { CheckCircle2, CreditCard, Loader2, MailCheck, MessageSquarePlus, Route, Sparkles } from 'lucide-react';
+import {
+  BellRing,
+  CalendarCheck,
+  CheckCircle2,
+  CreditCard,
+  Loader2,
+  MailCheck,
+  MessageSquarePlus,
+  Route,
+  Scissors,
+  Sparkles,
+  UserPlus,
+} from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import { cn } from '../lib/utils';
@@ -28,12 +40,18 @@ export default function ActivationChecklist({ className }: { className?: string 
   const navigate = useNavigate();
   const [channelCount, setChannelCount] = useState<number | null>(null);
   const [chatbotCount, setChatbotCount] = useState<number | null>(null);
+  const [serviceCount, setServiceCount] = useState<number | null>(null);
+  const [staffCount, setStaffCount] = useState<number | null>(null);
+  const [reminderRuleCount, setReminderRuleCount] = useState<number | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     if (!hasActiveSubscription || !activeWorkspace) {
       setChannelCount(null);
       setChatbotCount(null);
+      setServiceCount(null);
+      setStaffCount(null);
+      setReminderRuleCount(null);
       return;
     }
 
@@ -41,17 +59,29 @@ export default function ActivationChecklist({ className }: { className?: string 
     Promise.all([
       axios.get(`/api/numbers?workspaceId=${activeWorkspace.id}`),
       axios.get(`/api/chatbots?workspaceId=${activeWorkspace.id}`),
-    ]).then(([numbersRes, chatbotsRes]) => {
+      axios.get(`/api/services?workspaceId=${activeWorkspace.id}`),
+      axios.get(`/api/staff?workspaceId=${activeWorkspace.id}`),
+      axios.get(`/api/reminder-rules?workspaceId=${activeWorkspace.id}`),
+    ]).then(([numbersRes, chatbotsRes, servicesRes, staffRes, reminderRulesRes]) => {
       if (!isMounted) return;
       const numbers = Array.isArray(numbersRes.data) ? numbersRes.data.length : 0;
       const bots = Array.isArray(chatbotsRes.data) ? chatbotsRes.data.length : 0;
+      const services = Array.isArray(servicesRes.data) ? servicesRes.data.filter((service) => service.enabled !== false).length : 0;
+      const staff = Array.isArray(staffRes.data) ? staffRes.data.filter((member) => member.enabled !== false).length : 0;
+      const reminderRules = Array.isArray(reminderRulesRes.data) ? reminderRulesRes.data.filter((rule) => rule.enabled !== false).length : 0;
       setChannelCount(numbers);
       setChatbotCount(bots);
+      setServiceCount(services);
+      setStaffCount(staff);
+      setReminderRuleCount(reminderRules);
     }).catch((error) => {
       console.error('Failed to load activation checklist data', error);
       if (isMounted) {
         setChannelCount(0);
         setChatbotCount(0);
+        setServiceCount(0);
+        setStaffCount(0);
+        setReminderRuleCount(0);
       }
     });
 
@@ -106,9 +136,45 @@ export default function ActivationChecklist({ className }: { className?: string 
       icon: Route,
     },
     {
+      id: 'service',
+      title: 'Create a service',
+      description: 'Add the first bookable service with duration and price so customers can choose what they need.',
+      complete: hasFullAccess && (serviceCount || 0) > 0,
+      ctaLabel: hasFullAccess && (serviceCount || 0) === 0 ? 'Open appointments' : undefined,
+      ctaHref: hasFullAccess && (serviceCount || 0) === 0 ? '/app/appointments' : undefined,
+      icon: Scissors,
+    },
+    {
+      id: 'staff',
+      title: 'Add staff availability',
+      description: 'Add at least one staff member so the booking page can show real appointment slots.',
+      complete: hasFullAccess && (staffCount || 0) > 0,
+      ctaLabel: hasFullAccess && (staffCount || 0) === 0 ? 'Add staff' : undefined,
+      ctaHref: hasFullAccess && (staffCount || 0) === 0 ? '/app/appointments' : undefined,
+      icon: UserPlus,
+    },
+    {
+      id: 'booking',
+      title: 'Test the booking link',
+      description: 'Open the public booking page and make one test booking before sharing it with customers.',
+      complete: hasFullAccess && (serviceCount || 0) > 0 && (staffCount || 0) > 0,
+      ctaLabel: hasFullAccess && (serviceCount || 0) > 0 && (staffCount || 0) > 0 ? 'Open booking page' : undefined,
+      ctaHref: hasFullAccess && (serviceCount || 0) > 0 && (staffCount || 0) > 0 ? `/book/${activeWorkspace.slug}` : undefined,
+      icon: CalendarCheck,
+    },
+    {
+      id: 'reminders',
+      title: 'Set reminder rules',
+      description: 'Create at least one reminder rule so appointments get timely follow-ups and fewer no-shows.',
+      complete: hasFullAccess && (reminderRuleCount || 0) > 0,
+      ctaLabel: hasFullAccess && (reminderRuleCount || 0) === 0 ? 'Open reminders' : undefined,
+      ctaHref: hasFullAccess && (reminderRuleCount || 0) === 0 ? '/app/appointments' : undefined,
+      icon: BellRing,
+    },
+    {
       id: 'bot',
       title: 'Create your first AI bot',
-      description: 'Add instructions and assign a bot so incoming leads can get instant answers.',
+      description: 'Optional: add instructions and assign a bot so incoming leads can get instant answers.',
       complete: hasFullAccess && (chatbotCount || 0) > 0,
       ctaLabel: hasFullAccess && (chatbotCount || 0) === 0 ? 'Open chatbots' : undefined,
       ctaHref: hasFullAccess && (chatbotCount || 0) === 0 ? '/app/chatbots' : undefined,
@@ -118,9 +184,10 @@ export default function ActivationChecklist({ className }: { className?: string 
 
   const completedCount = steps.filter((step) => step.complete).length;
   const allComplete = completedCount === steps.length;
+  const nextStep = steps.find((step) => !step.complete && (step.ctaHref || step.ctaAction));
 
   return (
-    <section className={cn('rounded-3xl border border-[#25D366]/15 bg-white p-6 shadow-sm dark:bg-slate-900 dark:border-[#25D366]/10', className)}>
+    <section className={cn('rounded-3xl border border-[#25D366]/15 bg-white p-4 shadow-sm dark:bg-slate-900 dark:border-[#25D366]/10 md:p-6', className)}>
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full bg-[#25D366]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#25D366]">
@@ -135,13 +202,35 @@ export default function ActivationChecklist({ className }: { className?: string 
               : `Complete ${steps.length - completedCount} more step${steps.length - completedCount === 1 ? '' : 's'} to move from setup into daily operations.`}
           </p>
         </div>
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#25D366]/10 text-[#25D366]">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#25D366]/10 text-[#25D366]">
           <div className="text-center">
             <div className="text-xl font-bold">{completedCount}/{steps.length}</div>
             <div className="text-[10px] font-bold uppercase tracking-wider">Done</div>
           </div>
         </div>
       </div>
+
+      {nextStep && (
+        <div className="mt-5 rounded-2xl border border-[#25D366]/15 bg-[#25D366]/5 p-4 dark:border-[#25D366]/10 dark:bg-[#25D366]/10">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#128C7E] dark:text-[#4ADE80]">Next recommended step</p>
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-semibold text-gray-900 dark:text-white">{nextStep.title}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{nextStep.description}</p>
+            </div>
+            {nextStep.ctaHref ? (
+              <Link to={nextStep.ctaHref} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#128C7E]">
+                {nextStep.ctaLabel}
+              </Link>
+            ) : (
+              <button onClick={() => nextStep.ctaAction?.()} disabled={isVerifying} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#128C7E] disabled:opacity-60">
+                {nextStep.ctaLabel}
+                {isVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         {steps.map((step) => {
