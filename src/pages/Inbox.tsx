@@ -34,7 +34,7 @@ import {
 import { cn, getDisplayName } from '../lib/utils';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
-import { generateReplySuggestions, summarizeConversation } from '../services/aiService';
+import { summarizeConversation } from '../services/aiService';
 import ActivationChecklist from '../components/ActivationChecklist';
 import { toast } from 'sonner';
 import ContactListPicker from '../components/ContactListPicker';
@@ -326,8 +326,6 @@ export default function Inbox() {
   const [isInternalMode, setIsInternalMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [rightTab, setRightTab] = useState<'info' | 'tasks' | 'activity'>('info');
@@ -616,39 +614,8 @@ export default function Inbox() {
             : conv
         )
       );
-      fetchSuggestions(id, data);
     } catch (error) {
       console.error('Failed to fetch messages', error);
-    }
-  };
-
-  const fetchSuggestions = async (id: string, messageList?: Message[]) => {
-    if (isInternalMode) return;
-    setIsLoadingSuggestions(true);
-    try {
-      // Format history for AI
-      const history = (messageList || messages)
-        .filter(m => !m.isInternal)
-        .map(m => ({
-          content: m.content,
-          senderType: m.senderType
-        }));
-      
-      if (!activeWorkspace?.id) {
-        throw new Error('Workspace is required to generate AI suggestions');
-      }
-
-      const data = await generateReplySuggestions(activeWorkspace.id, history);
-      setSuggestions(data);
-    } catch (error) {
-      console.error('Failed to fetch suggestions', error);
-      if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.error || 'Could not generate AI suggestions');
-      } else {
-        toast.error('Could not generate AI suggestions');
-      }
-    } finally {
-      setIsLoadingSuggestions(false);
     }
   };
 
@@ -775,7 +742,6 @@ export default function Inbox() {
       setReplyToMessage(null);
       loadConversationDetails(selectedConv.id);
       fetchConversations(selectedConv.id);
-      fetchSuggestions(selectedConv.id);
     } catch (error) {
       console.error('Failed to send message', error);
       if (axios.isAxiosError(error)) {
@@ -1646,30 +1612,7 @@ export default function Inbox() {
                 </button>
               </div>
 
-              {!isInternalMode && (
-                <div className="mb-3 flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0">
-                  {isLoadingSuggestions ? (
-                    <div className="flex items-center gap-2 text-[10px] text-gray-400 animate-pulse px-2">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Generating AI suggestions...
-                    </div>
-                  ) : (
-                    suggestions.map((suggestion, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setNewMessage(suggestion)}
-                        className={cn(
-                          "shrink-0 px-3 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-full text-xs text-gray-600 dark:text-gray-300 hover:border-[#25D366] hover:text-[#25D366] transition-all shadow-sm md:py-1.5"
-                        )}
-                      >
-                        {suggestion}
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-
-                {pendingAttachments.length > 0 && (
+              {pendingAttachments.length > 0 && (
                   <div className="mb-3 flex flex-wrap gap-2">
                     {pendingAttachments.map((attachment) => (
                       <div

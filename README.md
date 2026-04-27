@@ -97,6 +97,7 @@ The repo also includes an App Platform spec:
 - **Retry-friendly scheduler** - failed rule sends remain visible in the timeline and can retry on a later scheduler tick; only successfully sent logs suppress future sends for that rule/appointment pair.
 - **Mobile appointments polish** - Appointments now uses phone-friendly cards instead of a horizontal table on small screens, with compact filters and a bottom-sheet reminder timeline modal.
 - **Mobile inbox polish** - Inbox now opens to the conversation list on phones, has a clear Chats back button, wider message bubbles, touch-sized composer controls, a full-width template picker, and a full-screen contact panel on mobile.
+- **Inbox reply composer cleanup** - automatic AI reply suggestion chips were removed from chat conversations so the composer stays focused on the agent's message.
 - **Mobile contacts polish** - Contacts now uses phone-friendly cards on small screens, a compact horizontal list bar, easier create/import actions, and tappable selection for bulk list actions.
 - **Mobile CRM polish** - CRM now uses a phone-friendly stage tab view with lead cards, deal value editing, and a move-stage control while keeping the desktop pipeline board unchanged.
 - **Contacts list removal fix** - when viewing a specific contact list, selecting contacts and clicking remove now removes them from the current list without requiring the list picker first.

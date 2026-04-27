@@ -78,6 +78,7 @@ npx vite build       # Production build
 - Rules scheduler now records failed sends durably and retries later; only successful `SENT` logs suppress future sends for that rule/appointment pair.
 - Appointments mobile list now renders phone-friendly cards with compact filters and a bottom-sheet reminder timeline modal.
 - Inbox mobile view now opens to the conversation list on phones, has a clear Chats back button, wider message bubbles, touch-sized composer controls, a full-width template picker, and a full-screen contact panel.
+- Inbox no longer auto-generates AI reply suggestion chips when a conversation opens, keeping the reply composer focused on the agent's message.
 - Contacts mobile view now renders phone-friendly cards with a compact horizontal list bar, easier create/import actions, and tappable selection for bulk list actions.
 - CRM mobile view now renders a phone-friendly stage tab layout with lead cards, deal value editing, and a move-stage control while preserving the desktop pipeline board.
 - Contacts bulk removal now infers the current selected contact list, so "remove from list" works without selecting the same list again in the picker.
