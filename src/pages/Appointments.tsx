@@ -20,6 +20,8 @@ import {
   List,
   Calendar,
   Copy,
+  Send,
+  AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
@@ -91,6 +93,21 @@ interface ReminderRule {
   enabled: boolean;
 }
 
+interface ReminderTimelineItem {
+  id: string;
+  ruleId: string | null;
+  ruleName: string;
+  triggerType: 'BEFORE_START' | 'AFTER_END';
+  offsetMinutes: number;
+  templateName?: string | null;
+  messageBody?: string | null;
+  status: 'SCHEDULED' | 'SENT' | 'FAILED' | 'MISSED';
+  scheduledFor: string;
+  sentAt?: string | null;
+  errorMessage?: string | null;
+  source: 'RULE' | 'LEGACY';
+}
+
 type Tab = 'appointments' | 'services' | 'staff' | 'reminders';
 
 const STATUS_OPTIONS = ['SCHEDULED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const;
@@ -101,6 +118,13 @@ const STATUS_COLORS: Record<string, string> = {
   COMPLETED: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
   CANCELLED: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
   NO_SHOW: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+};
+
+const REMINDER_STATUS_STYLES: Record<ReminderTimelineItem['status'], string> = {
+  SCHEDULED: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800',
+  SENT: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800',
+  FAILED: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800',
+  MISSED: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800',
 };
 
 const DAY_LABELS = [
@@ -129,6 +153,18 @@ function formatTime(iso: string) {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Dubai' });
+}
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Dubai',
+  });
 }
 
 function toInputDate(d: Date) {
@@ -177,6 +213,7 @@ export default function Appointments() {
   const [showBooking, setShowBooking] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showStaffModal, setShowStaffModal] = useState(false);
+  const [timelineAppointment, setTimelineAppointment] = useState<Appointment | null>(null);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [saving, setSaving] = useState(false);
@@ -740,6 +777,13 @@ export default function Appointments() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <button
+                            onClick={() => setTimelineAppointment(appt)}
+                            className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
+                            title="Reminder timeline"
+                          >
+                            <Clock className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => deleteAppointment(appt.id)}
                             className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"
                             title="Delete"
@@ -766,6 +810,7 @@ export default function Appointments() {
               onEventDrop={handleEventDrop}
               onStatusChange={updateAppointmentStatus}
               onDelete={deleteAppointment}
+              onOpenTimeline={setTimelineAppointment}
             />
           )}
         </div>
@@ -958,6 +1003,14 @@ export default function Appointments() {
       )}
 
       {/* ═══════════════ SERVICE MODAL ═══════════════ */}
+      {timelineAppointment && wsId && (
+        <ReminderTimelineModal
+          wsId={wsId}
+          appointment={timelineAppointment}
+          onClose={() => setTimelineAppointment(null)}
+        />
+      )}
+
       {showServiceModal && (
         <ServiceModal
           wsId={wsId}
@@ -1196,6 +1249,122 @@ export default function Appointments() {
 // APPOINTMENT CALENDAR (react-big-calendar + drag-and-drop)
 // ═══════════════════════════════════════════════════════════════════════════
 
+function ReminderTimelineModal({
+  wsId,
+  appointment,
+  onClose,
+}: {
+  wsId: string;
+  appointment: Appointment;
+  onClose: () => void;
+}) {
+  const [items, setItems] = useState<ReminderTimelineItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    axios
+      .get(`/api/appointments/${appointment.id}/reminder-timeline?workspaceId=${wsId}`)
+      .then((res) => {
+        if (mounted) setItems(res.data.timeline || []);
+      })
+      .catch(() => toast.error('Failed to load reminder timeline'))
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [appointment.id, wsId]);
+
+  const counts = items.reduce(
+    (acc, item) => ({ ...acc, [item.status]: (acc[item.status] || 0) + 1 }),
+    {} as Record<ReminderTimelineItem['status'], number>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-2xl max-h-[88vh] overflow-hidden rounded-lg bg-white dark:bg-slate-900 shadow-xl border border-gray-200 dark:border-slate-700">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-200 dark:border-slate-700 px-5 py-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Reminder timeline</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {appointment.contact?.name || appointment.contact?.phoneNumber || 'Unknown'} · {appointment.service?.name} · {formatDateTime(appointment.startTime)}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-4 border-b border-gray-200 dark:border-slate-700 text-center text-xs">
+          {(['SCHEDULED', 'SENT', 'FAILED', 'MISSED'] as ReminderTimelineItem['status'][]).map((status) => (
+            <div key={status} className="px-3 py-3">
+              <p className="font-semibold text-gray-900 dark:text-white">{counts[status] || 0}</p>
+              <p className="text-gray-500 dark:text-gray-400">{status.replace('_', ' ')}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="max-h-[58vh] overflow-y-auto p-5">
+          {loading ? (
+            <div className="flex items-center justify-center py-12 text-gray-500">
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              Loading timeline
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+              <Clock className="w-10 h-10 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No reminder rules are active</p>
+              <p className="text-sm mt-1">Create a reminder rule to see scheduled sends here.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {items.map((item) => (
+                <div key={item.id} className="flex gap-3 rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                  <div className={cn(
+                    'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border',
+                    REMINDER_STATUS_STYLES[item.status]
+                  )}>
+                    {item.status === 'FAILED' ? <AlertCircle className="w-4 h-4" /> : item.status === 'SENT' ? <Send className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-gray-900 dark:text-white">{item.ruleName}</p>
+                      <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-medium', REMINDER_STATUS_STYLES[item.status])}>
+                        {item.status}
+                      </span>
+                      {item.source === 'LEGACY' && (
+                        <span className="rounded-full bg-gray-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] text-gray-500 dark:text-gray-400">Legacy</span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                      Scheduled for {formatDateTime(item.scheduledFor)}
+                    </p>
+                    {item.sentAt && item.status === 'SENT' && (
+                      <p className="text-xs text-gray-500 dark:text-gray-500">Sent at {formatDateTime(item.sentAt)}</p>
+                    )}
+                    {item.templateName && (
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Template: {item.templateName}</p>
+                    )}
+                    {item.errorMessage && (
+                      <p className="mt-2 rounded-md bg-red-50 dark:bg-red-900/20 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                        {item.errorMessage}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppointmentCalendar({
   appointments,
   calendarDate,
@@ -1205,6 +1374,7 @@ function AppointmentCalendar({
   onEventDrop,
   onStatusChange,
   onDelete,
+  onOpenTimeline,
 }: {
   appointments: Appointment[];
   calendarDate: Date;
@@ -1214,6 +1384,7 @@ function AppointmentCalendar({
   onEventDrop: (args: any) => void;
   onStatusChange: (id: string, status: string) => void;
   onDelete: (id: string) => void;
+  onOpenTimeline: (appointment: Appointment) => void;
 }) {
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
@@ -1311,6 +1482,13 @@ function AppointmentCalendar({
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => onOpenTimeline(selectedAppt)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500 dark:text-gray-400 transition-colors"
+                title="Reminder timeline"
+              >
+                <Clock className="w-3.5 h-3.5" />
+              </button>
               <select
                 value={selectedAppt.status}
                 onChange={(e) => {

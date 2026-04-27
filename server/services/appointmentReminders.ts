@@ -159,8 +159,9 @@ async function runRulesBasedReminders() {
           ...(rule.triggerType === "BEFORE_START"
             ? { startTime: { gte: windowStart, lte: windowEnd } }
             : { endTime:   { gte: windowStart, lte: windowEnd } }),
-          // Exclude appointments already handled by this rule
-          reminderLogs: { none: { ruleId: rule.id } },
+          // Exclude appointments already successfully handled by this rule.
+          // Failed attempts remain visible in the timeline and can retry on the next tick.
+          reminderLogs: { none: { ruleId: rule.id, status: "SENT" } },
         },
         include: {
           contact:   { select: { id: true, name: true, phoneNumber: true } },
@@ -186,6 +187,9 @@ async function runRulesBasedReminders() {
         const startTime    = new Date(appt.startTime);
         const timeStr      = formatReminderTime(startTime);
         const dateStr      = `${formatReminderDate(startTime)} at ${timeStr}`;
+        const scheduledFor = rule.triggerType === "BEFORE_START"
+          ? new Date(new Date(appt.startTime).getTime() - rule.offsetMinutes * 60000)
+          : new Date(new Date(appt.endTime).getTime() + rule.offsetMinutes * 60000);
 
         try {
           let messageContent: string;
@@ -229,8 +233,18 @@ async function runRulesBasedReminders() {
           // Mark as sent — upsert is safe against race conditions
           await prisma.appointmentReminderLog.upsert({
             where: { ruleId_appointmentId: { ruleId: rule.id, appointmentId: appt.id } },
-            update: { sentAt: new Date() },
-            create: { ruleId: rule.id, appointmentId: appt.id },
+            update: {
+              status: "SENT",
+              scheduledFor,
+              sentAt: new Date(),
+              errorMessage: null,
+            },
+            create: {
+              ruleId: rule.id,
+              appointmentId: appt.id,
+              status: "SENT",
+              scheduledFor,
+            },
           });
 
           await saveReminderMessage(appt.workspaceId, appt.contact.id, messageContent, rule.name);
@@ -244,6 +258,22 @@ async function runRulesBasedReminders() {
           });
           console.log(`[Reminders Rule "${rule.name}"] ✅ ${appt.id} → ${appt.contact.phoneNumber}`);
         } catch (err: any) {
+          await prisma.appointmentReminderLog.upsert({
+            where: { ruleId_appointmentId: { ruleId: rule.id, appointmentId: appt.id } },
+            update: {
+              status: "FAILED",
+              scheduledFor,
+              sentAt: new Date(),
+              errorMessage: String(err?.message || err).slice(0, 500),
+            },
+            create: {
+              ruleId: rule.id,
+              appointmentId: appt.id,
+              status: "FAILED",
+              scheduledFor,
+              errorMessage: String(err?.message || err).slice(0, 500),
+            },
+          });
           console.error(`[Reminders Rule "${rule.name}"] ❌ ${appt.id}:`, err?.message || err);
         }
       }

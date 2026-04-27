@@ -89,6 +89,14 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### April 27, 2026 - Phase 2c: Per-appointment reminder timeline
+
+- **Reminder timeline modal in Appointments** - each appointment row and calendar event now has a clock action that opens a timeline showing scheduled, sent, failed, and missed reminder attempts for that booking.
+- **New endpoint**: `GET /api/appointments/:id/reminder-timeline?workspaceId=...` - returns active reminder-rule schedule entries plus any legacy 24h/1h/follow-up sends for the appointment.
+- **Durable failure tracking** - `AppointmentReminderLog` now stores `status`, `scheduledFor`, and `errorMessage`, so Meta/template/session failures are visible instead of only appearing in server logs.
+- **Retry-friendly scheduler** - failed rule sends remain visible in the timeline and can retry on a later scheduler tick; only successfully sent logs suppress future sends for that rule/appointment pair.
+- **Deploy checklist**: `npx prisma db push` (adds reminder log status fields) -> `npx prisma generate` -> `npx vite build` -> `pm2 restart ecosystem.config.cjs`.
+
 ### April 25, 2026 — Bug Fixes: Appointments page, template setup, timezone, Business Name save
 
 - **Fixed reminder rules not firing when template specified** — scheduler checked local DB approval status (stale) instead of trying the template directly; also fixed wrong parameter order (service name was in business name slot) across all 3 reminder templates

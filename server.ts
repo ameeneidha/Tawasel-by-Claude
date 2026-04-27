@@ -6303,6 +6303,122 @@ async function startServer() {
     }
   });
 
+  app.get("/api/appointments/:id/reminder-timeline", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
+    try {
+      const workspaceId = req.query.workspaceId as string;
+      const appointment = await prisma.appointment.findFirst({
+        where: { id: req.params.id, workspaceId },
+        include: {
+          contact: { select: { name: true, phoneNumber: true } },
+          service: { select: { name: true } },
+          staff: { select: { name: true } },
+          reminderLogs: {
+            include: { rule: true },
+            orderBy: { scheduledFor: "asc" },
+          },
+        },
+      });
+
+      if (!appointment) return res.status(404).json({ error: "Appointment not found" });
+
+      const rules = await prisma.appointmentReminderRule.findMany({
+        where: { workspaceId, enabled: true },
+        orderBy: [{ triggerType: "asc" }, { offsetMinutes: "desc" }],
+      });
+
+      const logByRuleId = new Map(appointment.reminderLogs.map((log) => [log.ruleId, log]));
+      const now = new Date();
+      const missedAfterMs = 20 * 60 * 1000;
+      const ruleItems = rules.map((rule) => {
+        const scheduledFor = rule.triggerType === "BEFORE_START"
+          ? new Date(appointment.startTime.getTime() - rule.offsetMinutes * 60 * 1000)
+          : new Date(appointment.endTime.getTime() + rule.offsetMinutes * 60 * 1000);
+        const log = logByRuleId.get(rule.id);
+        const status = log?.status || (scheduledFor.getTime() + missedAfterMs < now.getTime() ? "MISSED" : "SCHEDULED");
+
+        return {
+          id: log?.id || `scheduled-${rule.id}`,
+          ruleId: rule.id,
+          ruleName: rule.name,
+          triggerType: rule.triggerType,
+          offsetMinutes: rule.offsetMinutes,
+          templateName: rule.templateName,
+          messageBody: rule.messageBody,
+          status,
+          scheduledFor: (log?.scheduledFor || scheduledFor).toISOString(),
+          sentAt: log?.sentAt?.toISOString() || null,
+          errorMessage: log?.errorMessage || null,
+          source: "RULE",
+        };
+      });
+      const legacyStatus = (sentAt: Date | null, scheduledFor: Date) =>
+        sentAt ? "SENT" : (scheduledFor.getTime() + missedAfterMs < now.getTime() ? "MISSED" : "SCHEDULED");
+
+      const legacyItems = [
+        (rules.length === 0 || appointment.reminderSentAt) && {
+          id: "legacy-24h",
+          ruleId: null,
+          ruleName: "Legacy 24h reminder",
+          triggerType: "BEFORE_START",
+          offsetMinutes: 1440,
+          templateName: "tawasel_reminder_24h",
+          messageBody: null,
+          status: legacyStatus(appointment.reminderSentAt, new Date(appointment.startTime.getTime() - 1440 * 60 * 1000)),
+          scheduledFor: new Date(appointment.startTime.getTime() - 1440 * 60 * 1000).toISOString(),
+          sentAt: appointment.reminderSentAt?.toISOString() || null,
+          errorMessage: null,
+          source: "LEGACY",
+        },
+        (rules.length === 0 || appointment.reminder1hSentAt) && {
+          id: "legacy-1h",
+          ruleId: null,
+          ruleName: "Legacy 1h reminder",
+          triggerType: "BEFORE_START",
+          offsetMinutes: 60,
+          templateName: "tawasel_reminder_1h",
+          messageBody: null,
+          status: legacyStatus(appointment.reminder1hSentAt, new Date(appointment.startTime.getTime() - 60 * 60 * 1000)),
+          scheduledFor: new Date(appointment.startTime.getTime() - 60 * 60 * 1000).toISOString(),
+          sentAt: appointment.reminder1hSentAt?.toISOString() || null,
+          errorMessage: null,
+          source: "LEGACY",
+        },
+        (rules.length === 0 || appointment.followUpSentAt) && {
+          id: "legacy-follow-up",
+          ruleId: null,
+          ruleName: "Legacy post-visit follow-up",
+          triggerType: "AFTER_END",
+          offsetMinutes: 30,
+          templateName: null,
+          messageBody: null,
+          status: legacyStatus(appointment.followUpSentAt, new Date(appointment.endTime.getTime() + 30 * 60 * 1000)),
+          scheduledFor: new Date(appointment.endTime.getTime() + 30 * 60 * 1000).toISOString(),
+          sentAt: appointment.followUpSentAt?.toISOString() || null,
+          errorMessage: null,
+          source: "LEGACY",
+        },
+      ].filter(Boolean);
+
+      res.json({
+        appointment: {
+          id: appointment.id,
+          startTime: appointment.startTime,
+          endTime: appointment.endTime,
+          status: appointment.status,
+          contact: appointment.contact,
+          service: appointment.service,
+          staff: appointment.staff,
+        },
+        timeline: [...ruleItems, ...legacyItems].sort((a: any, b: any) =>
+          new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()
+        ),
+      });
+    } catch (error) {
+      console.error("[appointments:reminder-timeline]", error);
+      res.status(500).json({ error: "Failed to load reminder timeline" });
+    }
+  });
+
   app.post("/api/appointments", requireAuth, requireSubscribedWorkspaceFromBody, async (req: any, res) => {
     const { workspaceId, contactId, serviceId, staffId, startTime, notes } = req.body;
 
