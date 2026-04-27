@@ -536,11 +536,11 @@ export default function Appointments() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <CalendarCheck className="w-6 h-6 text-[#25D366]" />
             {t('appointments.title')}
           </h1>
@@ -570,7 +570,7 @@ export default function Appointments() {
 
       {/* ═══════════════ TEMPLATE SETUP BANNER ═══════════════ */}
       {templateStatus === 'missing' && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20 sm:flex-row sm:items-start">
           <Sparkles className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
@@ -581,12 +581,12 @@ export default function Appointments() {
               We'll create them in your account automatically.
             </p>
           </div>
-          <div className="shrink-0 flex items-center gap-2">
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
             {waNumbers.length >= 1 ? (
               <select
                 value={selectedNumberId}
                 onChange={e => setSelectedNumberId(e.target.value)}
-                className="text-xs border border-amber-300 dark:border-amber-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                className="w-full rounded-lg border border-amber-300 bg-white px-2 py-2 text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-amber-400 dark:border-amber-700 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:py-1.5"
               >
                 {waNumbers.map(n => (
                   <option key={n.id} value={n.id}>{n.phoneNumber}</option>
@@ -598,7 +598,7 @@ export default function Appointments() {
             <button
               onClick={setupTemplates}
               disabled={settingUpTemplates || waNumbers.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium disabled:opacity-60 transition-colors"
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-60 sm:py-1.5"
             >
               {settingUpTemplates ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               {settingUpTemplates ? 'Submitting…' : 'Set Up Now'}
@@ -608,7 +608,7 @@ export default function Appointments() {
       )}
 
       {templateStatus === 'pending' && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+        <div className="flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20 sm:flex-row sm:items-center">
           <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
           <p className="text-sm text-blue-700 dark:text-blue-300">
             WhatsApp templates are pending Meta approval — usually takes a few minutes. Confirmations & reminders will start sending automatically once approved.
@@ -620,7 +620,7 @@ export default function Appointments() {
       )}
 
       {templateStatus === 'ready' && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-xs text-green-700 dark:text-green-300">
+        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           WhatsApp templates active — booking confirmations, 24h reminders, and 1h reminders are enabled.
         </div>
@@ -1482,38 +1482,51 @@ function AppointmentCalendar({
     setSelectedAppt(event.resource as Appointment);
   }, []);
 
+  const popoverStyle = popoverPos && window.innerWidth >= 640
+    ? { top: Math.min(popoverPos.top, window.innerHeight - 260), left: Math.min(popoverPos.left, window.innerWidth - 300) }
+    : undefined;
+
   return (
     <div className="relative">
       {/* Calendar styles override for dark mode compatibility */}
       <style>{`
         .rbc-calendar { font-family: inherit; }
+        .rbc-toolbar { gap: 8px; }
         .rbc-toolbar button { font-size: 13px; padding: 4px 12px; border-radius: 8px; }
         .rbc-toolbar button.rbc-active { background-color: #25D366; border-color: #25D366; color: #fff; }
         .rbc-today { background-color: #25D36610; }
         .rbc-event:focus { outline: none; }
         .rbc-show-more { color: #25D366; font-size: 11px; }
+        @media (max-width: 639px) {
+          .rbc-toolbar { align-items: stretch; flex-direction: column; }
+          .rbc-toolbar-label { font-size: 14px; font-weight: 700; padding: 4px 0; }
+          .rbc-btn-group { display: grid; grid-auto-flow: column; }
+          .rbc-btn-group button { padding: 8px 10px; }
+        }
       `}</style>
 
-      <div style={{ height: 620 }}>
-        <DnDCalendar
-          localizer={localizer}
-          events={events}
-          date={calendarDate}
-          view={calendarView}
-          onNavigate={onNavigate}
-          onView={onView}
-          onEventDrop={onEventDrop}
-          onEventResize={onEventDrop}
-          onSelectEvent={handleSelectEvent}
-          eventPropGetter={eventPropGetter}
-          resizable
-          draggableAccessor={() => true}
-          views={[Views.MONTH, Views.WEEK, Views.DAY]}
-          defaultView={Views.WEEK}
-          step={30}
-          timeslots={1}
-          popup
-        />
+      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900 sm:p-3">
+        <div className="h-[540px] min-w-[720px] sm:h-[620px] sm:min-w-0">
+          <DnDCalendar
+            localizer={localizer}
+            events={events}
+            date={calendarDate}
+            view={calendarView}
+            onNavigate={onNavigate}
+            onView={onView}
+            onEventDrop={onEventDrop}
+            onEventResize={onEventDrop}
+            onSelectEvent={handleSelectEvent}
+            eventPropGetter={eventPropGetter}
+            resizable
+            draggableAccessor={() => true}
+            views={[Views.MONTH, Views.WEEK, Views.DAY]}
+            defaultView={Views.WEEK}
+            step={30}
+            timeslots={1}
+            popup
+          />
+        </div>
       </div>
 
       {/* Detail popover on event click */}
@@ -1521,8 +1534,8 @@ function AppointmentCalendar({
         <>
           <div className="fixed inset-0 z-40" onClick={() => setSelectedAppt(null)} />
           <div
-            className="fixed z-50 w-72 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-gray-200 dark:border-slate-700 p-4"
-            style={{ top: Math.min(popoverPos.top, window.innerHeight - 260), left: Math.min(popoverPos.left, window.innerWidth - 300) }}
+            className="fixed inset-x-3 bottom-3 z-50 rounded-xl border border-gray-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900 sm:inset-x-auto sm:bottom-auto sm:w-72"
+            style={popoverStyle}
           >
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -1685,19 +1698,19 @@ function BookingModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" onClick={onClose}>
       <div
-        className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        className="flex h-[100dvh] w-full flex-col bg-white shadow-xl dark:bg-gray-900 sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700 sm:px-6 sm:py-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Book Appointment</h2>
-          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+          <button onClick={onClose} className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
           {/* Contact */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer *</label>
@@ -1706,12 +1719,12 @@ function BookingModal({
               value={contactSearch}
               onChange={(e) => setContactSearch(e.target.value)}
               placeholder="Search contacts..."
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white mb-2"
+              className="mb-2 w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:rounded-lg sm:py-2"
             />
             <select
               value={contactId}
               onChange={(e) => setContactId(e.target.value)}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:rounded-lg sm:py-2"
             >
               <option value="">Select a contact</option>
               {filteredContacts.map((c) => (
@@ -1728,7 +1741,7 @@ function BookingModal({
             <select
               value={serviceId}
               onChange={(e) => { setServiceId(e.target.value); setStaffId(''); setSlot(''); }}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:rounded-lg sm:py-2"
             >
               <option value="">Select a service</option>
               {services.map((s) => (
@@ -1745,7 +1758,7 @@ function BookingModal({
             <select
               value={staffId}
               onChange={(e) => { setStaffId(e.target.value); setSlot(''); }}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:rounded-lg sm:py-2"
             >
               <option value="">Select staff</option>
               {eligibleStaff.map((s) => (
@@ -1768,7 +1781,7 @@ function BookingModal({
               type="date"
               value={date}
               onChange={(e) => { setDate(e.target.value); setSlot(''); }}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:rounded-lg sm:py-2"
             />
           </div>
 
@@ -1789,13 +1802,13 @@ function BookingModal({
                   : ' — all slots are booked'}
               </p>
             ) : (
-              <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+              <div className="grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:max-h-40 sm:grid-cols-4">
                 {slots.map((s) => (
                   <button
                     key={s}
                     onClick={() => setSlot(s)}
                     className={cn(
-                      'px-2 py-1.5 text-xs rounded-lg border transition-colors',
+                      'rounded-xl border px-2 py-3 text-sm transition-colors sm:rounded-lg sm:py-1.5 sm:text-xs',
                       slot === s
                         ? 'border-[#25D366] bg-[#25D366]/10 text-[#25D366] font-medium'
                         : 'border-gray-200 dark:border-gray-700 hover:border-[#25D366] text-gray-700 dark:text-gray-300'
@@ -1816,19 +1829,19 @@ function BookingModal({
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder="Optional notes..."
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white resize-none"
+              className="w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:rounded-lg sm:py-2"
             />
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-          <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-gray-200 px-4 py-3 dark:border-gray-700 sm:flex-row sm:justify-end sm:gap-3 sm:px-6 sm:py-4">
+          <button onClick={onClose} className="rounded-xl border border-gray-300 px-4 py-3 text-sm dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 sm:rounded-lg sm:py-2">
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={saving || !contactId || !serviceId || !staffId || !slot}
-            className="px-4 py-2 text-sm rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white font-medium disabled:opacity-50 flex items-center gap-2"
+            className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-medium text-white hover:bg-[#20bd5a] disabled:opacity-50 sm:rounded-lg sm:py-2"
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             Book Appointment
