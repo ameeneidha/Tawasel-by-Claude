@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../contexts/AppContext';
-import { Loader2, Search, Plus, Users, Tags, CheckSquare, Square, Upload, Download, Phone, Trash2 } from 'lucide-react';
+import { Loader2, Search, Plus, Users, Tags, CheckSquare, Square, Upload, Download, Phone, Trash2, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { Skeleton, SkeletonTable } from '../components/ui/Skeleton';
@@ -884,12 +884,41 @@ export default function Contacts() {
             })}
 
             {filteredContacts.length === 0 && (
-              <div className="rounded-2xl border border-gray-200 bg-white px-4 py-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white px-4 py-10 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-slate-800">
                   <Users className="h-5 w-5" />
                 </div>
-                <p className="font-medium text-gray-700 dark:text-gray-200">No contacts yet</p>
-                <p className="mt-1 text-sm text-gray-400">Save customers from Inbox or add them manually here.</p>
+                <p className="font-medium text-gray-700 dark:text-gray-200">
+                  {contacts.length === 0 ? 'Start your customer list' : 'No contacts match'}
+                </p>
+                <p className="mx-auto mt-1 max-w-sm text-sm text-gray-400">
+                  {contacts.length === 0
+                    ? 'Contacts are created from WhatsApp chats, manual entry, or CSV import.'
+                    : 'Try a different search term or switch contact list.'}
+                </p>
+                {contacts.length === 0 && (
+                  <div className="mt-5 grid gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        fetchLists();
+                        setShowContactModal(true);
+                      }}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#128C7E]"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add first contact
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openImportModal}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-gray-200 dark:hover:bg-slate-800"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Import CSV
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -980,8 +1009,41 @@ export default function Contacts() {
                       <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-slate-800">
                         <Users className="h-5 w-5" />
                       </div>
-                      <p className="font-medium text-gray-700 dark:text-gray-200">No contacts yet</p>
-                      <p className="mt-1 text-sm text-gray-400">Save customers from Inbox or add them manually here.</p>
+                      <p className="font-medium text-gray-700 dark:text-gray-200">
+                        {contacts.length === 0 ? 'Start your customer list' : 'No contacts match'}
+                      </p>
+                      <p className="mx-auto mt-1 max-w-sm text-sm text-gray-400">
+                        {contacts.length === 0
+                          ? 'Contacts are created from WhatsApp chats, manual entry, or CSV import.'
+                          : 'Try a different search term or switch contact list.'}
+                      </p>
+                      {contacts.length === 0 && (
+                        <div className="mt-5 flex flex-wrap justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              fetchLists();
+                              setShowContactModal(true);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#128C7E]"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Add first contact
+                          </button>
+                          <button
+                            type="button"
+                            onClick={openImportModal}
+                            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-gray-200 dark:hover:bg-slate-800"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Import CSV
+                          </button>
+                          <div className="inline-flex items-center gap-2 rounded-xl bg-gray-50 px-4 py-2.5 text-sm font-semibold text-gray-500 dark:bg-slate-800 dark:text-gray-400">
+                            <MessageSquare className="h-4 w-4" />
+                            Or receive WhatsApp chats
+                          </div>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )}

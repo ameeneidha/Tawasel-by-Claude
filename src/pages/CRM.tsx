@@ -584,10 +584,28 @@ export default function CRM() {
           ))}
 
           {activeMobileStage && mobileStageContacts.length === 0 && (
-            <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white/60 p-10 text-center dark:border-slate-800 dark:bg-slate-900/40">
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white/60 p-6 text-center dark:border-slate-800 dark:bg-slate-900/40">
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
                 {hasActiveFilters ? t('crm.noMatchingLeads') : t('crm.noLeadsHere')}
               </p>
+              {!hasActiveFilters && filteredContacts.length === 0 && (
+                <>
+                  <p className="mx-auto mt-2 max-w-xs text-sm text-gray-500 dark:text-gray-400">
+                    Leads arrive from WhatsApp chats, manual contact creation, imports, or campaign links.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fetchLists();
+                      setShowAddLead(true);
+                    }}
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#128C7E]"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add first lead
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -726,10 +744,22 @@ export default function CRM() {
                     </motion.div>
                   ))}
                 {filteredContacts.filter(c => c.pipelineStage === stage.key).length === 0 && (
-                  <div className="h-32 flex flex-col items-center justify-center text-center p-4 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-xl">
+                  <div className="min-h-32 flex flex-col items-center justify-center text-center p-4 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-xl">
                     <p className="text-[10px] font-medium text-gray-400 dark:text-gray-600 uppercase tracking-tighter">
                       {hasActiveFilters ? t('crm.noMatchingLeads') : t('crm.noLeadsHere')}
                     </p>
+                    {!hasActiveFilters && filteredContacts.length === 0 && stage.key === activeMobileStage?.key && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          fetchLists();
+                          setShowAddLead(true);
+                        }}
+                        className="mt-3 rounded-xl bg-[#25D366] px-3 py-2 text-xs font-bold text-white hover:bg-[#128C7E]"
+                      >
+                        Add first lead
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
