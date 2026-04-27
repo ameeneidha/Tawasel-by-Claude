@@ -70,6 +70,14 @@ npx vite build       # Production build
 - RESEND_API_KEY, EMAIL_FROM (e.g., `Tawasel <noreply@tawasel.io>`)
 - INSTAGRAM_ACCESS_TOKEN
 
+## Recently Completed (April 27, 2026) — Phase 2c: Per-appointment reminder timeline
+
+- Appointment rows and calendar events now have a clock action that opens a per-booking reminder timeline.
+- New endpoint: `GET /api/appointments/:id/reminder-timeline?workspaceId=...` returns active rule schedule entries plus legacy 24h/1h/follow-up sends.
+- `AppointmentReminderLog` now stores `status`, `scheduledFor`, and `errorMessage` for visible SENT / SCHEDULED / FAILED / MISSED states.
+- Rules scheduler now records failed sends durably and retries later; only successful `SENT` logs suppress future sends for that rule/appointment pair.
+- Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
+
 ## Recently Completed (April 25, 2026) — Bug Fixes
 
 ### Business Name save in Settings (Settings.tsx + server.ts)
@@ -313,7 +321,7 @@ pm2 logs tawasel-worker            # verify worker is consuming the queue
 
 - ✅ **Phase 1 — Close the Booking Loop** (DONE) — Public booking page, calendar view + drag, 1h reminder + post-visit follow-up, template auto-setup
 - ✅ **Phase 1.5 — AI Self-Service Appointments** (DONE) — view/reschedule/cancel own appointments via WhatsApp chat
-- ✅ **Phase 2 — Flexible Reminders & Template Builder** (DONE) — In-app WA template builder (header/body/buttons), reminder rules engine, token auto-refresh
+- ✅ **Phase 2 — Flexible Reminders & Template Builder** (DONE) — In-app WA template builder (header/body/buttons), reminder rules engine, per-appointment reminder timeline, token auto-refresh
 - 🔜 **Phase 3 — Recurring Appointments** — weekly/bi-weekly/monthly series, package bundles, edit this-one/this-and-future/all
 - **Phase 4 — Recurring Appointments** — weekly/bi-weekly/monthly series, package bundles, edit this-one/this-and-future/all
 - **Phase 4 — Payments & Deposits** — Stripe Checkout at booking, deposit %, no-show auto-charge, refund workflow, revenue dashboard
