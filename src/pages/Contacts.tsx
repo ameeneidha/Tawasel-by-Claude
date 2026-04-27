@@ -42,6 +42,8 @@ const CSV_TEMPLATE = `name,phone,lead_source,pipeline_stage,custom_lists
 Ahmed Hassan,+971551112222,Website,NEW_LEAD,"Abu Dhabi, VIP"
 Sarah Miller,+971553334444,WhatsApp Referral,CONTACTED,"Dubai"`;
 
+const normalizePhoneValue = (value?: string) => (value || '').replace(/\D/g, '');
+
 const normalizeColumnKey = (value: string) =>
   value
     .trim()
@@ -141,6 +143,7 @@ export default function Contacts() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [isMergingContacts, setIsMergingContacts] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importFileName, setImportFileName] = useState('');
   const [importHeaders, setImportHeaders] = useState<string[]>([]);
@@ -167,6 +170,7 @@ export default function Contacts() {
     listNames: [] as string[]
   });
   const [listName, setListName] = useState('');
+  const [mergeTargetId, setMergeTargetId] = useState('');
 
   useEffect(() => {
     if (!activeWorkspace) {
@@ -252,6 +256,32 @@ export default function Contacts() {
       return matchesSearch && matchesList;
     });
   }, [contacts, search, selectedListId]);
+
+  const selectedContacts = useMemo(
+    () => contacts.filter((contact) => selectedContactIds.includes(contact.id)),
+    [contacts, selectedContactIds]
+  );
+
+  useEffect(() => {
+    if (selectedContacts.length === 0) {
+      setMergeTargetId('');
+      return;
+    }
+
+    setMergeTargetId((prev) => (
+      selectedContacts.some((contact) => contact.id === prev)
+        ? prev
+        : selectedContacts[0].id
+    ));
+  }, [selectedContacts]);
+
+  const canMergeSelectedContacts = useMemo(() => {
+    if (selectedContacts.length < 2) return false;
+    const normalizedPhones = selectedContacts
+      .map((contact) => normalizePhoneValue(contact.phoneNumber))
+      .filter(Boolean);
+    return normalizedPhones.length >= 2 && new Set(normalizedPhones).size === 1;
+  }, [selectedContacts]);
 
   const createContact = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -351,6 +381,35 @@ export default function Contacts() {
         ? error.response?.data?.error || 'Could not delete contact'
         : 'Could not delete contact';
       toast.error(message);
+    }
+  };
+
+  const mergeSelectedContacts = async () => {
+    if (!activeWorkspace || selectedContacts.length < 2 || !mergeTargetId || !canMergeSelectedContacts) return;
+
+    const target = selectedContacts.find((contact) => contact.id === mergeTargetId);
+    if (!target) return;
+
+    const sourceContacts = selectedContacts.filter((contact) => contact.id !== mergeTargetId);
+    if (!confirm(`Merge ${sourceContacts.length} duplicate contact(s) into ${target.name || target.phoneNumber || 'the selected contact'}? This moves history and cannot be undone.`)) return;
+
+    setIsMergingContacts(true);
+    try {
+      for (const source of sourceContacts) {
+        await axios.post(`/api/contacts/${mergeTargetId}/merge`, { sourceContactId: source.id });
+      }
+
+      await Promise.all([fetchContacts(), fetchLists()]);
+      setSelectedContactIds([]);
+      setMergeTargetId('');
+      toast.success('Duplicate contacts merged');
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.error || 'Could not merge contacts'
+        : 'Could not merge contacts';
+      toast.error(message);
+    } finally {
+      setIsMergingContacts(false);
     }
   };
 
@@ -682,6 +741,38 @@ export default function Contacts() {
                   {t('contacts.clearSelection')}
                 </button>
               </div>
+
+              {selectedContactIds.length >= 2 && (
+                <div className="mb-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+                  <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                    <select
+                      value={mergeTargetId}
+                      onChange={(e) => setMergeTargetId(e.target.value)}
+                      disabled={isMergingContacts}
+                      className="min-w-0 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-900 dark:text-gray-200"
+                    >
+                      {selectedContacts.map((contact) => (
+                        <option key={contact.id} value={contact.id}>
+                          Keep: {contact.name || contact.phoneNumber || 'Unnamed contact'} ({contact.phoneNumber || 'no phone'})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={mergeSelectedContacts}
+                      disabled={!hasFullAccess || isMergingContacts || !canMergeSelectedContacts}
+                      className="rounded-xl border border-[#25D366]/30 bg-[#25D366]/10 px-4 py-2 text-sm font-bold text-[#128C7E] transition-colors hover:bg-[#25D366]/15 disabled:opacity-50"
+                    >
+                      {isMergingContacts ? t('contacts.saving') : 'Merge duplicates'}
+                    </button>
+                  </div>
+                  {!canMergeSelectedContacts && (
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      Select contacts with the same phone number to merge them safely.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
                 <ContactListPicker

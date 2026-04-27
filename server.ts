@@ -4690,6 +4690,106 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  app.post("/api/contacts/:id/merge", requireAuth, requireSubscribedContact, async (req, res) => {
+    const targetContactId = req.params.id;
+    const sourceContactId = String(req.body.sourceContactId || '').trim();
+
+    if (!sourceContactId || sourceContactId === targetContactId) {
+      return res.status(400).json({ error: "Choose a different duplicate contact to merge" });
+    }
+
+    const [targetContact, sourceContact] = await Promise.all([
+      prisma.contact.findUnique({
+        where: { id: targetContactId },
+        include: { listMemberships: true },
+      }),
+      prisma.contact.findUnique({
+        where: { id: sourceContactId },
+        include: { listMemberships: true },
+      }),
+    ]);
+
+    if (!targetContact || !sourceContact || targetContact.workspaceId !== sourceContact.workspaceId) {
+      return res.status(404).json({ error: "Duplicate contact not found in this workspace" });
+    }
+
+    const sourceListIds = Array.from(new Set(sourceContact.listMemberships.map((membership) => membership.listId)));
+    const targetListIds = new Set(targetContact.listMemberships.map((membership) => membership.listId));
+    const missingListIds = sourceListIds.filter((listId) => !targetListIds.has(listId));
+
+    await prisma.$transaction(async (tx) => {
+      if (missingListIds.length > 0) {
+        await tx.contactListMember.createMany({
+          data: missingListIds.map((listId) => ({ contactId: targetContact.id, listId })),
+        });
+      }
+
+      const sourceEnrollments = await tx.followUpEnrollment.findMany({
+        where: { contactId: sourceContact.id },
+      });
+      for (const enrollment of sourceEnrollments) {
+        const targetEnrollment = await tx.followUpEnrollment.findFirst({
+          where: { sequenceId: enrollment.sequenceId, contactId: targetContact.id },
+        });
+
+        if (targetEnrollment) {
+          await tx.followUpEnrollment.delete({ where: { id: enrollment.id } });
+        } else {
+          await tx.followUpEnrollment.update({
+            where: { id: enrollment.id },
+            data: { contactId: targetContact.id },
+          });
+        }
+      }
+
+      await tx.conversation.updateMany({ where: { contactId: sourceContact.id }, data: { contactId: targetContact.id } });
+      await tx.appointment.updateMany({ where: { contactId: sourceContact.id }, data: { contactId: targetContact.id } });
+      await tx.task.updateMany({ where: { contactId: sourceContact.id }, data: { contactId: targetContact.id } });
+      await tx.activityLog.updateMany({ where: { contactId: sourceContact.id }, data: { contactId: targetContact.id } });
+      await tx.contactCustomAttributeValue.updateMany({ where: { contactId: sourceContact.id }, data: { contactId: targetContact.id } });
+      await tx.contactListMember.deleteMany({ where: { contactId: sourceContact.id } });
+
+      await tx.contact.update({
+        where: { id: targetContact.id },
+        data: {
+          name: targetContact.name || sourceContact.name,
+          phoneNumber: targetContact.phoneNumber || sourceContact.phoneNumber,
+          instagramUsername: targetContact.instagramUsername || sourceContact.instagramUsername,
+          city: targetContact.city || sourceContact.city,
+          leadSource: targetContact.leadSource || sourceContact.leadSource,
+          tags: [targetContact.tags, sourceContact.tags].filter(Boolean).join(", ") || null,
+          notes: [targetContact.notes, sourceContact.notes].filter(Boolean).join("\n\n") || null,
+          estimatedValue: Math.max(Number(targetContact.estimatedValue || 0), Number(sourceContact.estimatedValue || 0)),
+          lastActivityAt: new Date(),
+        },
+      });
+
+      await tx.contact.delete({ where: { id: sourceContact.id } });
+
+      await tx.activityLog.create({
+        data: {
+          type: "CONTACT_MERGED",
+          content: `Merged duplicate contact ${sourceContact.name || sourceContact.phoneNumber || sourceContact.id} into ${targetContact.name || targetContact.phoneNumber || targetContact.id}`,
+          contactId: targetContact.id,
+          workspaceId: targetContact.workspaceId,
+          metadata: JSON.stringify({ sourceContactId: sourceContact.id }),
+        },
+      });
+    });
+
+    const mergedContact = await prisma.contact.findUnique({
+      where: { id: targetContact.id },
+      include: {
+        conversations: { take: 1, orderBy: { lastMessageAt: 'desc' } },
+        activities: { orderBy: { createdAt: 'desc' }, take: 5 },
+        tasks: { where: { status: 'PENDING' } },
+        listMemberships: { include: { list: true } },
+      },
+    });
+
+    res.json(mergedContact);
+  });
+
   app.get("/api/contact-lists", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
     const { workspaceId } = req.query;
     const lists = await prisma.contactList.findMany({

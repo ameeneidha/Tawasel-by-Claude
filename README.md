@@ -101,6 +101,7 @@ The repo also includes an App Platform spec:
 - **Contacts list removal fix** - when viewing a specific contact list, selecting contacts and clicking remove now removes them from the current list without requiring the list picker first.
 - **Contact duplicate guard** - manual CRM/Contacts create and edit now normalize phone numbers and block another contact in the same workspace from using the same number in a different format.
 - **Safe contact delete** - Contacts page now has delete actions; contacts with conversation or appointment history are protected and return a merge-needed message instead of being removed.
+- **Merge duplicate contacts** - select duplicate same-number contacts, choose which one to keep, and Tawasel moves conversations, appointments, tasks, activity, follow-ups, lists, and custom values before deleting the duplicate.
 - **Deploy checklist**: `npx prisma db push` (adds reminder log status fields) -> `npx prisma generate` -> `npx vite build` -> `pm2 restart ecosystem.config.cjs`.
 
 ### April 25, 2026 — Bug Fixes: Appointments page, template setup, timezone, Business Name save

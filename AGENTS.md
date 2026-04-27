@@ -82,6 +82,7 @@ npx vite build       # Production build
 - Contacts bulk removal now infers the current selected contact list, so "remove from list" works without selecting the same list again in the picker.
 - Manual CRM/Contacts create and edit now normalize phone numbers and block duplicate same-number contacts in the same workspace.
 - Contacts page now has safe delete actions; contacts with conversation or appointment history are protected and return a merge-needed message.
+- Contacts page now supports merging selected same-number duplicates into a chosen keeper, moving conversations, appointments, tasks, activity, follow-ups, lists, and custom values.
 - Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ## Recently Completed (April 25, 2026) — Bug Fixes
