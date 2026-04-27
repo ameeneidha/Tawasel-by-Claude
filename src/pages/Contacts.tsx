@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../contexts/AppContext';
-import { Loader2, Search, Plus, Users, Tags, CheckSquare, Square, Upload, Download, Phone } from 'lucide-react';
+import { Loader2, Search, Plus, Users, Tags, CheckSquare, Square, Upload, Download, Phone, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { Skeleton, SkeletonTable } from '../components/ui/Skeleton';
@@ -332,6 +332,25 @@ export default function Contacts() {
       toast.error(action === 'add' ? t('contacts.couldNotAddToList') : t('contacts.couldNotRemoveFromList'));
     } finally {
       setIsBulkUpdating(false);
+    }
+  };
+
+  const deleteContact = async (contact: Contact) => {
+    if (!activeWorkspace) return;
+    const label = contact.name || contact.phoneNumber || 'this contact';
+    if (!confirm(`Delete ${label}? Contacts with conversation or appointment history cannot be deleted yet.`)) return;
+
+    try {
+      await axios.delete(`/api/contacts/${contact.id}`);
+      setContacts((prev) => prev.filter((item) => item.id !== contact.id));
+      setSelectedContactIds((prev) => prev.filter((id) => id !== contact.id));
+      await fetchLists();
+      toast.success('Contact deleted');
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.error || 'Could not delete contact'
+        : 'Could not delete contact';
+      toast.error(message);
     }
   };
 
@@ -755,6 +774,18 @@ export default function Contacts() {
                           </span>
                         )) : <span className="text-xs text-gray-400">{t('contacts.noList')}</span>}
                       </div>
+
+                      <div className="mt-4 flex justify-end border-t border-gray-100 pt-3 dark:border-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => deleteContact(contact)}
+                          disabled={!hasFullAccess}
+                          className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-900/20"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -797,6 +828,7 @@ export default function Contacts() {
                   <th className="px-4 py-3">{t('contacts.leadSourceColumn')}</th>
                   <th className="px-4 py-3">{t('contacts.contactListsColumn')}</th>
                   <th className="px-4 py-3">{t('contacts.statusColumn')}</th>
+                  <th className="px-4 py-3 text-right">{t('appointments.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -838,11 +870,22 @@ export default function Contacts() {
                         {contact.permission === 'BLOCKED' ? 'Blocked' : 'Active'}
                       </span>
                     </td>
+                    <td className="px-4 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => deleteContact(contact)}
+                        disabled={!hasFullAccess}
+                        className="inline-flex items-center justify-center rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-900/20"
+                        title="Delete contact"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {filteredContacts.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center">
+                    <td colSpan={7} className="px-4 py-12 text-center">
                       <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-slate-800">
                         <Users className="h-5 w-5" />
                       </div>

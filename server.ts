@@ -4656,6 +4656,40 @@ async function startServer() {
     res.json(contact);
   });
 
+  app.delete("/api/contacts/:id", requireAuth, requireSubscribedContact, async (req, res) => {
+    const contact = await prisma.contact.findUnique({
+      where: { id: req.params.id },
+      include: {
+        _count: {
+          select: {
+            conversations: true,
+            appointments: true,
+          },
+        },
+      },
+    });
+
+    if (!contact) {
+      return res.status(404).json({ error: "Contact not found" });
+    }
+
+    if (contact._count.conversations > 0 || contact._count.appointments > 0) {
+      return res.status(409).json({
+        error: "This contact has conversation or appointment history. Merge contacts instead of deleting it.",
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.contactListMember.deleteMany({ where: { contactId: contact.id } }),
+      prisma.contactCustomAttributeValue.deleteMany({ where: { contactId: contact.id } }),
+      prisma.task.updateMany({ where: { contactId: contact.id }, data: { contactId: null } }),
+      prisma.activityLog.updateMany({ where: { contactId: contact.id }, data: { contactId: null } }),
+      prisma.contact.delete({ where: { id: contact.id } }),
+    ]);
+
+    res.json({ success: true });
+  });
+
   app.get("/api/contact-lists", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
     const { workspaceId } = req.query;
     const lists = await prisma.contactList.findMany({
