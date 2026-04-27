@@ -725,10 +725,34 @@ export default function Appointments() {
           {/* ── LIST VIEW ── */}
           {viewMode === 'list' && (
             filtered.length === 0 ? (
-              <div className="text-center py-16 text-gray-500 dark:text-gray-400">
+              <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white p-6 text-center text-gray-500 dark:border-gray-700 dark:bg-slate-900 dark:text-gray-400 md:py-16">
                 <CalendarCheck className="w-12 h-12 mx-auto mb-3 opacity-40" />
                 <p className="font-medium">{t('appointments.noAppointmentsFound')}</p>
-                <p className="text-sm mt-1">{t('appointments.noAppointmentsHint')}</p>
+                <p className="mx-auto mt-1 max-w-md text-sm">{t('appointments.noAppointmentsHint')}</p>
+                <div className="mt-5 grid gap-2 sm:mx-auto sm:max-w-md sm:grid-cols-3">
+                  <button
+                    type="button"
+                    onClick={() => setTab('services')}
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-gray-200 dark:hover:bg-slate-800"
+                  >
+                    1. Add service
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTab('staff')}
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-gray-200 dark:hover:bg-slate-800"
+                  >
+                    2. Add staff
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowBooking(true)}
+                    disabled={services.length === 0 || staff.length === 0}
+                    className="rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#128C7E] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    3. Book test
+                  </button>
+                </div>
               </div>
             ) : (
               <>
@@ -894,10 +918,18 @@ export default function Appointments() {
           </div>
 
           {services.length === 0 ? (
-            <div className="text-center py-16 text-gray-500 dark:text-gray-400">
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white p-6 text-center text-gray-500 dark:border-gray-700 dark:bg-slate-900 dark:text-gray-400 md:py-16">
               <Scissors className="w-12 h-12 mx-auto mb-3 opacity-40" />
               <p className="font-medium">{t('appointments.noServicesYet')}</p>
-              <p className="text-sm mt-1">{t('appointments.noServicesHint')}</p>
+              <p className="mx-auto mt-1 max-w-sm text-sm">{t('appointments.noServicesHint')}</p>
+              <button
+                type="button"
+                onClick={() => { setEditingService(null); setShowServiceModal(true); }}
+                className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#128C7E]"
+              >
+                <Plus className="h-4 w-4" />
+                Create first service
+              </button>
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -963,10 +995,18 @@ export default function Appointments() {
           </div>
 
           {staff.length === 0 ? (
-            <div className="text-center py-16 text-gray-500 dark:text-gray-400">
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white p-6 text-center text-gray-500 dark:border-gray-700 dark:bg-slate-900 dark:text-gray-400 md:py-16">
               <User className="w-12 h-12 mx-auto mb-3 opacity-40" />
               <p className="font-medium">No staff members yet</p>
-              <p className="text-sm mt-1">Add staff to assign appointments</p>
+              <p className="mx-auto mt-1 max-w-sm text-sm">Add staff availability so customers can see real booking slots.</p>
+              <button
+                type="button"
+                onClick={() => { setEditingStaff(null); setShowStaffModal(true); }}
+                className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#128C7E]"
+              >
+                <Plus className="h-4 w-4" />
+                Add first staff
+              </button>
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1128,7 +1168,7 @@ export default function Appointments() {
           </div>
 
           {reminderRules.length === 0 ? (
-            <div className="rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-10 text-center">
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white p-6 text-center dark:border-gray-700 dark:bg-slate-900 md:p-10">
               <Clock className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">No reminder rules yet</p>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-sm mx-auto">
@@ -1558,6 +1598,13 @@ function AppointmentCalendar({
             </div>
 
             <div className="flex items-center gap-2">
+              <div className="mt-4 grid gap-2 sm:mx-auto sm:max-w-md sm:grid-cols-3">
+                {['15m before', '2h before', 'Follow-up'].map((label) => (
+                  <div key={label} className="rounded-xl bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 dark:bg-slate-800 dark:text-gray-400">
+                    {label}
+                  </div>
+                ))}
+              </div>
               <button
                 onClick={() => onOpenTimeline(selectedAppt)}
                 className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500 dark:text-gray-400 transition-colors"
