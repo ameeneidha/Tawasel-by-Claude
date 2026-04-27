@@ -87,6 +87,7 @@ npx vite build       # Production build
 - Dashboard mobile view now uses tighter spacing, two-column KPI cards, full-width filter controls, stacked team workload rows, and campaign summary cards.
 - Activation checklist now guides first-time workspaces through the booking setup path: WhatsApp connection, service creation, staff availability, booking link testing, reminder rules, and optional AI bot setup.
 - Appointments empty states now guide first-time setup with actions for services, staff, test bookings, and reminder rules.
+- Inbox empty states now explain the first-message flow and link users toward WhatsApp connection, templates, and later AI bot setup.
 - Contacts bulk removal now infers the current selected contact list, so "remove from list" works without selecting the same list again in the picker.
 - Manual CRM/Contacts create and edit now normalize phone numbers and block duplicate same-number contacts in the same workspace.
 - Contacts page now has safe delete actions; contacts with conversation or appointment history are protected and return a merge-needed message.

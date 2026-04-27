@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import socket from '../lib/socket';
 import { 
@@ -1199,15 +1200,43 @@ export default function Inbox() {
             </button>
           )})}
           {filteredConversations.length === 0 && (
-            <div className="px-6 py-12 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-gray-500">
-                <Search className="h-5 w-5" />
+            conversations.length === 0 ? (
+              <div className="px-4 py-8">
+                <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-5 text-center dark:border-slate-800 dark:bg-slate-950/60">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#25D366] shadow-sm dark:bg-slate-900">
+                    <MessageSquare className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">No conversations yet</p>
+                  <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                    Connect WhatsApp, send a test message to your business number, and new customer chats will appear here.
+                  </p>
+                  <div className="mt-4 grid gap-2">
+                    <Link
+                      to="/app/channels"
+                      className="rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#128C7E]"
+                    >
+                      Connect WhatsApp
+                    </Link>
+                    <Link
+                      to="/app/chatbots"
+                      className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-800"
+                    >
+                      Prepare AI bot later
+                    </Link>
+                  </div>
+                </div>
               </div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-200">No conversations match</p>
-              <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                Try a different search term or clear the active filters.
-              </p>
-            </div>
+            ) : (
+              <div className="px-6 py-12 text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-gray-500">
+                  <Search className="h-5 w-5" />
+                </div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">No conversations match</p>
+                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                  Try a different search term or clear the active filters.
+                </p>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -1813,10 +1842,24 @@ export default function Inbox() {
             <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-300 dark:text-gray-600 mb-4 transition-colors">
               <MessageSquare className="w-10 h-10" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No conversation selected</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mt-2">
-              Select a conversation from the list to start messaging.
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {conversations.length === 0 ? 'Inbox is waiting for the first message' : 'No conversation selected'}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mt-2">
+              {conversations.length === 0
+                ? 'Once WhatsApp is connected, send a test message to your business number. The conversation will appear here in real time.'
+                : 'Select a conversation from the list to start messaging.'}
             </p>
+            {conversations.length === 0 && (
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                <Link to="/app/channels" className="rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#128C7E]">
+                  Connect WhatsApp
+                </Link>
+                <Link to="/app/templates" className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-800">
+                  Prepare templates
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -106,6 +106,7 @@ The repo also includes an App Platform spec:
 - **Mobile dashboard polish** - Dashboard now has tighter phone spacing, two-column mobile KPI cards, full-width filter controls, stacked team rows, and mobile campaign summary cards.
 - **Activation checklist polish** - onboarding now guides new workspaces through the real booking setup path: connect WhatsApp, create services, add staff, test the public booking link, set reminder rules, and optionally create an AI bot.
 - **Appointments empty-state polish** - blank appointment, service, staff, and reminder screens now show guided setup actions so new workspaces know the next step.
+- **Inbox empty-state polish** - empty inboxes now explain the first-message flow and link users to WhatsApp connection, templates, and later AI bot setup.
 - **Contacts list removal fix** - when viewing a specific contact list, selecting contacts and clicking remove now removes them from the current list without requiring the list picker first.
 - **Contact duplicate guard** - manual CRM/Contacts create and edit now normalize phone numbers and block another contact in the same workspace from using the same number in a different format.
 - **Safe contact delete** - Contacts page now has delete actions; contacts with conversation or appointment history are protected and return a merge-needed message instead of being removed.
