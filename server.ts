@@ -110,6 +110,22 @@ let httpServer: ReturnType<typeof createServer>;
 let webhookQueue: Queue | null = null;
 let socketEventSubscriber: IORedis | null = null;
 
+async function findContactByNormalizedPhone(workspaceId: string, phoneNumber?: string | null, excludeContactId?: string) {
+  const normalizedPhone = normalizePhone(phoneNumber);
+  if (!workspaceId || !normalizedPhone) return null;
+
+  const contacts = await prisma.contact.findMany({
+    where: {
+      workspaceId,
+      phoneNumber: { not: null },
+      ...(excludeContactId ? { id: { not: excludeContactId } } : {}),
+    },
+    select: { id: true, name: true, phoneNumber: true },
+  });
+
+  return contacts.find((contact) => normalizePhone(contact.phoneNumber) === normalizedPhone) || null;
+}
+
 async function startServer() {
   const app = express();
   httpServer = createServer(app);
@@ -4242,6 +4258,7 @@ async function startServer() {
 
   app.post("/api/contacts", requireAuth, businessRateLimiter('contacts'), requireSubscribedWorkspaceFromBody, async (req, res) => {
     const { workspaceId, name, phoneNumber, instagramUsername, pipelineStage, city, leadSource, tags, notes, assignedToId, listIds, listNames, estimatedValue, lostReason } = req.body;
+    const normalizedPhone = normalizePhone(phoneNumber);
 
     if (!workspaceId) {
       return res.status(400).json({ error: "Workspace is required" });
@@ -4254,6 +4271,14 @@ async function startServer() {
     const resolvedListIds = await resolveContactListIds(workspaceId, listIds, listNames);
     const resolvedPipelineStage = await resolveWorkspacePipelineStageValue(workspaceId, pipelineStage);
 
+    const duplicateContact = await findContactByNormalizedPhone(workspaceId, phoneNumber);
+    if (duplicateContact) {
+      return res.status(409).json({
+        error: `A contact with this phone number already exists: ${duplicateContact.name || duplicateContact.phoneNumber || 'Existing contact'}`,
+        existingContactId: duplicateContact.id,
+      });
+    }
+
     if (!(await enforceWorkspacePlanLimit(res, workspaceId, 'contacts'))) {
       return;
     }
@@ -4262,7 +4287,7 @@ async function startServer() {
       data: {
         workspaceId,
         name: name?.trim() || phoneNumber?.trim() || instagramUsername?.trim() || 'New Contact',
-        phoneNumber: phoneNumber?.trim() || null,
+        phoneNumber: normalizedPhone || null,
         instagramUsername: instagramUsername?.trim() || null,
         pipelineStage: resolvedPipelineStage,
         city: city?.trim() || null,
@@ -4552,6 +4577,17 @@ async function startServer() {
       return res.status(404).json({ error: "Contact not found" });
     }
 
+    const normalizedPhone = phoneNumber === undefined ? undefined : normalizePhone(phoneNumber);
+    if (phoneNumber !== undefined && normalizedPhone) {
+      const duplicateContact = await findContactByNormalizedPhone(oldContact.workspaceId, phoneNumber, oldContact.id);
+      if (duplicateContact) {
+        return res.status(409).json({
+          error: `Another contact already uses this phone number: ${duplicateContact.name || duplicateContact.phoneNumber || 'Existing contact'}`,
+          existingContactId: duplicateContact.id,
+        });
+      }
+    }
+
     const shouldSyncLists = Array.isArray(listIds) || Array.isArray(listNames);
 
     if (shouldSyncLists) {
@@ -4580,7 +4616,7 @@ async function startServer() {
       data: {
         pipelineStage: resolvedPipelineStage,
         name,
-        phoneNumber,
+        phoneNumber: phoneNumber === undefined ? undefined : normalizedPhone || null,
         city,
         estimatedValue: estimatedValue === undefined ? undefined : Number(estimatedValue || 0) || 0,
         lostReason: lostReason === undefined ? undefined : lostReason?.trim() || null,
