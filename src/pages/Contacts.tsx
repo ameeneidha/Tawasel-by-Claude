@@ -312,14 +312,16 @@ export default function Contacts() {
   };
 
   const applyBulkListAction = async (action: 'add' | 'remove') => {
-    if (!activeWorkspace || selectedContactIds.length === 0 || bulkListNames.length === 0) return;
+    const removingFromCurrentList = action === 'remove' && selectedListId !== 'ALL' && bulkListNames.length === 0;
+    if (!activeWorkspace || selectedContactIds.length === 0 || (!removingFromCurrentList && bulkListNames.length === 0)) return;
 
     setIsBulkUpdating(true);
     try {
       await axios.post('/api/contacts/bulk-lists', {
         workspaceId: activeWorkspace.id,
         contactIds: selectedContactIds,
-        listNames: bulkListNames,
+        listIds: removingFromCurrentList ? [selectedListId] : undefined,
+        listNames: removingFromCurrentList ? [] : bulkListNames,
         action
       });
       await Promise.all([fetchContacts(), fetchLists()]);
@@ -680,11 +682,11 @@ export default function Contacts() {
                 </button>
                 <button
                   type="button"
-                  disabled={!hasFullAccess || isBulkUpdating || bulkListNames.length === 0}
+                  disabled={!hasFullAccess || isBulkUpdating || (bulkListNames.length === 0 && selectedListId === 'ALL')}
                   onClick={() => applyBulkListAction('remove')}
                   className="rounded-2xl border border-red-200 px-4 py-3 text-sm font-bold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-900/20"
                 >
-                  {t('contacts.removeFromList')}
+                  {selectedListId !== 'ALL' && bulkListNames.length === 0 ? 'Remove from current list' : t('contacts.removeFromList')}
                 </button>
               </div>
             </div>
