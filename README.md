@@ -97,6 +97,7 @@ The repo also includes an App Platform spec:
 - **Retry-friendly scheduler** - failed rule sends remain visible in the timeline and can retry on a later scheduler tick; only successfully sent logs suppress future sends for that rule/appointment pair.
 - **Mobile appointments polish** - Appointments now uses phone-friendly cards instead of a horizontal table on small screens, with compact filters and a bottom-sheet reminder timeline modal.
 - **Mobile inbox polish** - Inbox now opens to the conversation list on phones, has a clear Chats back button, wider message bubbles, touch-sized composer controls, a full-width template picker, and a full-screen contact panel on mobile.
+- **Mobile contacts polish** - Contacts now uses phone-friendly cards on small screens, with easier create/import actions and tappable selection for bulk list actions.
 - **Contact duplicate guard** - manual CRM/Contacts create and edit now normalize phone numbers and block another contact in the same workspace from using the same number in a different format.
 - **Deploy checklist**: `npx prisma db push` (adds reminder log status fields) -> `npx prisma generate` -> `npx vite build` -> `pm2 restart ecosystem.config.cjs`.
 

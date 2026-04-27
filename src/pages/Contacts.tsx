@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../contexts/AppContext';
-import { Loader2, Search, Plus, Users, Tags, CheckSquare, Square, Upload, Download } from 'lucide-react';
+import { Loader2, Search, Plus, Users, Tags, CheckSquare, Square, Upload, Download, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { Skeleton, SkeletonTable } from '../components/ui/Skeleton';
@@ -571,19 +571,19 @@ export default function Contacts() {
           </div>
         </aside>
 
-        <main className="flex-1 overflow-auto p-6">
-          <div className="mb-6 flex items-center justify-between gap-4">
+        <main className="flex-1 overflow-auto p-4 md:p-6">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('contacts.title')}</h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {t('contacts.subtitle')}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-3">
               <button
                 disabled={!hasFullAccess}
                 onClick={openImportModal}
-                className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300 disabled:opacity-60"
+                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-600 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300 disabled:opacity-60 md:py-2"
               >
                 {t('contacts.importContacts')}
               </button>
@@ -593,7 +593,7 @@ export default function Contacts() {
                   fetchLists();
                   setShowContactModal(true);
                 }}
-                className="flex items-center gap-2 rounded-2xl bg-[#25D366] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-[#128C7E] disabled:opacity-60"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#128C7E] disabled:opacity-60 md:py-2"
               >
                 <Plus className="h-4 w-4" />
                 {t('contacts.newContact')}
@@ -601,8 +601,8 @@ export default function Contacts() {
             </div>
           </div>
 
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <div className="relative w-full max-w-md">
+          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
+            <div className="relative w-full md:max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 value={search}
@@ -688,7 +688,87 @@ export default function Contacts() {
             </div>
           )}
 
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="space-y-3 md:hidden">
+            {filteredContacts.map((contact) => {
+              const selected = selectedContactIds.includes(contact.id);
+              return (
+                <div key={contact.id} className={cn(
+                  "rounded-2xl border bg-white p-4 shadow-sm dark:bg-slate-900",
+                  selected ? "border-[#25D366] ring-2 ring-[#25D366]/10" : "border-gray-200 dark:border-slate-800"
+                )}>
+                  <div className="flex items-start gap-3">
+                    <button type="button" onClick={() => toggleContactSelection(contact.id)} className="mt-1 shrink-0">
+                      {selected ? (
+                        <CheckSquare className="h-5 w-5 text-[#25D366]" />
+                      ) : (
+                        <Square className="h-5 w-5 text-gray-400" />
+                      )}
+                    </button>
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-slate-800">
+                      <Users className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-gray-900 dark:text-white">{contact.name || contact.phoneNumber || '-'}</p>
+                          <p className="mt-1 flex items-center gap-1.5 truncate text-sm text-gray-500 dark:text-gray-400">
+                            <Phone className="h-3.5 w-3.5 shrink-0" />
+                            {contact.phoneNumber || '-'}
+                          </p>
+                        </div>
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider",
+                            contact.permission === 'BLOCKED'
+                              ? "bg-red-100 text-red-600"
+                              : "bg-green-100 text-green-600"
+                          )}
+                        >
+                          {contact.permission === 'BLOCKED' ? 'Blocked' : 'Active'}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{t('contacts.leadSourceColumn')}</p>
+                          <p className="truncate font-medium text-gray-800 dark:text-gray-200">{contact.leadSource || t('contacts.directSearch')}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{t('contacts.statusColumn')}</p>
+                          <p className="truncate font-medium text-gray-800 dark:text-gray-200">
+                            {getPipelineStageLabel(pipelineStages, contact.pipelineStage)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {contact.listMemberships?.length ? contact.listMemberships.map((membership) => (
+                          <span
+                            key={membership.list.id}
+                            className="rounded-full bg-sky-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-700"
+                          >
+                            {membership.list.name}
+                          </span>
+                        )) : <span className="text-xs text-gray-400">{t('contacts.noList')}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {filteredContacts.length === 0 && (
+              <div className="rounded-2xl border border-gray-200 bg-white px-4 py-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-slate-800">
+                  <Users className="h-5 w-5" />
+                </div>
+                <p className="font-medium text-gray-700 dark:text-gray-200">No contacts yet</p>
+                <p className="mt-1 text-sm text-gray-400">Save customers from Inbox or add them manually here.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="hidden overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 md:block">
             <table className="min-w-full divide-y divide-gray-100 dark:divide-slate-800">
               <thead className="bg-gray-50 dark:bg-slate-950/50">
                 <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
