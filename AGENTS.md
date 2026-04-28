@@ -89,6 +89,7 @@ npx vite build       # Production build
 - Appointments empty states now guide first-time setup with actions for services, staff, test bookings, and reminder rules.
 - Inbox empty states now explain the first-message flow and link users toward WhatsApp connection, templates, and later AI bot setup.
 - Contacts and CRM empty states now explain how customer data enters Tawasel and offer add/import/first-lead actions.
+- Templates empty states now explain Meta-approved WhatsApp templates versus internal session quick replies, with create/sync actions.
 - Contacts bulk removal now infers the current selected contact list, so "remove from list" works without selecting the same list again in the picker.
 - Manual CRM/Contacts create and edit now normalize phone numbers and block duplicate same-number contacts in the same workspace.
 - Contacts page now has safe delete actions; contacts with conversation or appointment history are protected and return a merge-needed message.

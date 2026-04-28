@@ -5,6 +5,7 @@ import {
   Copy,
   Edit,
   FileText,
+  MessageSquare,
   Plus,
   RefreshCw,
   Save,
@@ -484,7 +485,38 @@ export default function Templates() {
               isLoading={isLoading}
               isEmpty={filteredWaTemplates.length === 0}
               emptyTitle={t('templates.noWhatsAppTemplates')}
-              emptyDescription={t('templates.noWhatsAppTemplatesDesc')}
+              emptyDescription={
+                whatsAppSearch.trim()
+                  ? 'No WhatsApp templates match this search.'
+                  : 'WhatsApp templates are approved by Meta and are used for reminders, broadcasts, and messages outside the 24-hour chat window.'
+              }
+              icon={MessageSquare}
+              actions={!whatsAppSearch.trim() ? (
+                <div className="mt-5 grid gap-2 sm:mx-auto sm:max-w-md sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const preferred = waNumbers.find(n => n.metaWabaId && n.metaAccessToken) || waNumbers[0];
+                      setWaBuilder({ ...EMPTY_WA_BUILDER, whatsAppNumberId: preferred?.id || '' });
+                      setIsWaBuilderOpen(true);
+                    }}
+                    disabled={!activeWorkspace?.id}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#128C7E] disabled:opacity-60"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create WhatsApp Template
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fetchTemplates('refresh')}
+                    disabled={isRefreshing || !activeWorkspace?.id}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-800"
+                  >
+                    <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                    Sync from Meta
+                  </button>
+                </div>
+              ) : null}
             >
               {filteredWaTemplates.map((template) => (
                 <React.Fragment key={template.id}>
@@ -526,7 +558,24 @@ export default function Templates() {
               isLoading={isLoading}
               isEmpty={filteredSessionTemplates.length === 0}
               emptyTitle={t('templates.noSessionTemplates')}
-              emptyDescription={t('templates.noSessionTemplatesDesc')}
+              emptyDescription={
+                sessionSearch.trim()
+                  ? 'No session templates match this search.'
+                  : 'Session templates are internal quick replies for open conversations. They do not need Meta approval.'
+              }
+              actions={!sessionSearch.trim() ? (
+                <div className="mt-5">
+                  <button
+                    type="button"
+                    onClick={openCreateModal}
+                    disabled={!activeWorkspace?.id}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#128C7E] disabled:opacity-60"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create Session Template
+                  </button>
+                </div>
+              ) : null}
             >
               {filteredSessionTemplates.map((template) => (
                 <React.Fragment key={template.id}>
@@ -979,12 +1028,16 @@ function TemplatesGrid({
   isEmpty,
   emptyTitle,
   emptyDescription,
+  actions,
+  icon: Icon = FileText,
   children,
 }: {
   isLoading: boolean;
   isEmpty: boolean;
   emptyTitle: string;
   emptyDescription: string;
+  actions?: React.ReactNode;
+  icon?: React.ComponentType<{ className?: string }>;
   children: React.ReactNode;
 }) {
   if (isLoading) {
@@ -1004,12 +1057,13 @@ function TemplatesGrid({
     return (
       <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#25D366]/10 text-[#128C7E]">
-          <FileText className="h-6 w-6" />
+          <Icon className="h-6 w-6" />
         </div>
         <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">{emptyTitle}</h3>
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500 dark:text-gray-400">
           {emptyDescription}
         </p>
+        {actions}
       </div>
     );
   }
