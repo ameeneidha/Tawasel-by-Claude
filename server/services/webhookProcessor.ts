@@ -564,6 +564,10 @@ export async function processMetaWebhook(body: any, ctx: WebhookContext): Promis
     const recipientId = String(messaging?.recipient?.id || "").trim();
     const entryId = String(entry?.id || "").trim();
     const message = messaging?.message;
+    const isEcho =
+      Boolean(message?.is_echo) ||
+      Boolean(messaging?.message_echo) ||
+      Boolean(messaging?.is_echo);
 
     if (message && message.text) {
       const text = message.text;
@@ -580,6 +584,22 @@ export async function processMetaWebhook(body: any, ctx: WebhookContext): Promis
       });
 
       if (account) {
+        const senderIsBusiness =
+          senderId === account.instagramId ||
+          senderId === account.pageId ||
+          senderId === entryId;
+
+        if (isEcho || senderIsBusiness) {
+          console.log("[instagram-webhook] Ignored outbound echo", {
+            object: body.object,
+            entryId: entryId || null,
+            senderId: senderId || null,
+            recipientId: recipientId || null,
+            isEcho,
+          });
+          return;
+        }
+
         let contact = await prisma.contact.findFirst({
           where: {
             workspaceId: account.workspaceId,

@@ -21,6 +21,7 @@ Slice 1 connection flow has been implemented as a first working pass:
 - Incoming Instagram DM processing now accepts both `object="instagram"` and `object="page"` webhook envelopes, and matches connected accounts by either Instagram ID or Facebook Page ID.
 - `/webhook/meta` now logs every POST before signature verification so we can distinguish "Meta did not send anything" from "Meta sent it but signature verification rejected it".
 - Meta webhook signature verification now hashes the raw request bytes instead of a UTF-8 string conversion, which is required for Instagram payloads that may contain non-ASCII text.
+- Instagram webhook processing ignores outbound echo events and messages where the sender is the connected business/Page account, preventing agent replies from creating duplicate customer contacts.
 
 Still to prove on production/staging with a real Meta test account:
 

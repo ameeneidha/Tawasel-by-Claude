@@ -92,6 +92,7 @@ npx vite build       # Production build
   - Instagram DM webhooks may arrive with `object="page"`; processor now accepts both Page and Instagram envelopes and matches by `instagramId` or `pageId`.
   - `/webhook/meta` logs POST attempts before signature verification to diagnose whether Meta delivery is missing or signature verification is rejecting the payload.
   - Meta webhook signature verification uses the raw request bytes buffer, not a UTF-8 string conversion, to avoid rejecting Instagram payloads with non-ASCII content.
+  - Instagram outbound echo events and sender-is-business events are ignored to prevent Inbox replies from creating duplicate customer contacts.
 - Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ## Recently Completed (April 27, 2026) — Phase 2c: Per-appointment reminder timeline
