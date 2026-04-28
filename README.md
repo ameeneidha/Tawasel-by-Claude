@@ -99,6 +99,7 @@ The repo also includes an App Platform spec:
 - **Instagram connect first pass implemented** - Channels now starts Meta OAuth, handles the callback, lets the owner choose a linked Instagram Professional account when multiple Pages are returned, saves Page token/IG account details, and attempts webhook subscription.
 - **New Instagram connect endpoints** - `GET /api/instagram/connect/start`, `GET /api/instagram/connect/callback`, `POST /api/instagram/connect/finalize`, and `DELETE /api/instagram/accounts/:id`.
 - **Schema update** - `InstagramAccount` now stores `pageId`, `pageAccessToken`, `metaBusinessId`, `tokenExpiresAt`, and `connectedAt`.
+- **Webhook subscription fix** - Instagram Page subscription now uses `message_reads` instead of invalid `messaging_seen`.
 - **Deploy note** - this update requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ### April 27, 2026 - Phase 2c: Per-appointment reminder timeline

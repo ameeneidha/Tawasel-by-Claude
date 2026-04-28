@@ -279,7 +279,7 @@ export const subscribeInstagramPageToWebhooks = async (
       {
         params: {
           subscribed_fields:
-            "messages,messaging_postbacks,message_reactions,messaging_seen",
+            "messages,messaging_postbacks,message_reactions,message_reads",
           access_token: normalizedToken,
         },
       }
