@@ -76,6 +76,8 @@ import {
   buildEmbeddedSignupState, formatMetaDisplayPhoneNumber,
   getEmbeddedSignupRuntimeConfig, escapeHtml,
   exchangeMetaCodeForAccessToken, fetchEmbeddedSignupPhoneAssets,
+  buildMetaOAuthState, fetchInstagramConnectionAssets,
+  subscribeInstagramPageToWebhooks,
   fetchInstagramContactProfile, META_GRAPH_VERSION,
   INSTAGRAM_PROFILE_SYNC_TTL_MS,
 } from "./server/services/meta.js";
@@ -83,6 +85,7 @@ import {
 import type {
   WhatsAppMediaKind, IncomingWhatsAppMessagePayload,
   EmbeddedSignupPhoneAsset, EmbeddedSignupResultPayload,
+  InstagramConnectionResultPayload,
 } from "./server/services/meta.js";
 
 import {
@@ -653,6 +656,9 @@ async function startServer() {
   const getEmbeddedSignupCallbackUrl = (req: express.Request) =>
     `${getApiBaseUrl(req)}/api/meta/embedded-signup/callback`;
 
+  const getInstagramConnectCallbackUrl = (req: express.Request) =>
+    `${getApiBaseUrl(req)}/api/instagram/connect/callback`;
+
   const sendEmbeddedSignupCallbackPage = (res: express.Response, payload: EmbeddedSignupResultPayload) => {
     const message = JSON.stringify({
       type: 'meta-embedded-signup',
@@ -689,6 +695,47 @@ async function startServer() {
           } catch (error) {}
           window.setTimeout(function () { window.close(); }, 200);
         })();
+    </script>
+  </body>
+</html>`);
+  };
+
+  const sendInstagramConnectCallbackPage = (res: express.Response, payload: InstagramConnectionResultPayload) => {
+    const message = JSON.stringify({
+      type: 'meta-instagram-connect',
+      payload,
+    }).replace(/</g, '\\u003c');
+    const callbackTargetOrigin = normalizeOriginValue(PUBLIC_APP_URL || process.env.APP_URL || '');
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.status(200).send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Instagram connection</title>
+    <style>
+      body { font-family: Arial, sans-serif; background: #f6f8fb; color: #102030; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+      .card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px rgba(16,32,48,.08); max-width: 420px; width: calc(100% - 32px); }
+      h1 { font-size: 20px; margin: 0 0 8px; }
+      p { margin: 0; color: #667085; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Returning to Tawasel</h1>
+      <p>You can close this window if it does not close automatically.</p>
+    </div>
+    <script>
+      (function () {
+        var message = ${message};
+        var targetOrigin = ${JSON.stringify(callbackTargetOrigin || '')} || window.location.origin;
+        try {
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage(message, targetOrigin);
+          }
+        } catch (error) {}
+        window.setTimeout(function () { window.close(); }, 200);
+      })();
     </script>
   </body>
 </html>`);
@@ -3591,6 +3638,185 @@ async function startServer() {
     }
   });
 
+  // Instagram connection
+  app.get("/api/instagram/connect/start", requireAuth, async (req: any, res) => {
+    const workspaceId = String(req.query.workspaceId || '').trim();
+    if (!workspaceId) {
+      return res.status(400).json({ error: "Workspace is required" });
+    }
+
+    return requireSubscribedWorkspaceById(req, res, async () => {
+      const appId = String(process.env.META_APP_ID || '').trim();
+      const appSecret = String(process.env.META_APP_SECRET || '').trim();
+      const missingKeys = [
+        !appId ? 'META_APP_ID' : null,
+        !appSecret ? 'META_APP_SECRET' : null,
+      ].filter(Boolean);
+
+      if (missingKeys.length > 0) {
+        return res.status(400).json({
+          error: `Instagram connection is not configured yet. Missing: ${missingKeys.join(', ')}`,
+          missingKeys,
+          callbackUrl: getInstagramConnectCallbackUrl(req),
+        });
+      }
+
+      const scopes = String(
+        process.env.INSTAGRAM_OAUTH_SCOPES ||
+          'instagram_basic,instagram_manage_messages,pages_show_list,pages_manage_metadata'
+      )
+        .split(',')
+        .map((scope) => scope.trim())
+        .filter(Boolean)
+        .join(',');
+
+      const redirectUri = getInstagramConnectCallbackUrl(req);
+      const params = new URLSearchParams({
+        client_id: appId,
+        redirect_uri: redirectUri,
+        state: buildMetaOAuthState(workspaceId, 'instagram-connect'),
+        response_type: 'code',
+        scope: scopes,
+      });
+
+      res.json({
+        url: `https://www.facebook.com/${META_GRAPH_VERSION}/dialog/oauth?${params.toString()}`,
+        callbackUrl: redirectUri,
+      });
+    }, workspaceId);
+  });
+
+  app.get("/api/instagram/connect/callback", async (req, res) => {
+    const error = String(req.query.error_message || req.query.error_description || req.query.error || '').trim();
+    const state = parseEmbeddedSignupState(String(req.query.state || ''));
+
+    if (error) {
+      return sendInstagramConnectCallbackPage(res, {
+        success: false,
+        error,
+        workspaceId: state?.workspaceId || null,
+      });
+    }
+
+    const code = String(req.query.code || '').trim();
+    if (!code) {
+      return sendInstagramConnectCallbackPage(res, {
+        success: false,
+        error: "Meta did not return an authorization code",
+        workspaceId: state?.workspaceId || null,
+      });
+    }
+
+    try {
+      const redirectUri = getInstagramConnectCallbackUrl(req);
+      const tokenResponse = await exchangeMetaCodeForAccessToken(code, redirectUri);
+      const accounts = await fetchInstagramConnectionAssets(tokenResponse.access_token);
+
+      if (accounts.length === 0) {
+        return sendInstagramConnectCallbackPage(res, {
+          success: false,
+          error: "No Facebook Page with a linked Instagram Professional account was returned. Make sure the Instagram account is Business/Creator and linked to a Page you manage.",
+          workspaceId: state?.workspaceId || null,
+          accessToken: tokenResponse.access_token,
+          tokenExpiresAt: tokenResponse.expires_in
+            ? new Date(Date.now() + tokenResponse.expires_in * 1000).toISOString()
+            : null,
+        });
+      }
+
+      return sendInstagramConnectCallbackPage(res, {
+        success: true,
+        workspaceId: state?.workspaceId || null,
+        accessToken: tokenResponse.access_token,
+        tokenExpiresAt: tokenResponse.expires_in
+          ? new Date(Date.now() + tokenResponse.expires_in * 1000).toISOString()
+          : null,
+        accounts,
+      });
+    } catch (callbackError: any) {
+      return sendInstagramConnectCallbackPage(res, {
+        success: false,
+        error: callbackError?.response?.data?.error?.message || callbackError?.message || "Could not finish Instagram connection",
+        workspaceId: state?.workspaceId || null,
+      });
+    }
+  });
+
+  app.post("/api/instagram/connect/finalize", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req, res) => {
+    const {
+      workspaceId,
+      pageId,
+      pageName,
+      pageAccessToken,
+      instagramId,
+      username,
+      name,
+      tokenExpiresAt,
+    } = req.body;
+
+    const normalizedWorkspaceId = String(workspaceId || '').trim();
+    const normalizedPageId = String(pageId || '').trim();
+    const normalizedPageAccessToken = String(pageAccessToken || '').trim();
+    const normalizedInstagramId = String(instagramId || '').trim();
+
+    if (!normalizedWorkspaceId || !normalizedPageId || !normalizedPageAccessToken || !normalizedInstagramId) {
+      return res.status(400).json({ error: "Workspace, Page, Instagram account, and Page token are required" });
+    }
+
+    const existing = await prisma.instagramAccount.findUnique({
+      where: { instagramId: normalizedInstagramId },
+    });
+    const movingAcrossWorkspaces = Boolean(existing && existing.workspaceId !== normalizedWorkspaceId);
+    const needsCapacity = !existing || movingAcrossWorkspaces;
+
+    if (!(await enforceWorkspacePlanLimit(res, normalizedWorkspaceId, 'instagram', needsCapacity ? 1 : 0))) {
+      return;
+    }
+
+    const subscription = await subscribeInstagramPageToWebhooks(
+      normalizedPageId,
+      normalizedPageAccessToken
+    );
+
+    if (!subscription.ok) {
+      console.warn('[instagram-connect] webhook subscription failed:', subscription.error);
+    }
+
+    const nextName =
+      String(name || username || pageName || 'Instagram').trim() || 'Instagram';
+    const nextTokenExpiresAt = tokenExpiresAt ? new Date(tokenExpiresAt) : null;
+    const data = {
+      workspaceId: normalizedWorkspaceId,
+      name: nextName,
+      instagramId: normalizedInstagramId,
+      username: String(username || '').trim() || null,
+      accessToken: normalizedPageAccessToken,
+      pageId: normalizedPageId,
+      pageAccessToken: normalizedPageAccessToken,
+      tokenExpiresAt: nextTokenExpiresAt,
+      connectedAt: new Date(),
+      status: subscription.ok ? 'CONNECTED' : 'ACTION_REQUIRED',
+      chatbotId: movingAcrossWorkspaces ? null : existing?.chatbotId ?? null,
+    };
+
+    const account = existing
+      ? await prisma.instagramAccount.update({
+          where: { id: existing.id },
+          data,
+          include: { chatbot: true },
+        })
+      : await prisma.instagramAccount.create({
+          data,
+          include: { chatbot: true },
+        });
+
+    return res.json({
+      ...account,
+      webhookSubscribed: subscription.ok,
+      webhookError: subscription.ok ? null : subscription.error,
+    });
+  });
+
   // Instagram Accounts
   app.get("/api/instagram/accounts", requireAuth, requireWorkspaceAccessFromQuery, async (req, res) => {
     if (!INSTAGRAM_INTEGRATION_ENABLED) {
@@ -3622,6 +3848,36 @@ async function startServer() {
       }
     });
     res.json(account);
+  });
+
+  app.delete("/api/instagram/accounts/:id", requireAuth, requireRole('ADMIN', 'OWNER'), async (req, res, next) => {
+    const account = await prisma.instagramAccount.findUnique({ where: { id: req.params.id } });
+    return requireSubscribedWorkspaceById(req, res, next, account?.workspaceId);
+  }, async (req, res) => {
+    const account = await prisma.instagramAccount.findUnique({ where: { id: req.params.id } });
+    if (!account) {
+      return res.status(404).json({ error: "Instagram account not found" });
+    }
+
+    const conversationCount = await prisma.conversation.count({
+      where: { instagramAccountId: account.id },
+    });
+
+    if (conversationCount > 0) {
+      await prisma.instagramAccount.update({
+        where: { id: account.id },
+        data: {
+          status: 'DISCONNECTED',
+          accessToken: null,
+          pageAccessToken: null,
+          tokenExpiresAt: null,
+        },
+      });
+      return res.json({ success: true, disconnected: true });
+    }
+
+    await prisma.instagramAccount.delete({ where: { id: account.id } });
+    return res.json({ success: true });
   });
 
   // Chatbots

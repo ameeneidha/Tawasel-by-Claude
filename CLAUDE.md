@@ -81,6 +81,13 @@ npx vite build       # Production build
   - Missing SaaS-ready pieces: OAuth/Page selection, Page access token storage, webhook subscription, inbound dedupe, robust multi-entry webhook handling, comment schema/API/UI, and keyword private-reply automation.
   - Config mismatch to remember: backend `server/config.ts` enables Instagram, while frontend `src/lib/product.ts` still disables Instagram product surfaces.
 - Recommended next implementation slice: real Instagram/Facebook connection flow + one verified DM round trip in Inbox before comment automation.
+- First pass of that connection slice is now implemented:
+  - `InstagramAccount` stores `pageId`, `pageAccessToken`, `metaBusinessId`, `tokenExpiresAt`, and `connectedAt`.
+  - New endpoints: `GET /api/instagram/connect/start`, `GET /api/instagram/connect/callback`, `POST /api/instagram/connect/finalize`, and `DELETE /api/instagram/accounts/:id`.
+  - Channels starts Meta OAuth, handles callback messages, asks the owner to choose an IG account when multiple linked Pages are returned, finalizes the selected account, and refreshes the channel list.
+  - `src/lib/product.ts` now enables the Instagram product flag.
+  - Finalize attempts to subscribe the selected Page to Instagram messaging webhooks and stores `ACTION_REQUIRED` if subscription fails.
+- Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ## Recently Completed (April 27, 2026) — Phase 2c: Per-appointment reminder timeline
 

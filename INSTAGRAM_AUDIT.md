@@ -2,6 +2,28 @@
 
 Date: April 28, 2026
 
+## Implementation Update - April 28, 2026
+
+Slice 1 connection flow has been implemented as a first working pass:
+
+- `InstagramAccount` now stores Page ID, Page access token, Meta business ID placeholder, token expiry, and connected time.
+- New backend endpoints:
+  - `GET /api/instagram/connect/start`
+  - `GET /api/instagram/connect/callback`
+  - `POST /api/instagram/connect/finalize`
+  - `DELETE /api/instagram/accounts/:id`
+- Channels now opens Meta OAuth from the Connect Instagram card.
+- If Meta returns multiple Facebook Pages with linked Instagram Professional accounts, Channels asks the owner which account to connect.
+- Finalize saves the selected Instagram account and tries to subscribe the Page to Instagram messaging webhooks.
+- Frontend Instagram product flag is enabled.
+
+Still to prove on production/staging with a real Meta test account:
+
+- OAuth permission approval/scope behavior in the live Meta app.
+- Webhook delivery for real incoming Instagram DMs.
+- Outbound text reply from Tawasel Inbox into Instagram.
+- Whether Meta accepts the webhook subscription fields for the connected Page without extra App Review changes.
+
 ## Executive Summary
 
 Instagram is partially implemented in Tawasel, but it is not ready as a customer-facing connection flow yet.

@@ -96,6 +96,10 @@ The repo also includes an App Platform spec:
 - **Identified missing SaaS-ready pieces** - real Instagram/Facebook OAuth connection flow, Page selection, Page access token storage, webhook subscription, inbound message dedupe, robust multi-entry webhook handling, comment schema/API/UI, and keyword private-reply automation.
 - **Recommended next slice** - connect one real Instagram Professional account, receive a DM in Inbox, and reply from Inbox before starting comment automation.
 - **Flag mismatch noted** - backend `server/config.ts` currently enables Instagram while frontend `src/lib/product.ts` still marks Instagram product surfaces as disabled.
+- **Instagram connect first pass implemented** - Channels now starts Meta OAuth, handles the callback, lets the owner choose a linked Instagram Professional account when multiple Pages are returned, saves Page token/IG account details, and attempts webhook subscription.
+- **New Instagram connect endpoints** - `GET /api/instagram/connect/start`, `GET /api/instagram/connect/callback`, `POST /api/instagram/connect/finalize`, and `DELETE /api/instagram/accounts/:id`.
+- **Schema update** - `InstagramAccount` now stores `pageId`, `pageAccessToken`, `metaBusinessId`, `tokenExpiresAt`, and `connectedAt`.
+- **Deploy note** - this update requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ### April 27, 2026 - Phase 2c: Per-appointment reminder timeline
 

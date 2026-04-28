@@ -40,6 +40,25 @@ export type EmbeddedSignupResultPayload = {
   phoneNumbers?: EmbeddedSignupPhoneAsset[];
 };
 
+export type InstagramConnectionAsset = {
+  pageId: string;
+  pageName: string;
+  pageAccessToken: string;
+  instagramId: string;
+  username?: string | null;
+  name?: string | null;
+};
+
+export type InstagramConnectionResultPayload = {
+  success: boolean;
+  error?: string;
+  workspaceId?: string | null;
+  businessId?: string | null;
+  accessToken?: string | null;
+  tokenExpiresAt?: string | null;
+  accounts?: InstagramConnectionAsset[];
+};
+
 // ── Constants ──────────────────────────────────────────────────────
 
 export const META_GRAPH_VERSION =
@@ -86,6 +105,16 @@ export const buildEmbeddedSignupState = (workspaceId: string) =>
   Buffer.from(
     JSON.stringify({
       workspaceId,
+      requestedAt: new Date().toISOString(),
+    }),
+    "utf8"
+  ).toString("base64url");
+
+export const buildMetaOAuthState = (workspaceId: string, flow: string) =>
+  Buffer.from(
+    JSON.stringify({
+      workspaceId,
+      flow,
       requestedAt: new Date().toISOString(),
     }),
     "utf8"
@@ -187,6 +216,86 @@ export async function exchangeMetaCodeForAccessToken(
     };
   }
 }
+
+export const fetchInstagramConnectionAssets = async (
+  userAccessToken: string
+): Promise<InstagramConnectionAsset[]> => {
+  const token = String(userAccessToken || "").trim();
+  if (!token) return [];
+
+  const pagesResponse = await axios.get(
+    `https://graph.facebook.com/${META_GRAPH_VERSION}/me/accounts`,
+    {
+      params: {
+        fields:
+          "id,name,access_token,tasks,instagram_business_account{id,username,name}",
+        access_token: token,
+      },
+    }
+  );
+
+  const pages = Array.isArray(pagesResponse.data?.data)
+    ? pagesResponse.data.data
+    : [];
+
+  return pages
+    .map((page: any) => {
+      const ig = page?.instagram_business_account;
+      const pageAccessToken = String(page?.access_token || "").trim();
+      const pageId = String(page?.id || "").trim();
+      const instagramId = String(ig?.id || "").trim();
+
+      if (!pageId || !pageAccessToken || !instagramId) {
+        return null;
+      }
+
+      return {
+        pageId,
+        pageName: String(page?.name || "Facebook Page").trim(),
+        pageAccessToken,
+        instagramId,
+        username: String(ig?.username || "").trim() || null,
+        name: String(ig?.name || page?.name || "").trim() || null,
+      } as InstagramConnectionAsset;
+    })
+    .filter(Boolean) as InstagramConnectionAsset[];
+};
+
+export const subscribeInstagramPageToWebhooks = async (
+  pageId: string,
+  pageAccessToken: string
+) => {
+  const normalizedPageId = String(pageId || "").trim();
+  const normalizedToken = String(pageAccessToken || "").trim();
+
+  if (!normalizedPageId || !normalizedToken) {
+    return { ok: false, error: "Missing Page ID or Page access token" };
+  }
+
+  try {
+    await axios.post(
+      `https://graph.facebook.com/${META_GRAPH_VERSION}/${normalizedPageId}/subscribed_apps`,
+      null,
+      {
+        params: {
+          subscribed_fields:
+            "messages,messaging_postbacks,message_reactions,messaging_seen",
+          access_token: normalizedToken,
+        },
+      }
+    );
+
+    return { ok: true };
+  } catch (error: any) {
+    return {
+      ok: false,
+      error:
+        error?.response?.data?.error?.message ||
+        error?.message ||
+        "Could not subscribe Instagram Page to webhooks",
+    };
+  }
+};
 
 export async function fetchEmbeddedSignupPhoneAssets(
   accessToken: string,

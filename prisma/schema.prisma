@@ -142,6 +142,11 @@ model InstagramAccount {
   instagramId   String    @unique
   username      String?
   accessToken   String?
+  pageId        String?
+  pageAccessToken String?
+  metaBusinessId String?
+  tokenExpiresAt DateTime?
+  connectedAt   DateTime?
   status        String    @default("CONNECTED")
   workspaceId   String
   chatbotId     String?

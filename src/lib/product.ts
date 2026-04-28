@@ -1,1 +1,1 @@
-export const INSTAGRAM_INTEGRATION_ENABLED = false;
+export const INSTAGRAM_INTEGRATION_ENABLED = true;

@@ -58,6 +58,23 @@ type EmbeddedSignupMessagePayload = {
   }>;
 };
 
+type InstagramConnectionAccount = {
+  pageId: string;
+  pageName: string;
+  pageAccessToken: string;
+  instagramId: string;
+  username?: string | null;
+  name?: string | null;
+};
+
+type InstagramConnectMessagePayload = {
+  success: boolean;
+  error?: string;
+  workspaceId?: string | null;
+  tokenExpiresAt?: string | null;
+  accounts?: InstagramConnectionAccount[];
+};
+
 const META_EMBEDDED_SIGNUP_ORIGINS = [
   'https://www.facebook.com',
   'https://web.facebook.com',
@@ -73,6 +90,10 @@ export default function Channels() {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnectingWhatsApp, setIsConnectingWhatsApp] = useState(false);
   const [isFinalizingWhatsApp, setIsFinalizingWhatsApp] = useState(false);
+  const [isConnectingInstagram, setIsConnectingInstagram] = useState(false);
+  const [isFinalizingInstagram, setIsFinalizingInstagram] = useState(false);
+  const [pendingInstagramAccounts, setPendingInstagramAccounts] = useState<InstagramConnectionAccount[]>([]);
+  const [pendingInstagramTokenExpiresAt, setPendingInstagramTokenExpiresAt] = useState<string | null>(null);
   const [embeddedSignupConfig, setEmbeddedSignupConfig] = useState<EmbeddedSignupConfig | null>(null);
   const [isLoadingEmbeddedSignupConfig, setIsLoadingEmbeddedSignupConfig] = useState(false);
   const [embeddedSignupSessionHints, setEmbeddedSignupSessionHints] = useState<MetaEmbeddedSignupSessionHints | null>(null);
@@ -96,6 +117,45 @@ export default function Channels() {
   }, [activeWorkspace]);
 
   useEffect(() => {
+    const finalizeInstagramAccount = async (
+      payload: InstagramConnectMessagePayload,
+      account: InstagramConnectionAccount
+    ) => {
+      if (!activeWorkspace?.id) return;
+
+      setIsFinalizingInstagram(true);
+      try {
+        const response = await axios.post('/api/instagram/connect/finalize', {
+          workspaceId: activeWorkspace.id,
+          pageId: account.pageId,
+          pageName: account.pageName,
+          pageAccessToken: account.pageAccessToken,
+          instagramId: account.instagramId,
+          username: account.username,
+          name: account.name || account.username || account.pageName,
+          tokenExpiresAt: payload.tokenExpiresAt || pendingInstagramTokenExpiresAt,
+        });
+
+        await fetchChannels();
+        setPendingInstagramAccounts([]);
+        setPendingInstagramTokenExpiresAt(null);
+
+        if (response.data?.webhookSubscribed === false) {
+          toast.warning(response.data?.webhookError || 'Instagram connected, but webhook subscription needs attention in Meta.');
+        } else {
+          toast.success(`Instagram ${account.username ? `@${account.username}` : account.pageName} connected`);
+        }
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          toast.error(error.response?.data?.error || 'Could not save Instagram account');
+        } else {
+          toast.error('Could not save Instagram account');
+        }
+      } finally {
+        setIsFinalizingInstagram(false);
+      }
+    };
+
     const finalizeConnectedPhone = async (
       payload: EmbeddedSignupMessagePayload,
       phoneNumbersInput?: EmbeddedSignupMessagePayload['phoneNumbers']
@@ -179,6 +239,37 @@ export default function Channels() {
 
       const allowedOrigins = getAllowedMessageOrigins();
       if (!allowedOrigins.has(event.origin)) return;
+
+      if (rawData?.type === 'meta-instagram-connect') {
+        if (!activeWorkspace?.id) return;
+        const payload = rawData.payload as InstagramConnectMessagePayload;
+        if (!payload?.success) {
+          toast.error(payload?.error || 'Could not connect Instagram');
+          return;
+        }
+
+        if (payload.workspaceId && payload.workspaceId !== activeWorkspace.id) {
+          toast.error('Instagram connection belongs to a different workspace');
+          return;
+        }
+
+        const accounts = Array.isArray(payload.accounts) ? payload.accounts : [];
+        if (accounts.length === 0) {
+          toast.error('No linked Instagram Business account was returned by Meta');
+          return;
+        }
+
+        if (accounts.length === 1) {
+          await finalizeInstagramAccount(payload, accounts[0]);
+          return;
+        }
+
+        setPendingInstagramAccounts(accounts);
+        setPendingInstagramTokenExpiresAt(payload.tokenExpiresAt || null);
+        toast.info('Choose which Instagram account to connect.');
+        return;
+      }
+
       if (rawData?.type !== 'meta-embedded-signup') return;
       if (!activeWorkspace?.id) return;
 
@@ -234,7 +325,7 @@ export default function Channels() {
 
     window.addEventListener('message', handleEmbeddedSignupMessage);
     return () => window.removeEventListener('message', handleEmbeddedSignupMessage);
-  }, [activeWorkspace?.id, embeddedSignupSessionHints]);
+  }, [activeWorkspace?.id, embeddedSignupSessionHints, pendingInstagramTokenExpiresAt]);
 
   const fetchChannels = async () => {
     setIsLoading(true);
@@ -335,8 +426,141 @@ export default function Channels() {
     }
   };
 
+  const handleConnectInstagram = async () => {
+    if (igLimitReached) {
+      toast.error(t('channels.limitReached', { plan: planInfo.name }));
+      return;
+    }
+
+    if (!activeWorkspace?.id) {
+      toast.error(t('channels.chooseWorkspace'));
+      return;
+    }
+
+    setIsConnectingInstagram(true);
+    setPendingInstagramAccounts([]);
+    setPendingInstagramTokenExpiresAt(null);
+
+    const popup = window.open(
+      '',
+      'meta-instagram-connect',
+      'width=560,height=760,scrollbars=yes,resizable=yes'
+    );
+
+    if (!popup) {
+      setIsConnectingInstagram(false);
+      toast.error(t('channels.popupBlocked'));
+      return;
+    }
+
+    popup.document.write('<p style="font-family:Arial,sans-serif;padding:24px;">Opening Instagram connection...</p>');
+    try {
+      const response = await axios.get(`/api/instagram/connect/start?workspaceId=${activeWorkspace.id}`);
+      const connectUrl = response.data?.url;
+
+      if (!connectUrl) {
+        popup.close();
+        toast.error('Instagram connection is not configured yet');
+        return;
+      }
+
+      popup.location.href = connectUrl;
+      popup.focus();
+      toast.info('Complete the Meta Instagram flow in the popup window.');
+    } catch (error) {
+      popup.close();
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.error || 'Could not start Instagram connection');
+      } else {
+        toast.error('Could not start Instagram connection');
+      }
+    } finally {
+      setIsConnectingInstagram(false);
+    }
+  };
+
+  const handleFinalizePendingInstagram = async (account: InstagramConnectionAccount) => {
+    setIsFinalizingInstagram(true);
+    try {
+      const response = await axios.post('/api/instagram/connect/finalize', {
+        workspaceId: activeWorkspace?.id,
+        pageId: account.pageId,
+        pageName: account.pageName,
+        pageAccessToken: account.pageAccessToken,
+        instagramId: account.instagramId,
+        username: account.username,
+        name: account.name || account.username || account.pageName,
+        tokenExpiresAt: pendingInstagramTokenExpiresAt,
+      });
+
+      await fetchChannels();
+      setPendingInstagramAccounts([]);
+      setPendingInstagramTokenExpiresAt(null);
+      if (response.data?.webhookSubscribed === false) {
+        toast.warning(response.data?.webhookError || 'Instagram connected, but webhook subscription needs attention in Meta.');
+      } else {
+        toast.success(`Instagram ${account.username ? `@${account.username}` : account.pageName} connected`);
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.error || 'Could not save Instagram account');
+      } else {
+        toast.error('Could not save Instagram account');
+      }
+    } finally {
+      setIsFinalizingInstagram(false);
+    }
+  };
+
   return (
     <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 p-8 overflow-y-auto transition-colors">
+      {pendingInstagramAccounts.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Choose Instagram account</h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Meta returned more than one Page with a linked Instagram account.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingInstagramAccounts([]);
+                  setPendingInstagramTokenExpiresAt(null);
+                }}
+                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-slate-800 dark:hover:text-gray-200"
+              >
+                <MoreVertical className="h-4 w-4 rotate-90" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {pendingInstagramAccounts.map((account) => (
+                <button
+                  key={`${account.pageId}-${account.instagramId}`}
+                  type="button"
+                  disabled={isFinalizingInstagram}
+                  onClick={() => handleFinalizePendingInstagram(account)}
+                  className="flex w-full items-center gap-3 rounded-xl border border-gray-200 p-4 text-left transition-colors hover:border-pink-300 hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:hover:border-pink-900/60 dark:hover:bg-pink-950/20"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white">
+                    {isFinalizingInstagram ? <Loader2 className="h-5 w-5 animate-spin" /> : <Instagram className="h-5 w-5" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                      {account.username ? `@${account.username}` : account.name || account.pageName}
+                    </p>
+                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                      Facebook Page: {account.pageName}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -622,22 +846,24 @@ export default function Channels() {
                 ))}
 
                 <button
-                  disabled={igLimitReached}
-                  onClick={() => {
-                    toast.info('Instagram connection requires Meta App Review approval for instagram_manage_messages permission. Contact support to connect your Instagram Business account.');
-                  }}
+                  disabled={igLimitReached || isConnectingInstagram || isFinalizingInstagram}
+                  onClick={handleConnectInstagram}
                   className={cn(
                     "border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center transition-all group min-h-[200px]",
-                    igLimitReached
+                    igLimitReached || isConnectingInstagram || isFinalizingInstagram
                       ? "bg-gray-50 dark:bg-slate-900/50 border-gray-200 dark:border-slate-800 cursor-not-allowed"
                       : "bg-gray-50 dark:bg-slate-900/50 border-gray-200 dark:border-slate-800 hover:bg-gray-100 dark:hover:bg-slate-800"
                   )}
                 >
                   <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm mb-3 group-hover:scale-110 transition-transform">
-                    <Instagram className={cn("w-6 h-6", igLimitReached ? "text-gray-300 dark:text-gray-700" : "text-pink-400")} />
+                    {isConnectingInstagram || isFinalizingInstagram ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-gray-400 dark:text-gray-500" />
+                    ) : (
+                      <Instagram className={cn("w-6 h-6", igLimitReached ? "text-gray-300 dark:text-gray-700" : "text-pink-400")} />
+                    )}
                   </div>
                   <p className={cn("text-sm font-semibold", igLimitReached ? "text-gray-400 dark:text-gray-600" : "text-gray-600 dark:text-gray-300")}>
-                    Connect Instagram
+                    {isFinalizingInstagram ? 'Saving Instagram...' : isConnectingInstagram ? 'Opening Meta...' : 'Connect Instagram'}
                   </p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                     {igLimitReached ? `Limit reached for ${planInfo.name} plan` : 'Receive & reply to Instagram DMs'}
