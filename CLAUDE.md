@@ -70,6 +70,18 @@ npx vite build       # Production build
 - RESEND_API_KEY, EMAIL_FROM (e.g., `Tawasel <noreply@tawasel.io>`)
 - INSTAGRAM_ACCESS_TOKEN
 
+## Recently Completed (April 28, 2026) - Instagram Phase 5 Audit
+
+- Added `INSTAGRAM_AUDIT.md` as the repo-specific implementation plan for Instagram Inbox + Comment Replies.
+- Audit findings:
+  - `InstagramAccount`, Instagram contact fields, and `Conversation.channelType = INSTAGRAM` already exist in Prisma.
+  - `server/services/webhookProcessor.ts` already handles basic inbound Instagram text DMs and can create contacts/conversations/messages.
+  - `server/services/meta.ts` has an Instagram send path, and `src/pages/Inbox.tsx` already renders and replies to Instagram conversations as text-only.
+  - `src/pages/Channels.tsx` shows Instagram account cards, but Connect Instagram is still only an info toast.
+  - Missing SaaS-ready pieces: OAuth/Page selection, Page access token storage, webhook subscription, inbound dedupe, robust multi-entry webhook handling, comment schema/API/UI, and keyword private-reply automation.
+  - Config mismatch to remember: backend `server/config.ts` enables Instagram, while frontend `src/lib/product.ts` still disables Instagram product surfaces.
+- Recommended next implementation slice: real Instagram/Facebook connection flow + one verified DM round trip in Inbox before comment automation.
+
 ## Recently Completed (April 27, 2026) — Phase 2c: Per-appointment reminder timeline
 
 - Appointment rows and calendar events now have a clock action that opens a per-booking reminder timeline.

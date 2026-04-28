@@ -89,6 +89,14 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### April 28, 2026 - Instagram Phase 5 audit
+
+- **Added `INSTAGRAM_AUDIT.md`** - repo-specific audit and implementation plan for Instagram Inbox + Comment Replies.
+- **Confirmed existing Instagram foundation** - Prisma already has `InstagramAccount`, Instagram contact fields, and `Conversation.channelType = INSTAGRAM`; the webhook processor already handles basic inbound Instagram text DMs; Inbox already renders Instagram conversations and supports text-only replies.
+- **Identified missing SaaS-ready pieces** - real Instagram/Facebook OAuth connection flow, Page selection, Page access token storage, webhook subscription, inbound message dedupe, robust multi-entry webhook handling, comment schema/API/UI, and keyword private-reply automation.
+- **Recommended next slice** - connect one real Instagram Professional account, receive a DM in Inbox, and reply from Inbox before starting comment automation.
+- **Flag mismatch noted** - backend `server/config.ts` currently enables Instagram while frontend `src/lib/product.ts` still marks Instagram product surfaces as disabled.
+
 ### April 27, 2026 - Phase 2c: Per-appointment reminder timeline
 
 - **Reminder timeline modal in Appointments** - each appointment row and calendar event now has a clock action that opens a timeline showing scheduled, sent, failed, and missed reminder attempts for that booking.
