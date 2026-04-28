@@ -552,21 +552,31 @@ export async function processMetaWebhook(body: any, ctx: WebhookContext): Promis
     }
   }
 
-  // Process incoming messages from Instagram
-  if (body.object === "instagram") {
+  // Process incoming messages from Instagram.
+  // Meta may deliver these as object="instagram" or object="page"
+  // when the app subscribes through the linked Facebook Page.
+  if (body.object === "instagram" || body.object === "page") {
     if (!INSTAGRAM_INTEGRATION_ENABLED) return;
 
     const entry = body.entry?.[0];
     const messaging = entry?.messaging?.[0];
-    const senderId = messaging?.sender?.id;
-    const recipientId = messaging?.recipient?.id;
+    const senderId = String(messaging?.sender?.id || "").trim();
+    const recipientId = String(messaging?.recipient?.id || "").trim();
+    const entryId = String(entry?.id || "").trim();
     const message = messaging?.message;
 
     if (message && message.text) {
       const text = message.text;
 
-      const account = await prisma.instagramAccount.findUnique({
-        where: { instagramId: recipientId },
+      const account = await prisma.instagramAccount.findFirst({
+        where: {
+          OR: [
+            recipientId ? { instagramId: recipientId } : undefined,
+            recipientId ? { pageId: recipientId } : undefined,
+            entryId ? { instagramId: entryId } : undefined,
+            entryId ? { pageId: entryId } : undefined,
+          ].filter(Boolean) as any,
+        },
       });
 
       if (account) {
@@ -628,7 +638,13 @@ export async function processMetaWebhook(body: any, ctx: WebhookContext): Promis
             senderType: "USER",
             status: "READ",
             readAt: null,
+            metaMessageId: String(message?.mid || "").trim() || null,
           },
+        });
+
+        await prisma.conversation.update({
+          where: { id: conversation.id },
+          data: { lastMessageAt: new Date() },
         });
 
         ctx.emit(account.workspaceId, "new-message", newMsg);
@@ -660,7 +676,7 @@ export async function processMetaWebhook(body: any, ctx: WebhookContext): Promis
                     process.env.INSTAGRAM_ACCESS_TOKEN ||
                     process.env.META_ACCESS_TOKEN ||
                     "",
-                  instagramId: recipientId,
+                  instagramId: account.instagramId,
                 });
 
                 const aiMsg = await prisma.message.create({
@@ -728,6 +744,13 @@ export async function processMetaWebhook(body: any, ctx: WebhookContext): Promis
             }
           }
         }
+      } else {
+        console.warn("[instagram-webhook] No connected account matched incoming webhook", {
+          object: body.object,
+          entryId: entryId || null,
+          recipientId: recipientId || null,
+          senderId: senderId || null,
+        });
       }
     }
   }
