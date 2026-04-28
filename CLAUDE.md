@@ -88,6 +88,7 @@ npx vite build       # Production build
   - `src/lib/product.ts` now enables the Instagram product flag.
   - Finalize attempts to subscribe the selected Page to Instagram messaging webhooks and stores `ACTION_REQUIRED` if subscription fails.
   - Instagram webhook subscription must use `message_reads`, not invalid `messaging_seen`.
+  - Instagram OAuth must include `pages_messaging`; Meta requires it for Page `messages`, `messaging_postbacks`, `message_reactions`, and `message_reads` subscriptions.
 - Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ## Recently Completed (April 27, 2026) — Phase 2c: Per-appointment reminder timeline

@@ -17,6 +17,7 @@ Slice 1 connection flow has been implemented as a first working pass:
 - Finalize saves the selected Instagram account and tries to subscribe the Page to Instagram messaging webhooks.
 - Frontend Instagram product flag is enabled.
 - Webhook subscription uses Meta's valid Page fields `messages`, `messaging_postbacks`, `message_reactions`, and `message_reads`. Do not use `messaging_seen`; Meta rejects it as an invalid subscribed field.
+- OAuth now requests `pages_messaging` because Meta requires it before an app can subscribe a Page to `messages`, `messaging_postbacks`, `message_reactions`, or `message_reads`.
 
 Still to prove on production/staging with a real Meta test account:
 

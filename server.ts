@@ -3663,7 +3663,7 @@ async function startServer() {
 
       const scopes = String(
         process.env.INSTAGRAM_OAUTH_SCOPES ||
-          'instagram_basic,instagram_manage_messages,pages_show_list,pages_manage_metadata'
+          'instagram_basic,instagram_manage_messages,pages_show_list,pages_manage_metadata,pages_messaging'
       )
         .split(',')
         .map((scope) => scope.trim())
