@@ -90,6 +90,7 @@ npx vite build       # Production build
   - Instagram webhook subscription must use `message_reads`, not invalid `messaging_seen`.
   - Instagram OAuth must include `pages_messaging`; Meta requires it for Page `messages`, `messaging_postbacks`, `message_reactions`, and `message_reads` subscriptions.
   - Instagram DM webhooks may arrive with `object="page"`; processor now accepts both Page and Instagram envelopes and matches by `instagramId` or `pageId`.
+  - `/webhook/meta` logs POST attempts before signature verification to diagnose whether Meta delivery is missing or signature verification is rejecting the payload.
 - Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ## Recently Completed (April 27, 2026) — Phase 2c: Per-appointment reminder timeline

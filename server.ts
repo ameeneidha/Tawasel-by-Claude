@@ -1415,7 +1415,18 @@ async function startServer() {
   });
 
   app.post("/webhook/meta", async (req, res) => {
+    console.log("[webhook] POST /webhook/meta received", {
+      hasSignature: Boolean(req.headers["x-hub-signature-256"]),
+      contentType: req.headers["content-type"] || null,
+      object: req.body?.object || null,
+      entryCount: Array.isArray(req.body?.entry) ? req.body.entry.length : 0,
+    });
+
     if (!verifyMetaSignature(req)) {
+      console.warn("[webhook] rejected Meta webhook signature", {
+        hasSignature: Boolean(req.headers["x-hub-signature-256"]),
+        object: req.body?.object || null,
+      });
       return res.status(403).send("Forbidden");
     }
 

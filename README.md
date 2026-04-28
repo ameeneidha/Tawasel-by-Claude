@@ -102,6 +102,7 @@ The repo also includes an App Platform spec:
 - **Webhook subscription fix** - Instagram Page subscription now uses `message_reads` instead of invalid `messaging_seen`.
 - **Permission fix** - Instagram OAuth now includes `pages_messaging`, which Meta requires before subscribing a Page to `messages`, `messaging_postbacks`, `message_reactions`, and `message_reads`.
 - **Instagram DM parser fix** - webhook processing now accepts both Instagram and Page webhook envelopes and matches connected accounts by Instagram ID or Facebook Page ID.
+- **Webhook diagnostics** - `/webhook/meta` now logs incoming POST attempts before signature verification, making Meta delivery/signature issues visible in PM2 logs.
 - **Deploy note** - this update requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ### April 27, 2026 - Phase 2c: Per-appointment reminder timeline
