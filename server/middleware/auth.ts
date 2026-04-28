@@ -473,7 +473,9 @@ export const verifyMetaSignature = (req: any) => {
   const signature = String(
     req.headers["x-hub-signature-256"] || ""
   ).trim();
-  const rawBody = String(req.rawBody || "");
+  const rawBody = Buffer.isBuffer(req.rawBody)
+    ? req.rawBody
+    : Buffer.from(String(req.rawBody || ""), "utf8");
   const appSecrets = Array.from(
     new Set(
       [process.env.META_APP_SECRET, process.env.INSTAGRAM_APP_SECRET]
@@ -482,7 +484,7 @@ export const verifyMetaSignature = (req: any) => {
     )
   );
 
-  if (!signature || !rawBody || appSecrets.length === 0) {
+  if (!signature || rawBody.length === 0 || appSecrets.length === 0) {
     return false;
   }
 
