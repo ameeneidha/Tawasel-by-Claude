@@ -3870,24 +3870,14 @@ async function startServer() {
       return res.status(404).json({ error: "Instagram account not found" });
     }
 
-    const conversationCount = await prisma.conversation.count({
-      where: { instagramAccountId: account.id },
-    });
+    await prisma.$transaction([
+      prisma.conversation.updateMany({
+        where: { instagramAccountId: account.id },
+        data: { instagramAccountId: null },
+      }),
+      prisma.instagramAccount.delete({ where: { id: account.id } }),
+    ]);
 
-    if (conversationCount > 0) {
-      await prisma.instagramAccount.update({
-        where: { id: account.id },
-        data: {
-          status: 'DISCONNECTED',
-          accessToken: null,
-          pageAccessToken: null,
-          tokenExpiresAt: null,
-        },
-      });
-      return res.json({ success: true, disconnected: true });
-    }
-
-    await prisma.instagramAccount.delete({ where: { id: account.id } });
     return res.json({ success: true });
   });
 
