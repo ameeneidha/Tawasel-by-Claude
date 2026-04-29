@@ -105,6 +105,7 @@ The repo also includes an App Platform spec:
 - **Webhook diagnostics** - `/webhook/meta` now logs incoming POST attempts before signature verification, making Meta delivery/signature issues visible in PM2 logs.
 - **Webhook signature fix** - Meta webhook HMAC verification now uses the raw request bytes instead of a UTF-8 string conversion, which prevents Instagram payload signatures from failing on non-ASCII content.
 - **Instagram echo fix** - outbound Instagram echo events are ignored so agent replies from Inbox no longer create duplicate customer contacts.
+- **Instagram delete fix** - deleting an Instagram channel now removes it from Channels even when old conversations exist by clearing `conversation.instagramAccountId` and deleting the channel record instead of leaving a stuck `DISCONNECTED` entry.
 - **Deploy note** - this update requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ### April 27, 2026 - Phase 2c: Per-appointment reminder timeline

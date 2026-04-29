@@ -93,6 +93,7 @@ npx vite build       # Production build
   - `/webhook/meta` logs POST attempts before signature verification to diagnose whether Meta delivery is missing or signature verification is rejecting the payload.
   - Meta webhook signature verification uses the raw request bytes buffer, not a UTF-8 string conversion, to avoid rejecting Instagram payloads with non-ASCII content.
   - Instagram outbound echo events and sender-is-business events are ignored to prevent Inbox replies from creating duplicate customer contacts.
+  - Deleting an Instagram account from Channels now fully removes it even when old conversations exist by nulling `conversation.instagramAccountId` first instead of leaving a visible `DISCONNECTED` account card behind.
 - Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ## Recently Completed (April 27, 2026) — Phase 2c: Per-appointment reminder timeline
