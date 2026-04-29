@@ -2313,7 +2313,7 @@ async function startServer() {
 
       const accessToken =
         message.conversation.channelType === 'INSTAGRAM'
-        ? message.conversation.instagramAccount?.accessToken || process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || ""
+        ? message.conversation.instagramAccount?.pageAccessToken || message.conversation.instagramAccount?.accessToken || process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || ""
           : getWhatsAppChannelConfig(message.conversation.number).accessToken;
 
       if (!accessToken) {
@@ -2646,8 +2646,14 @@ async function startServer() {
             return res.status(400).json({ error: "Instagram attachments are not connected yet. Send text only for now." });
           }
           const igMsgId = await sendMetaMessage(conversation.contact.instagramId, content, 'instagram', {
-            accessToken: conversation.instagramAccount?.accessToken || process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || "",
-            instagramId: conversation.instagramAccount?.instagramId
+            accessToken:
+              conversation.instagramAccount?.pageAccessToken ||
+              conversation.instagramAccount?.accessToken ||
+              process.env.INSTAGRAM_ACCESS_TOKEN ||
+              process.env.META_ACCESS_TOKEN ||
+              "",
+            instagramId: conversation.instagramAccount?.instagramId,
+            pageId: conversation.instagramAccount?.pageId || undefined,
           });
 
           createdMessages.push(await prisma.message.create({

@@ -686,6 +686,7 @@ export async function sendMetaMessage(
     accessToken: string;
     phoneNumberId?: string;
     instagramId?: string;
+    pageId?: string;
     replyToMetaMessageId?: string; // For quote replies
   }
 ) {
@@ -714,8 +715,9 @@ export async function sendMetaMessage(
 
       return response.data?.messages?.[0]?.id as string | undefined;
     } else {
+      const pageNode = String(config.pageId || "").trim() || "me";
       const response = await axios.post(
-        `https://graph.facebook.com/v17.0/me/messages`,
+        `https://graph.facebook.com/${META_GRAPH_VERSION}/${pageNode}/messages`,
         {
           recipient: { id: to },
           message: { text: text },

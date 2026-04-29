@@ -675,7 +675,7 @@ export async function processMetaWebhook(body: any, ctx: WebhookContext): Promis
           workspaceId: account.workspaceId,
           instagramScopedUserId: senderId,
           accessToken:
-            account.accessToken || process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || "",
+            account.pageAccessToken || account.accessToken || process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || "",
         });
 
         if (!conversation.aiPaused && account.chatbotId) {
@@ -692,11 +692,13 @@ export async function processMetaWebhook(body: any, ctx: WebhookContext): Promis
               try {
                 await sendMetaMessage(senderId, aiResult.text, "instagram", {
                   accessToken:
+                    account.pageAccessToken ||
                     account.accessToken ||
                     process.env.INSTAGRAM_ACCESS_TOKEN ||
                     process.env.META_ACCESS_TOKEN ||
                     "",
                   instagramId: account.instagramId,
+                  pageId: account.pageId || undefined,
                 });
 
                 const aiMsg = await prisma.message.create({
