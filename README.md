@@ -89,9 +89,11 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
-### May 2, 2026 - Public booking confirmation fix
+### May 2, 2026 - Public booking confirmation fixes
 
 - **Fixed public booking confirmation templates** - the confirmation sender now reads the approved template body and sends only the variables that template actually uses, preventing Meta `#132000` parameter-count rejections when older approved templates have fewer placeholders.
+
+- **Fixed confirmation template variable order** - public booking now supports the newer four-variable confirmation template order (`customer`, `business`, `date/time`, `staff`) while preserving the legacy five-variable Tawasel template order.
 
 ### April 28, 2026 - Instagram Phase 5 audit
 

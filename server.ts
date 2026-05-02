@@ -1922,13 +1922,6 @@ async function startServer() {
             + " at " + startTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz });
 
           if (confirmedTemplate) {
-            const templateValues: Record<number, string> = {
-              1: customerName?.trim() || "there",
-              2: service.name,
-              3: staffMember.name,
-              4: dateTimeStr,
-              5: workspace.name,
-            };
             const variableIndexes = Array.from(
               new Set(
                 Array.from(confirmedTemplate.content.matchAll(/\{\{(\d+)\}\}/g))
@@ -1936,6 +1929,22 @@ async function startServer() {
                   .filter((index) => Number.isInteger(index) && index > 0)
               )
             ).sort((a, b) => a - b);
+            const usesLegacyFiveVariableTemplate = variableIndexes.includes(5);
+            const templateValues: Record<number, string> = usesLegacyFiveVariableTemplate
+              ? {
+                  1: customerName?.trim() || "there",
+                  2: service.name,
+                  3: staffMember.name,
+                  4: dateTimeStr,
+                  5: workspace.name,
+                }
+              : {
+                  1: customerName?.trim() || "there",
+                  2: workspace.name,
+                  3: dateTimeStr,
+                  4: staffMember.name,
+                  5: service.name,
+                };
             const parameters = variableIndexes.length > 0
               ? variableIndexes.map((index) => templateValues[index] || "")
               : [templateValues[1], templateValues[2], templateValues[3], templateValues[4], templateValues[5]];

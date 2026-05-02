@@ -101,6 +101,7 @@ npx vite build       # Production build
 - Public booking `/book/:slug` customer name and WhatsApp number inputs now force visible text/background/caret styles so typed values are readable.
 - Business Settings now shows the stable public booking link with a Copy Link action and explains that changing the business name does not change the slug.
 - Public booking confirmation now reads the approved WhatsApp template body and sends only the variables that template actually uses, avoiding Meta `#132000` parameter-count failures with older approved confirmation templates.
+- Public booking confirmation now supports the newer four-variable template order (`customer`, `business`, `date/time`, `staff`) while preserving the legacy five-variable Tawasel template order.
 
 ## Recently Completed (April 27, 2026) — Phase 2c: Per-appointment reminder timeline
 
