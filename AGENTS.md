@@ -50,6 +50,10 @@ npx tsc --noEmit     # Type check
 npx vite build       # Production build
 ```
 
+## User Guides
+- `TAWASEL_OPERATOR_GUIDE_EN.md` - English operator playbook for onboarding users.
+- `TAWASEL_OPERATOR_GUIDE_AR.md` - Arabic operator playbook for UAE/GCC users.
+
 ## Demo Accounts (after seeding)
 - Superadmin: ameeneidha@gmail.com / password123
 - Starter: starter@wabahub.local / password123
