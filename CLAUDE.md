@@ -98,6 +98,7 @@ npx vite build       # Production build
 
 ## Recently Completed (May 2, 2026) - Public booking QA fixes
 
+- Settings navigation/personal/business/API/billing headers and the public landing page hero/signup/footer CTA now support Arabic/English copy and RTL direction.
 - Main dashboard alert cards now localize backend-generated alerts such as stale leads, unread messages, overdue conversations, failed sends, and disconnected channels.
 - Public booking `/book/:slug` now supports an Arabic/English language toggle, RTL layout direction, Arabic customer-facing labels, and Arabic UAE date/time formatting for the full booking flow.
 - Added a no-card 30-day trial lifecycle: new workspaces start as `trialing` on Growth with `trialStartedAt` / `trialEndsAt`, expired trials lose access to sending/bookings/reminders/automation, and superadmin can start, extend, expire, or mark active from workspace controls.

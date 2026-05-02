@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { motion } from 'motion/react';
 import {
@@ -79,6 +80,87 @@ const FOOTER_TRUST_POINTS = [
 ];
 const TRIAL_PROMISES = ['30 days', 'No card required', 'Growth workspace included'];
 
+const HOME_COPY = {
+  en: {
+    languageToggle: 'العربية',
+    features: 'Features',
+    pricing: 'Pricing',
+    openDashboard: 'Open Dashboard',
+    signIn: 'Sign In',
+    signUp: 'Sign Up',
+    eyebrow: '30-day no-card trial for UAE WhatsApp teams',
+    heroTitle: 'Use Tawasel in your real business',
+    heroHighlight: ' for 30 days.',
+    heroSubtitle: 'Connect WhatsApp, share your booking link, send reminders, and handle real customers. If it creates value after a month, keep it. If not, walk away.',
+    startTrial: 'Start 30-Day Trial',
+    viewPricing: 'View Pricing',
+    trialPromises: TRIAL_PROMISES,
+    signupTitle: 'Start your 30-day trial',
+    signinTitle: 'Sign in to Tawasel',
+    signupSubtitle: 'Create your workspace and start a Growth trial immediately. No card required.',
+    signinSubtitle: 'Access your dashboard, WhatsApp inbox, and team workflows.',
+    fullName: 'Full Name',
+    emailAddress: 'Email Address',
+    password: 'Password',
+    forgotPassword: 'Forgot password?',
+    confirmPassword: 'Confirm Password',
+    alreadyHaveAccount: 'Already have an account?',
+    newToTawasel: 'New to Tawasel?',
+    createAccount: 'Create Account',
+    signingIn: 'Signing in...',
+    creatingAccount: 'Creating account...',
+    footerTrust: FOOTER_TRUST_POINTS,
+    ready: 'Ready to centralize operations?',
+    finalTitle: 'Prove the WhatsApp booking workflow in your real business.',
+    finalSubtitle: 'Start with a Growth workspace, connect WhatsApp, send reminders, and decide after 30 days using real customer activity.',
+    talkToSales: 'Talk to Sales',
+    footerDesc: 'The premium operating layer for WhatsApp-driven sales, support, CRM workflows, and performance reporting for UAE and GCC businesses.',
+    platform: 'Platform',
+    company: 'Company',
+    startTrialLink: 'Start 30-Day Trial',
+    allRights: 'All rights reserved.',
+  },
+  ar: {
+    languageToggle: 'English',
+    features: 'المزايا',
+    pricing: 'الأسعار',
+    openDashboard: 'فتح لوحة التحكم',
+    signIn: 'تسجيل الدخول',
+    signUp: 'إنشاء حساب',
+    eyebrow: 'تجربة 30 يوماً بدون بطاقة لفرق واتساب في الإمارات',
+    heroTitle: 'استخدم تواصل داخل عملك الحقيقي',
+    heroHighlight: ' لمدة 30 يوماً.',
+    heroSubtitle: 'اربط واتساب، شارك رابط الحجز، أرسل التذكيرات، وتعامل مع عملاء حقيقيين. إذا صنع قيمة بعد شهر، استمر. وإذا لم يناسبك، غادر بدون التزام.',
+    startTrial: 'ابدأ تجربة 30 يوماً',
+    viewPricing: 'عرض الأسعار',
+    trialPromises: ['30 يوماً', 'بدون بطاقة', 'مساحة Growth مشمولة'],
+    signupTitle: 'ابدأ تجربتك لمدة 30 يوماً',
+    signinTitle: 'تسجيل الدخول إلى تواصل',
+    signupSubtitle: 'أنشئ مساحة عمل وابدأ تجربة Growth مباشرة. لا تحتاج إلى بطاقة.',
+    signinSubtitle: 'ادخل إلى لوحة التحكم وصندوق واتساب وسير عمل الفريق.',
+    fullName: 'الاسم الكامل',
+    emailAddress: 'البريد الإلكتروني',
+    password: 'كلمة المرور',
+    forgotPassword: 'نسيت كلمة المرور؟',
+    confirmPassword: 'تأكيد كلمة المرور',
+    alreadyHaveAccount: 'لديك حساب بالفعل؟',
+    newToTawasel: 'جديد في تواصل؟',
+    createAccount: 'إنشاء الحساب',
+    signingIn: 'جارٍ تسجيل الدخول...',
+    creatingAccount: 'جارٍ إنشاء الحساب...',
+    footerTrust: ['دعم عربي وإنجليزي', 'جاهز لـ Meta Cloud API', 'صندوق واتساب مشترك وأتمتة بالذكاء الاصطناعي', 'مصمم لعمليات الإمارات والخليج'],
+    ready: 'جاهز لتوحيد العمليات؟',
+    finalTitle: 'اختبر سير عمل حجوزات واتساب داخل عملك الحقيقي.',
+    finalSubtitle: 'ابدأ بمساحة Growth، اربط واتساب، أرسل التذكيرات، وقرر بعد 30 يوماً بناءً على نشاط عملائك الحقيقي.',
+    talkToSales: 'تحدث مع المبيعات',
+    footerDesc: 'طبقة تشغيل متقدمة للمبيعات والدعم وإدارة العملاء والتقارير للشركات التي تعتمد على واتساب في الإمارات والخليج.',
+    platform: 'المنصة',
+    company: 'الشركة',
+    startTrialLink: 'ابدأ تجربة 30 يوماً',
+    allRights: 'جميع الحقوق محفوظة.',
+  },
+} as const;
+
 const getComparisonCellMeta = (value: boolean | number | string) => {
   if (typeof value === 'boolean') {
     return value
@@ -138,6 +220,9 @@ const comparisonToneClasses = {
 export default function Home() {
   const { user, setUser } = useApp();
   const navigate = useNavigate();
+  const { i18n } = useTranslation();
+  const isArabic = i18n.language?.startsWith('ar');
+  const copy = isArabic ? HOME_COPY.ar : HOME_COPY.en;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -231,7 +316,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-[#25D366]/30">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-[#25D366]/30" dir={isArabic ? 'rtl' : 'ltr'}>
       <nav className="fixed top-0 z-50 w-full border-b border-slate-100 dark:border-slate-800 bg-white/85 dark:bg-slate-950/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
@@ -241,12 +326,20 @@ export default function Home() {
             <span className="text-xl font-bold tracking-tight dark:text-white">Tawasel</span>
           </div>
 
+          <button
+            type="button"
+            onClick={() => i18n.changeLanguage(isArabic ? 'en' : 'ar')}
+            className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:border-[#25D366] hover:text-[#128C7E] dark:border-slate-700 dark:text-slate-300 md:hidden"
+          >
+            {copy.languageToggle}
+          </button>
+
           <div className="hidden items-center gap-8 text-sm font-medium text-slate-600 dark:text-slate-400 md:flex">
             <a href="#features" className="transition-colors hover:text-[#25D366]">
-              Features
+              {copy.features}
             </a>
             <a href="#pricing" className="transition-colors hover:text-[#25D366]">
-              Pricing
+              {copy.pricing}
             </a>
             {user ? (
               <button
@@ -254,13 +347,20 @@ export default function Home() {
                 onClick={() => navigate(getPostLoginPath(user))}
                 className="rounded-full bg-slate-900 dark:bg-white dark:text-slate-900 px-4 py-2 text-white transition-colors hover:bg-slate-800 dark:hover:bg-slate-200"
               >
-                Open Dashboard
+                {copy.openDashboard}
               </button>
             ) : (
               <a href="#login" className="rounded-full bg-slate-900 dark:bg-white dark:text-slate-900 px-4 py-2 text-white transition-colors hover:bg-slate-800 dark:hover:bg-slate-200">
-                Sign In
+                {copy.signIn}
               </a>
             )}
+            <button
+              type="button"
+              onClick={() => i18n.changeLanguage(isArabic ? 'en' : 'ar')}
+              className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:border-[#25D366] hover:text-[#128C7E] dark:border-slate-700 dark:text-slate-300"
+            >
+              {copy.languageToggle}
+            </button>
           </div>
         </div>
       </nav>
@@ -274,30 +374,30 @@ export default function Home() {
           >
             <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[#25D366]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#25D366]">
               <Zap className="h-3 w-3" />
-              30-day no-card trial for UAE WhatsApp teams
+              {copy.eyebrow}
             </div>
             <h1 className="mb-6 text-5xl font-bold leading-[1.05] tracking-tight lg:text-7xl">
-              Use Tawasel in your real business
-              <span className="text-[#25D366]"> for 30 days.</span>
+              {copy.heroTitle}
+              <span className="text-[#25D366]">{copy.heroHighlight}</span>
             </h1>
             <p className="mb-8 max-w-xl text-xl leading-relaxed text-slate-600 dark:text-slate-400">
-              Connect WhatsApp, share your booking link, send reminders, and handle real customers. If it creates value after a month, keep it. If not, walk away.
+              {copy.heroSubtitle}
             </p>
             <div className="flex flex-wrap gap-4">
               <a
                 href="#login"
                 className="flex items-center gap-2 rounded-xl bg-[#25D366] px-8 py-4 font-bold text-white shadow-lg shadow-[#25D366]/20 transition-all hover:bg-[#128C7E]"
               >
-                Start 30-Day Trial <ArrowRight className="h-5 w-5" />
+                {copy.startTrial} <ArrowRight className="h-5 w-5" />
               </a>
               <a
                 href="#pricing"
                 className="flex items-center gap-2 rounded-xl border border-slate-300 px-8 py-4 font-bold text-slate-700 transition-all hover:border-slate-900 hover:text-slate-950 dark:border-slate-700 dark:text-slate-300 dark:hover:border-white dark:hover:text-white"
               >
-                View Pricing
+                {copy.viewPricing}
               </a>
               <div className="flex w-full flex-wrap gap-2 pt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                {TRIAL_PROMISES.map((item) => (
+                {copy.trialPromises.map((item) => (
                   <span key={item} className="rounded-full border border-slate-200 bg-white px-3 py-1 dark:border-slate-800 dark:bg-slate-900">
                     {item}
                   </span>
@@ -314,11 +414,11 @@ export default function Home() {
             className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-8 lg:p-12"
           >
             <div className="mb-8">
-              <h2 className="mb-2 text-2xl font-bold">{isSignUp ? 'Start your 30-day trial' : 'Sign in to Tawasel'}</h2>
+              <h2 className="mb-2 text-2xl font-bold">{isSignUp ? copy.signupTitle : copy.signinTitle}</h2>
               <p className="text-slate-500 dark:text-slate-400">
                 {isSignUp
-                  ? 'Create your workspace and start a Growth trial immediately. No card required.'
-                  : 'Access your dashboard, WhatsApp inbox, and team workflows.'}
+                  ? copy.signupSubtitle
+                  : copy.signinSubtitle}
               </p>
             </div>
 
@@ -333,7 +433,7 @@ export default function Home() {
                   !isSignUp ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
-                Sign In
+                {copy.signIn}
               </button>
               <button
                 type="button"
@@ -345,14 +445,14 @@ export default function Home() {
                   isSignUp ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
-                Sign Up
+                {copy.signUp}
               </button>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
               {isSignUp ? (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Full Name</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{copy.fullName}</label>
                   <div className="relative">
                     <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
@@ -369,7 +469,7 @@ export default function Home() {
               ) : null}
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Email Address</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{copy.emailAddress}</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -386,7 +486,7 @@ export default function Home() {
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-3">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Password</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{copy.password}</label>
 
                   {!isSignUp ? (
                     <button
@@ -394,7 +494,7 @@ export default function Home() {
                       onClick={() => navigate('/forgot-password')}
                       className="text-[11px] font-semibold text-[#25D366] transition-colors hover:text-[#128C7E]"
                     >
-                      Forgot password?
+                      {copy.forgotPassword}
                     </button>
                   ) : null}
                 </div>
@@ -439,7 +539,7 @@ export default function Home() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Confirm Password</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{copy.confirmPassword}</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                       <input
@@ -480,7 +580,7 @@ export default function Home() {
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <>
-                    {isSignUp ? 'Create Trial Workspace' : 'Sign In'}
+                    {isSignUp ? copy.createAccount : copy.signIn}
                     {isSignUp ? <Zap className="h-5 w-5 text-[#25D366]" /> : <LogIn className="h-5 w-5" />}
                   </>
                 )}
@@ -489,7 +589,7 @@ export default function Home() {
 
             {isSignUp ? (
               <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-                You can operate with real customers for 30 days before choosing whether to pay.
+                {copy.heroSubtitle}
               </p>
             ) : null}
           </motion.div>
@@ -651,7 +751,7 @@ export default function Home() {
                             : 'border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white hover:border-slate-900 dark:hover:border-white hover:bg-slate-900 dark:hover:bg-white hover:text-white dark:hover:text-slate-900'
                         }`}
                       >
-                        {user ? 'Choose Plan' : 'Start 30-Day Trial'}
+                        {user ? copy.viewPricing : copy.startTrial}
                       </button>
                       <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{plan.audience}</p>
                     </div>
@@ -850,13 +950,13 @@ export default function Home() {
               <div className="max-w-3xl">
                 <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-[#86efac]">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Ready to centralize operations?
+                  {copy.ready}
                 </div>
                 <h2 className="mt-6 text-4xl font-bold tracking-tight text-white lg:text-5xl">
-                  Prove the WhatsApp booking workflow in your real business.
+                  {copy.finalTitle}
                 </h2>
                 <p className="mt-4 max-w-2xl text-base leading-8 text-white/70 lg:text-lg">
-                  Start with a Growth workspace, connect WhatsApp, send reminders, and decide after 30 days using real customer activity.
+                  {copy.finalSubtitle}
                 </p>
               </div>
 
@@ -866,7 +966,7 @@ export default function Home() {
                   onClick={() => handlePlanSelect('growth')}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-7 py-4 text-sm font-bold text-white shadow-lg shadow-[#25D366]/20 transition hover:bg-[#128C7E]"
                 >
-                  Start 30-Day Trial
+                  {copy.startTrial}
                   <ArrowRight className="h-4 w-4" />
                 </button>
                 <button
@@ -874,7 +974,7 @@ export default function Home() {
                   onClick={() => window.open('https://tawasel.io', '_blank', 'noopener,noreferrer')}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-7 py-4 text-sm font-bold text-white transition hover:border-white/30 hover:bg-white/10"
                 >
-                  Talk to Sales
+                  {copy.talkToSales}
                   <ArrowUpRight className="h-4 w-4" />
                 </button>
               </div>
@@ -886,7 +986,7 @@ export default function Home() {
       <footer className="bg-slate-950 py-20 text-white">
         <div className="mx-auto max-w-7xl px-4">
           <div className="mb-12 grid gap-4 rounded-[2rem] border border-white/10 bg-white/5 p-5 sm:grid-cols-2 xl:grid-cols-4">
-            {FOOTER_TRUST_POINTS.map((point) => (
+            {copy.footerTrust.map((point) => (
               <div
                 key={point}
                 className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-semibold text-white/85"
@@ -908,8 +1008,7 @@ export default function Home() {
                 <span className="text-2xl font-bold tracking-tight">Tawasel</span>
               </div>
               <p className="max-w-md text-sm leading-7 text-white/65">
-                The premium operating layer for WhatsApp-driven sales, support, CRM workflows, and performance reporting
-                for UAE and GCC businesses.
+                {copy.footerDesc}
               </p>
               <div className="mt-6 flex gap-4">
                 <a
@@ -930,21 +1029,21 @@ export default function Home() {
             </div>
 
             <div>
-              <h4 className="mb-5 text-sm font-bold uppercase tracking-[0.18em] text-white/45">Platform</h4>
+              <h4 className="mb-5 text-sm font-bold uppercase tracking-[0.18em] text-white/45">{copy.platform}</h4>
               <ul className="space-y-4 text-sm text-white/65">
                 <li>
                   <a href="/#features" className="transition-colors hover:text-white">
-                    Features
+                    {copy.features}
                   </a>
                 </li>
                 <li>
                   <a href="/#pricing" className="transition-colors hover:text-white">
-                    Pricing
+                    {copy.pricing}
                   </a>
                 </li>
                 <li>
                   <Link to="/register" className="transition-colors hover:text-white">
-                    Start 30-Day Trial
+                    {copy.startTrialLink}
                   </Link>
                 </li>
                 <li>
@@ -956,7 +1055,7 @@ export default function Home() {
             </div>
 
             <div>
-              <h4 className="mb-5 text-sm font-bold uppercase tracking-[0.18em] text-white/45">Company</h4>
+              <h4 className="mb-5 text-sm font-bold uppercase tracking-[0.18em] text-white/45">{copy.company}</h4>
               <ul className="space-y-4 text-sm text-white/65">
                 <li>
                   <Link to="/about" className="transition-colors hover:text-white">
@@ -998,7 +1097,7 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col gap-3 pt-8 text-sm text-white/45 md:flex-row md:items-center md:justify-between">
-            <p>© {new Date().getFullYear()} Tawasel. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Tawasel. {copy.allRights}</p>
             <p>
               By{' '}
               <a href="https://tawasel.io" target="_blank" rel="noopener noreferrer" className="font-medium text-[#86efac] hover:underline">

@@ -30,24 +30,26 @@ import { useTranslation } from 'react-i18next';
 import { formatLimitValue, getPlanConfig, getPlanPrice, isPaidPlan, PLAN_ORDER, PLANS, PlanType } from '../constants/plans';
 
 const settingsNav = [
-  { icon: User, label: 'Personal', path: '/app/settings/personal' },
-  { icon: Building2, label: 'Business', path: '/app/settings/business' },
-  { icon: Database, label: 'Custom Attributes', path: '/app/settings/custom-attributes' },
-  { icon: Zap, label: 'Automation', path: '/app/settings/automation' },
-  { icon: Key, label: 'API Keys', path: '/app/settings/api-keys' },
-  { icon: CreditCard, label: 'Billing', path: '/app/settings/billing' },
+  { icon: User, labelKey: 'settings.personal', path: '/app/settings/personal' },
+  { icon: Building2, labelKey: 'settings.business', path: '/app/settings/business' },
+  { icon: Database, labelKey: 'settings.customAttributes', path: '/app/settings/custom-attributes' },
+  { icon: Zap, labelKey: 'settings.automation', path: '/app/settings/automation' },
+  { icon: Key, labelKey: 'settings.apiKeys', path: '/app/settings/api-keys' },
+  { icon: CreditCard, labelKey: 'settings.billing', path: '/app/settings/billing' },
 ];
 
 export default function Settings() {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { t, i18n } = useTranslation();
+  const isArabic = i18n.language?.startsWith('ar');
 
   return (
-    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 flex flex-col md:flex-row transition-colors">
+    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 flex flex-col md:flex-row transition-colors" dir={isArabic ? 'rtl' : 'ltr'}>
       <div className="hidden w-64 border-r border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 md:flex flex-col gap-2 transition-colors">
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Settings</h1>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{t('settings.title')}</h1>
         </div>
         {settingsNav.map((item) => {
           const isActive = location.pathname === item.path;
@@ -63,7 +65,7 @@ export default function Settings() {
               )}
             >
               <item.icon className="w-5 h-5" />
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           );
         })}
@@ -71,7 +73,7 @@ export default function Settings() {
 
       <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 md:hidden">
         <div className="mb-3 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Settings</h1>
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{t('settings.title')}</h1>
           <button
             onClick={() => navigate(-1)}
             className="rounded-xl border border-gray-200 bg-white p-2 text-gray-400 shadow-sm transition-colors hover:text-gray-600 dark:border-slate-700 dark:bg-slate-800 dark:hover:text-gray-200"
@@ -94,7 +96,7 @@ export default function Settings() {
                 )}
               >
                 <item.icon className="h-4 w-4" />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             );
           })}
@@ -127,6 +129,7 @@ export default function Settings() {
 function PersonalSettings() {
   const { user, token, setUser } = useApp();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useTranslation();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [name, setName] = React.useState(user?.name || '');
   const [saving, setSaving] = React.useState(false);
@@ -136,7 +139,7 @@ function PersonalSettings() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 800 * 1024) {
-      toast.error('Image too large. Max size is 800KB.');
+      toast.error(t('settings.imageTooLarge'));
       return;
     }
     const reader = new FileReader();
@@ -157,9 +160,9 @@ function PersonalSettings() {
         image: avatarPreview,
       });
       setUser(res.data, token);
-      toast.success('Profile updated');
+      toast.success(t('settings.profileUpdated'));
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || 'Failed to save profile');
+      toast.error(err?.response?.data?.error || t('settings.profileSaveFailed'));
     } finally {
       setSaving(false);
     }
@@ -168,8 +171,8 @@ function PersonalSettings() {
   return (
     <div className="space-y-6 md:space-y-12">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">Personal Settings</h2>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your profile and account preferences.</p>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">{t('settings.personalSettings')}</h2>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">{t('settings.personalSettingsDesc')}</p>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-6 md:space-y-8 transition-colors">
@@ -185,13 +188,13 @@ function PersonalSettings() {
             </div>
           </div>
           <div className="w-full sm:w-auto">
-            <h3 className="font-semibold text-gray-900 dark:text-white">Profile Picture</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">JPG, GIF or PNG. Max size of 800K</p>
+            <h3 className="font-semibold text-gray-900 dark:text-white">{t('settings.profilePicture')}</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('settings.profilePictureHelp')}</p>
             <div className="mt-3 grid grid-cols-2 gap-2 sm:flex">
               <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif" className="hidden" onChange={handleFileChange} />
-              <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-[#25D366] text-white text-xs font-bold rounded-lg hover:bg-[#128C7E] transition-colors sm:py-1.5">Upload</button>
+              <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-[#25D366] text-white text-xs font-bold rounded-lg hover:bg-[#128C7E] transition-colors sm:py-1.5">{t('settings.upload')}</button>
               {avatarPreview && (
-                <button onClick={handleRemoveAvatar} className="px-4 py-2 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors sm:py-1.5">Remove</button>
+                <button onClick={handleRemoveAvatar} className="px-4 py-2 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors sm:py-1.5">{t('settings.remove')}</button>
               )}
             </div>
           </div>
@@ -199,28 +202,28 @@ function PersonalSettings() {
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('settings.fullName')}</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-3 md:py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 transition-all" />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('settings.emailAddress')}</label>
             <input type="email" defaultValue={user?.email || ''} disabled className="w-full px-4 py-3 md:py-2 bg-gray-100 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl outline-none text-gray-500 dark:text-gray-500 cursor-not-allowed transition-all" />
           </div>
         </div>
 
         <div className="flex justify-end">
           <button onClick={handleSave} disabled={saving} className="w-full px-6 py-3 md:w-auto md:py-2 bg-[#25D366] text-white text-sm font-semibold rounded-xl hover:bg-[#128C7E] transition-colors disabled:opacity-60">
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving ? t('settings.saving') : t('settings.saveChanges')}
           </button>
         </div>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-8 border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
-        <h3 className="font-semibold text-gray-900 dark:text-white mb-6">Appearance</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-white mb-6">{t('settings.appearance')}</h3>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Color Mode</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Choose between light and dark theme.</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('settings.colorMode')}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('settings.colorModeDesc')}</p>
           </div>
           <div className="grid grid-cols-2 bg-gray-100 dark:bg-slate-800 p-1 rounded-xl transition-colors sm:flex">
             <button 
@@ -233,7 +236,7 @@ function PersonalSettings() {
               )}
             >
               <Sun className="w-4 h-4" />
-              Light
+              {t('settings.light')}
             </button>
             <button 
               onClick={() => theme === 'light' && toggleTheme()}
@@ -245,7 +248,7 @@ function PersonalSettings() {
               )}
             >
               <Moon className="w-4 h-4" />
-              Dark
+              {t('settings.dark')}
             </button>
           </div>
         </div>
@@ -256,6 +259,7 @@ function PersonalSettings() {
 
 function BusinessSettings() {
   const { activeWorkspace, setActiveWorkspace } = useApp();
+  const { t } = useTranslation();
   const [businessName, setBusinessName] = useState(activeWorkspace?.name || '');
   const [saving, setSaving] = useState(false);
   const bookingLink = activeWorkspace?.slug
@@ -274,9 +278,9 @@ function BusinessSettings() {
       const res = await axios.patch(`/api/workspaces/${activeWorkspace.id}`, { name: businessName.trim() });
       // Update context so sidebar + everywhere else reflects immediately
       setActiveWorkspace({ ...activeWorkspace, name: res.data.name });
-      toast.success('Business name updated!');
+      toast.success(t('settings.businessUpdated'));
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || 'Failed to save');
+      toast.error(err?.response?.data?.error || t('settings.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -285,14 +289,14 @@ function BusinessSettings() {
   return (
     <div className="space-y-6 md:space-y-12">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">Business Settings</h2>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your workspace and business information.</p>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">{t('settings.businessSettings')}</h2>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">{t('settings.businessSettingsDesc')}</p>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-6 md:space-y-8 transition-colors">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Business Name</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('settings.businessName')}</label>
             <input
               type="text"
               value={businessName}
@@ -301,7 +305,7 @@ function BusinessSettings() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Timezone</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('settings.timezone')}</label>
             <select className="w-full px-4 py-3 md:py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none text-gray-900 dark:text-white focus:ring-2 focus:ring-[#25D366]/20 transition-all">
               <option>Asia/Dubai (GMT+04:00)</option>
               <option>UTC (GMT+00:00)</option>
@@ -313,21 +317,21 @@ function BusinessSettings() {
           <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">Public booking link</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{t('settings.publicBookingLink')}</p>
                 <p className="mt-1 break-all text-sm text-gray-500 dark:text-gray-400">{bookingLink}</p>
                 <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                  This link stays the same even if the business name changes, so old Instagram bio and website links keep working.
+                  {t('settings.publicBookingLinkHelp')}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => {
                   navigator.clipboard?.writeText(bookingLink);
-                  toast.success('Booking link copied');
+                  toast.success(t('settings.bookingLinkCopied'));
                 }}
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:bg-slate-900 dark:text-gray-200 md:w-auto md:py-2.5"
               >
-                Copy Link
+                {t('settings.copyLink')}
               </button>
             </div>
           </div>
@@ -338,7 +342,7 @@ function BusinessSettings() {
           disabled={saving || !businessName.trim() || businessName.trim() === activeWorkspace?.name}
           className="w-full px-6 py-3 md:w-auto md:py-2.5 bg-[#25D366] text-white text-sm font-bold rounded-xl hover:bg-[#128C7E] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {saving ? 'Saving…' : 'Save Changes'}
+          {saving ? t('settings.saving') : t('settings.saveChanges')}
         </button>
       </div>
     </div>
@@ -347,6 +351,7 @@ function BusinessSettings() {
 
 function AutomationRules() {
   const { activeWorkspace } = useApp();
+  const { t } = useTranslation();
   const [rules, setRules] = useState<any[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newRule, setNewRule] = useState({
@@ -387,15 +392,15 @@ function AutomationRules() {
     <div className="space-y-6 md:space-y-12">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">Automation Rules</h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Automate repetitive tasks and workflows.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">{t('settings.automationRules')}</h2>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{t('settings.automationRulesDesc')}</p>
         </div>
         <button 
           onClick={() => setIsAdding(true)}
           className="flex w-full items-center justify-center gap-2 px-4 py-3 bg-[#25D366] text-white font-medium rounded-xl hover:bg-[#128C7E] transition-all shadow-sm sm:w-auto sm:py-2"
         >
           <Plus className="w-4 h-4" />
-          Create Rule
+          {t('settings.createRule')}
         </button>
       </div>
 
@@ -681,23 +686,25 @@ function CustomAttributes() {
 }
 
 function ApiKeys() {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-6 md:space-y-12">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">API Keys</h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Access your account via our REST API.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">{t('settings.apiKeys')}</h2>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{t('settings.apiKeysDesc')}</p>
         </div>
         <button className="flex w-full items-center justify-center gap-2 px-4 py-3 bg-[#25D366] text-white font-medium rounded-xl hover:bg-[#128C7E] transition-all shadow-sm sm:w-auto sm:py-2">
           <Plus className="w-4 h-4" />
-          Create New Key
+          {t('settings.createNewKey')}
         </button>
       </div>
 
       <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
         <div className="p-6 border-b border-gray-200 dark:border-slate-800">
           <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-            Use these keys to authenticate requests to our API. Keep them secret and never share them in public repositories.
+            {t('settings.apiKeysHelp')}
           </p>
         </div>
         <table className="w-full text-left">
@@ -735,6 +742,7 @@ function ApiKeys() {
 function Billing() {
   const location = useLocation();
   const { activeWorkspace, refreshWorkspaces, hasVerifiedEmail } = useApp();
+  const { t } = useTranslation();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [ledger, setLedger] = useState<any[]>([]);
   const [usageLogs, setUsageLogs] = useState<any[]>([]);
@@ -851,8 +859,8 @@ function Billing() {
   return (
     <div className="space-y-6 md:space-y-12">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">Billing & Usage</h2>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your subscription and view usage history.</p>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">{t('settings.billingUsage')}</h2>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">{t('settings.billingUsageDesc')}</p>
       </div>
 
       <div className="grid grid-cols-3 bg-white dark:bg-slate-900 p-1 rounded-xl border border-gray-200 dark:border-slate-800 w-full transition-colors sm:w-fit sm:flex">
@@ -863,7 +871,7 @@ function Billing() {
             location.pathname === '/app/settings/billing' ? "bg-[#25D366] text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           )}
         >
-          Overview
+          {t('settings.overview')}
         </Link>
         <Link 
           to="/app/settings/billing/plans" 
@@ -872,7 +880,7 @@ function Billing() {
             location.pathname === '/app/settings/billing/plans' ? "bg-[#25D366] text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           )}
         >
-          Plans
+          {t('settings.plans')}
         </Link>
         <Link 
           to="/app/settings/billing/usage" 
@@ -881,7 +889,7 @@ function Billing() {
             location.pathname === '/app/settings/billing/usage' ? "bg-[#25D366] text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           )}
         >
-          Usage
+          {t('settings.usage')}
         </Link>
       </div>
 
