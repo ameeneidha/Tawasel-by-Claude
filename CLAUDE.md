@@ -96,6 +96,11 @@ npx vite build       # Production build
   - Deleting an Instagram account from Channels now fully removes it even when old conversations exist by nulling `conversation.instagramAccountId` first instead of leaving a visible `DISCONNECTED` account card behind.
 - Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
+## Recently Completed (May 2, 2026) - Public booking QA fixes
+
+- Public booking `/book/:slug` customer name and WhatsApp number inputs now force visible text/background/caret styles so typed values are readable.
+- Business Settings now shows the stable public booking link with a Copy Link action and explains that changing the business name does not change the slug.
+
 ## Recently Completed (April 27, 2026) — Phase 2c: Per-appointment reminder timeline
 
 - Appointment rows and calendar events now have a clock action that opens a per-booking reminder timeline.

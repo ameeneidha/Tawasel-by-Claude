@@ -108,6 +108,11 @@ The repo also includes an App Platform spec:
 - **Instagram delete fix** - deleting an Instagram channel now removes it from Channels even when old conversations exist by clearing `conversation.instagramAccountId` and deleting the channel record instead of leaving a stuck `DISCONNECTED` entry.
 - **Deploy note** - this update requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
+### May 2, 2026 - Public booking QA fixes
+
+- **Fixed invisible public booking inputs** - customer name and WhatsApp number fields on `/book/:slug` now force a white background, dark text, visible placeholder text, and green caret so typing is visible regardless of global/dark styles.
+- **Clarified booking link behavior** - Business Settings now shows the current public booking link with a copy action and explains that the slug remains stable when the business name changes, so old links keep working.
+
 ### April 27, 2026 - Phase 2c: Per-appointment reminder timeline
 
 - **Reminder timeline modal in Appointments** - each appointment row and calendar event now has a clock action that opens a timeline showing scheduled, sent, failed, and missed reminder attempts for that booking.

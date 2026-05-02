@@ -70,6 +70,11 @@ npx vite build       # Production build
 - RESEND_API_KEY, EMAIL_FROM (e.g., `Tawasel <noreply@tawasel.io>`)
 - INSTAGRAM_ACCESS_TOKEN
 
+## Recently Completed (May 2, 2026) - Public booking QA fixes
+
+- Public booking `/book/:slug` customer name and WhatsApp number inputs now force visible text/background/caret styles so typed values are readable.
+- Business Settings now shows the stable public booking link with a Copy Link action and explains that changing the business name does not change the slug.
+
 ## Recently Completed (April 28, 2026) - Instagram Phase 5 Audit
 
 - Added `INSTAGRAM_AUDIT.md` as the repo-specific implementation plan for Instagram Inbox + Comment Replies.

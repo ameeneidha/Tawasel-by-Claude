@@ -451,7 +451,7 @@ export default function BookingPage() {
                   value={customerName}
                   onChange={e => setCustomerName(e.target.value)}
                   placeholder="e.g. Layla Al Mansouri"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 caret-[#25D366] focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 outline-none transition-all"
                 />
               </div>
             </div>
@@ -467,7 +467,7 @@ export default function BookingPage() {
                   value={customerPhone}
                   onChange={e => setCustomerPhone(e.target.value)}
                   placeholder="+971 50 123 4567"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 caret-[#25D366] focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 outline-none transition-all"
                 />
               </div>
               <p className="text-xs text-gray-400 mt-1">We'll send your confirmation and reminders via WhatsApp</p>

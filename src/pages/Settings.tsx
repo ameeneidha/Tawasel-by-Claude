@@ -258,6 +258,9 @@ function BusinessSettings() {
   const { activeWorkspace, setActiveWorkspace } = useApp();
   const [businessName, setBusinessName] = useState(activeWorkspace?.name || '');
   const [saving, setSaving] = useState(false);
+  const bookingLink = activeWorkspace?.slug
+    ? `${window.location.origin}/book/${activeWorkspace.slug}`
+    : '';
 
   // Sync if workspace changes (e.g. on first load)
   useEffect(() => {
@@ -305,6 +308,31 @@ function BusinessSettings() {
             </select>
           </div>
         </div>
+
+        {bookingLink && (
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">Public booking link</p>
+                <p className="mt-1 break-all text-sm text-gray-500 dark:text-gray-400">{bookingLink}</p>
+                <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+                  This link stays the same even if the business name changes, so old Instagram bio and website links keep working.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(bookingLink);
+                  toast.success('Booking link copied');
+                }}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:bg-slate-900 dark:text-gray-200 md:w-auto md:py-2.5"
+              >
+                Copy Link
+              </button>
+            </div>
+          </div>
+        )}
+
         <button
           onClick={handleSave}
           disabled={saving || !businessName.trim() || businessName.trim() === activeWorkspace?.name}
