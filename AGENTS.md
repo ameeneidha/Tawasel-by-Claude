@@ -72,6 +72,7 @@ npx vite build       # Production build
 
 ## Recently Completed (May 2, 2026) - Public booking QA fixes
 
+- Landing pricing cards, plan descriptions/highlights, comparison group/row labels, Included/Not included chips, FAQ items, pricing trust signals, and Growth sidebar bullets now render in Arabic from the language toggle.
 - Homepage feature cards, pricing intro, comparison headings, FAQ intro, Growth sidebar, plan metric labels, and footer team-needs copy now switch with the Arabic language toggle.
 - Settings navigation/personal/business/API/billing headers and the public landing page hero/signup/footer CTA now support Arabic/English copy and RTL direction.
 - Main dashboard alert cards now localize backend-generated alerts such as stale leads, unread messages, overdue conversations, failed sends, and disconnected channels.

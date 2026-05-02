@@ -123,6 +123,7 @@ The repo also includes an App Platform spec:
 
 ### May 2, 2026 - Public booking QA fixes
 
+- **Finished homepage pricing Arabic coverage** - landing pricing cards, plan descriptions/highlights, comparison group/row labels, Included/Not included chips, FAQ items, pricing trust signals, and Growth sidebar bullets now render in Arabic from the language toggle.
 - **Completed visible landing-page Arabic pass** - homepage feature cards, pricing intro, comparison headings, FAQ intro, Growth sidebar, plan metric labels, and footer team-needs copy now switch with the Arabic language toggle.
 - **Expanded Arabic UI coverage** - Settings navigation/personal/business/API/billing headers and the public landing page hero/signup/footer CTA now support Arabic/English copy and RTL direction.
 - **Fixed dashboard alert translations** - main dashboard alert cards now localize backend-generated alerts such as stale leads, unread messages, overdue conversations, failed sends, and disconnected channels.

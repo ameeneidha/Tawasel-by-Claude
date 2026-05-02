@@ -183,6 +183,83 @@ const HOME_COPY = {
     broadcastsPerMonth: 'Broadcasts / month',
     aiAssistants: 'AI assistants',
     teamMembers: 'Team members',
+    pricingBadge: 'Pricing built for operators, not vanity metrics',
+    pricingTitle: 'Pick the plan that matches your team today.',
+    monthly: 'Monthly',
+    annual: 'Annual - Save 20%',
+    pricingTrialNote: 'Start with a no-card Growth trial, then keep the plan that fits your team.',
+    mostPopular: 'Most Popular',
+    month: 'month',
+    annualBilled: 'Billed yearly at AED {{amount}}',
+    switchAnnual: 'Switch to annual to save 20%',
+    included: 'Included',
+    notIncluded: 'Not included',
+    addOn: 'Add-on',
+    unlimited: 'Unlimited',
+    trustSignals: PRICING_TRUST_SIGNALS,
+    plans: {
+      STARTER: {
+        name: 'Starter',
+        shortLabel: 'For solo operators',
+        audience: PLANS.STARTER.audience,
+        description: PLANS.STARTER.description,
+        cardHighlights: PLANS.STARTER.cardHighlights,
+        valueProps: PLANS.STARTER.valueProps,
+      },
+      GROWTH: {
+        name: 'Growth',
+        shortLabel: 'For small teams ready to scale',
+        audience: PLANS.GROWTH.audience,
+        description: PLANS.GROWTH.description,
+        cardHighlights: PLANS.GROWTH.cardHighlights,
+        valueProps: PLANS.GROWTH.valueProps,
+      },
+      PRO: {
+        name: 'Pro',
+        shortLabel: 'For established multi-branch teams',
+        audience: PLANS.PRO.audience,
+        description: PLANS.PRO.description,
+        cardHighlights: PLANS.PRO.cardHighlights,
+        valueProps: PLANS.PRO.valueProps,
+      },
+    },
+    comparisonGroups: {
+      'WhatsApp Operations and Team': 'WhatsApp Operations and Team',
+      'WhatsApp CRM and Messaging': 'WhatsApp CRM and Messaging',
+      'AI, Analytics, and Support': 'AI, Analytics, and Support',
+      'Appointment Booking': 'Appointment Booking',
+    },
+    comparisonRows: {
+      'WhatsApp number connections': 'WhatsApp number connections',
+      'Users included': 'Users included',
+      'Team roles and permissions': 'Team roles and permissions',
+      'WhatsApp lead routing': 'WhatsApp lead routing',
+      'Agent workload view': 'Agent workload view',
+      'WhatsApp CRM contacts': 'WhatsApp CRM contacts',
+      'Sales pipelines': 'Sales pipelines',
+      'Pipeline stages': 'Pipeline stages',
+      'Lead scoring': 'Lead scoring',
+      'Deal value tracking': 'Deal value tracking',
+      'WhatsApp broadcast messages / month': 'WhatsApp broadcast messages / month',
+      'WhatsApp broadcast scheduling': 'WhatsApp broadcast scheduling',
+      'WhatsApp quick replies': 'WhatsApp quick replies',
+      'AI assistants': 'AI assistants',
+      'AI messages per month': 'AI messages per month',
+      'Workflow automations': 'Workflow automations',
+      'Multi-language AI': 'Multi-language AI',
+      'WhatsApp conversation history': 'WhatsApp conversation history',
+      'Revenue and conversion reports': 'Revenue and conversion reports',
+      'Custom date ranges': 'Custom date ranges',
+      'Report exports': 'Report exports',
+      'Contact import/export': 'Contact import/export',
+      'API access': 'API access',
+      Webhooks: 'Webhooks',
+      'White-label widget': 'White-label widget',
+      Services: 'Services',
+      'Staff members': 'Staff members',
+      'Appointments per month': 'Appointments per month',
+    },
+    faqItems: PRICING_FAQ,
   },
   ar: {
     languageToggle: 'English',
@@ -280,6 +357,144 @@ const HOME_COPY = {
     broadcastsPerMonth: 'البث الشهري',
     aiAssistants: 'مساعدو الذكاء الاصطناعي',
     teamMembers: 'أعضاء الفريق',
+    pricingBadge: 'أسعار مبنية للتشغيل، لا للأرقام الشكلية',
+    pricingTitle: 'اختر الباقة التي تناسب فريقك اليوم.',
+    monthly: 'شهري',
+    annual: 'سنوي - وفر 20%',
+    pricingTrialNote: 'ابدأ بتجربة Growth بدون بطاقة، ثم اختر الباقة التي تناسب فريقك.',
+    mostPopular: 'الأكثر شيوعاً',
+    month: 'شهر',
+    annualBilled: 'تُدفع سنوياً بقيمة {{amount}} درهم',
+    switchAnnual: 'انتقل إلى السنوي لتوفير 20%',
+    included: 'مشمول',
+    notIncluded: 'غير مشمول',
+    addOn: 'إضافة مدفوعة',
+    unlimited: 'غير محدود',
+    trustSignals: ['بدون رسوم مخفية', 'إلغاء في أي وقت', 'جاهز للعربية والإنجليزية', 'دعم مخصص للإمارات'],
+    plans: {
+      STARTER: {
+        name: 'Starter',
+        shortLabel: 'للمشغلين الفرديين',
+        audience: 'مناسب للمؤسسين الفرديين والعيادات والأنشطة الخدمية التي تحتاج سير عمل واتساب واضحاً بدون فريق كامل بعد.',
+        description: 'شغّل مبيعات ودعم ومتابعة واتساب من مكان واحد بدون فقدان العملاء أو الاعتماد على الهواتف الشخصية.',
+        cardHighlights: [
+          'ربط رقم واتساب واحد',
+          'صندوق واتساب مشترك للفريق',
+          'حتى 1,000 جهة اتصال في CRM واتساب',
+          '500 رسالة بث واتساب شهرياً',
+          'مساعد ذكاء اصطناعي واحد مع 1,000 رسالة شهرياً',
+          'حجوزات مواعيد مع 5 خدمات و100 حجز شهرياً',
+        ],
+        valueProps: [
+          'صندوق واتساب مشترك لمشغل واحد أو مكتب واحد',
+          'مسار CRM أساسي لتتبع العملاء المحتملين',
+          'ردود واتساب آلية خارج أوقات العمل',
+          'رؤية أساسية لوقت الرد والمتابعة',
+        ],
+      },
+      GROWTH: {
+        name: 'Growth',
+        shortLabel: 'للفرق الصغيرة الجاهزة للنمو',
+        audience: 'الأفضل للعيادات والأكاديميات وفرق المبيعات والأنشطة الخدمية التي تحتاج سير عمل واتساب مشترك أقوى.',
+        description: 'امنح فريقك نظام تشغيل واتساب واحداً مع الأتمتة، وتوجيه العملاء، وملكية متابعة أوضح.',
+        cardHighlights: [
+          'حتى 3 أرقام واتساب متصلة',
+          'صندوق واتساب مشترك حتى 5 مستخدمين',
+          '5,000 جهة اتصال في CRM واتساب',
+          '3,000 رسالة بث واتساب شهرياً',
+          '3 مساعدين ذكاء اصطناعي مع 5,000 رسالة شهرياً',
+          'حجوزات مواعيد مع 20 خدمة و5 موظفين و500 حجز شهرياً',
+        ],
+        valueProps: [
+          'التقاط عملاء واتساب وإسنادهم مع وسوم الأولوية',
+          'ملاحظات وتذكيرات وتتبع أوضح للعملاء',
+          'تقارير بث واتساب ورؤية لعبء عمل الفريق',
+          'استيراد جهات الاتصال وجدولة حملات واتساب',
+        ],
+      },
+      PRO: {
+        name: 'Pro',
+        shortLabel: 'للفرق متعددة الفروع الراسخة',
+        audience: 'مصمم للفرق الأكبر والعمليات متعددة الفروع التي تحتاج حجم واتساب جاداً وهيكلة وتقارير.',
+        description: 'شغّل عمليات واتساب عالية الحجم مع أتمتة متقدمة، ووصول API، وتقارير للفرق المتعددة.',
+        cardHighlights: [
+          'حتى 5 أرقام واتساب متصلة',
+          'عمليات جاهزة للفرق والفروع المتعددة',
+          '25,000 جهة اتصال في CRM واتساب',
+          '10,000 رسالة بث واتساب شهرياً',
+          '10 مساعدين ذكاء اصطناعي مع 25,000 رسالة شهرياً',
+          'حجوزات مواعيد غير محدودة مع 10 موظفين',
+        ],
+        valueProps: [
+          'عمليات واتساب متعددة الفرق مع توقعات',
+          'تقارير إيرادات ومسارات تحويل وتصدير',
+          'وصول API وwebhooks لسير عمل مخصص',
+          'إدارة حساب مخصصة للعمليات الجادة',
+        ],
+      },
+    },
+    comparisonGroups: {
+      'WhatsApp Operations and Team': 'عمليات واتساب والفريق',
+      'WhatsApp CRM and Messaging': 'CRM واتساب والمراسلة',
+      'AI, Analytics, and Support': 'الذكاء الاصطناعي والتحليلات والدعم',
+      'Appointment Booking': 'حجوزات المواعيد',
+    },
+    comparisonRows: {
+      'WhatsApp number connections': 'أرقام واتساب المتصلة',
+      'Users included': 'المستخدمون المشمولون',
+      'Team roles and permissions': 'أدوار الفريق والصلاحيات',
+      'WhatsApp lead routing': 'توجيه عملاء واتساب',
+      'Agent workload view': 'عرض عبء عمل الموظفين',
+      'WhatsApp CRM contacts': 'جهات CRM واتساب',
+      'Sales pipelines': 'مسارات المبيعات',
+      'Pipeline stages': 'مراحل المسار',
+      'Lead scoring': 'تقييم العملاء المحتملين',
+      'Deal value tracking': 'تتبع قيمة الصفقات',
+      'WhatsApp broadcast messages / month': 'رسائل بث واتساب شهرياً',
+      'WhatsApp broadcast scheduling': 'جدولة بث واتساب',
+      'WhatsApp quick replies': 'ردود واتساب السريعة',
+      'AI assistants': 'مساعدو الذكاء الاصطناعي',
+      'AI messages per month': 'رسائل الذكاء الاصطناعي شهرياً',
+      'Workflow automations': 'أتمتة سير العمل',
+      'Multi-language AI': 'ذكاء اصطناعي متعدد اللغات',
+      'WhatsApp conversation history': 'سجل محادثات واتساب',
+      'Revenue and conversion reports': 'تقارير الإيرادات والتحويل',
+      'Custom date ranges': 'نطاقات تاريخ مخصصة',
+      'Report exports': 'تصدير التقارير',
+      'Contact import/export': 'استيراد وتصدير جهات الاتصال',
+      'API access': 'وصول API',
+      Webhooks: 'Webhooks',
+      'White-label widget': 'ودجت بدون علامة تجارية',
+      Services: 'الخدمات',
+      'Staff members': 'أعضاء الفريق',
+      'Appointments per month': 'المواعيد شهرياً',
+    },
+    faqItems: [
+      {
+        question: 'هل يمكنني تغيير الباقة في أي وقت؟',
+        answer: 'نعم. يمكنك الترقية أو التخفيض من صفحة الفوترة متى احتجت. يمكن تطبيق الترقيات فوراً، بينما قد تتبع التخفيضات دورة الفوترة.',
+      },
+      {
+        question: 'ماذا يحدث إذا وصلت إلى حد جهات الاتصال أو البث؟',
+        answer: 'سيظهر لك تنبيه قبل الوصول إلى الحد. يمكنك ترقية مساحة العمل أو إضافة سعة لاحقاً بدون إيقاف المحادثات النشطة.',
+      },
+      {
+        question: 'هل يمكنني الاحتفاظ برقم واتساب الحالي؟',
+        answer: 'نعم. المنصة مصممة لربط إعداد واتساب بزنس الحالي، لذلك تحتفظ بالرقم الذي يعرفه عملاؤك.',
+      },
+      {
+        question: 'كم يستغرق الإعداد؟',
+        answer: 'معظم الفرق تستطيع ربط رقم واتساب، واستيراد جهات الاتصال، وبدء الرد خلال أقل من 30 دقيقة بعد جاهزية النشر.',
+      },
+      {
+        question: 'هل تدعمون العربية؟',
+        answer: 'نعم. التطبيق يدعم العربية والإنجليزية، بما في ذلك واجهات RTL وسير عمل ثنائي اللغة للفريق.',
+      },
+      {
+        question: 'هل الفوترة السنوية متاحة؟',
+        answer: 'نعم. نموذج الأسعار يتضمن خصومات سنوية، ويمكن تفعيل خيارات الدفع السنوي عند اكتمال إعداد الفوترة.',
+      },
+    ],
   },
 } as const;
 
@@ -383,6 +598,18 @@ export default function Home() {
   const hasExpandableComparisonRows = PRICING_COMPARISON_GROUPS.some(
     (group) => group.rows.length > COMPARISON_PREVIEW_ROWS
   );
+  const localizeLimit = (value: number) => (value >= 999999 ? copy.unlimited : value.toLocaleString());
+  const localizeComparisonValue = (label: string) => {
+    if (label === 'Included') return copy.included;
+    if (label === 'Not included') return copy.notIncluded;
+    if (label === 'Add-on') return copy.addOn;
+    if (label === 'Unlimited') return copy.unlimited;
+    return label.replace('Unlimited', copy.unlimited).replace('months', isArabic ? 'شهراً' : 'months');
+  };
+  const localizeComparisonGroup = (title: string) =>
+    copy.comparisonGroups[title as keyof typeof copy.comparisonGroups] || title;
+  const localizeComparisonRow = (label: string) =>
+    copy.comparisonRows[label as keyof typeof copy.comparisonRows] || label;
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -751,10 +978,10 @@ export default function Home() {
           <div className="mb-14 text-center">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#25D366]/15 bg-[#25D366]/8 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-[#128C7E]">
               <Sparkles className="h-3.5 w-3.5" />
-              Pricing built for operators, not vanity metrics
+              {copy.pricingBadge}
             </div>
             <h2 className="mb-4 text-4xl font-bold tracking-tight text-slate-950 dark:text-white lg:text-5xl">
-              Pick the plan that matches your team today.
+              {copy.pricingTitle}
             </h2>
             <p className="mx-auto max-w-3xl text-base leading-8 text-slate-600 dark:text-slate-400 lg:text-lg">
               {copy.pricingSectionDesc}
@@ -769,7 +996,7 @@ export default function Home() {
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Monthly
+                {copy.monthly}
               </button>
               <button
                 type="button"
@@ -780,17 +1007,18 @@ export default function Home() {
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Annual - Save 20%
+                {copy.annual}
               </button>
             </div>
             <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
-              Start with a no-card Growth trial, then keep the plan that fits your team.
+              {copy.pricingTrialNote}
             </p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {PLAN_ORDER.map((planKey) => {
                 const plan = PLANS[planKey];
+                const planCopy = copy.plans[planKey];
                 return (
                   <div
                     key={planKey}
@@ -811,50 +1039,50 @@ export default function Home() {
                             plan.highlight ? 'text-[#128C7E]' : 'text-slate-500 dark:text-slate-400'
                           }`}
                         >
-                          {plan.shortLabel}
+                          {planCopy.shortLabel}
                         </p>
                         {plan.highlight ? (
                           <div className="shrink-0 rounded-full border border-[#25D366]/20 bg-[#25D366]/12 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-[#128C7E]">
-                            Most Popular
+                            {copy.mostPopular}
                           </div>
                         ) : null}
                       </div>
                       <div className="mt-4">
-                        <h3 className="text-2xl font-bold text-slate-950 dark:text-white">{plan.name}</h3>
-                        <p className="mt-2 max-w-xs text-sm leading-6 text-slate-600 dark:text-slate-400">{plan.description}</p>
+                        <h3 className="text-2xl font-bold text-slate-950 dark:text-white">{planCopy.name}</h3>
+                        <p className="mt-2 max-w-xs text-sm leading-6 text-slate-600 dark:text-slate-400">{planCopy.description}</p>
                       </div>
                       <div className="mt-6 flex items-end gap-2">
                         <span className="text-5xl font-bold tracking-tight text-slate-950 dark:text-white">AED {getPlanPrice(plan, billingCycle)}</span>
-                        <span className="pb-2 text-sm font-semibold text-slate-500 dark:text-slate-400">/ month</span>
+                        <span className="pb-2 text-sm font-semibold text-slate-500 dark:text-slate-400">/ {copy.month}</span>
                       </div>
                       <p className="mt-2 text-sm font-medium text-[#128C7E]">
                         {billingCycle === 'annual'
-                          ? `Billed yearly at AED ${plan.annualBilledPrice.toLocaleString()}`
-                          : 'Switch to annual to save 20%'}
+                          ? copy.annualBilled.replace('{{amount}}', plan.annualBilledPrice.toLocaleString())
+                          : copy.switchAnnual}
                       </p>
                     </div>
 
                     <div className="mb-8 grid gap-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4">
                       <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
                         <span>{copy.contacts}</span>
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">{formatLimitValue(plan.contactsLimit)}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{localizeLimit(plan.contactsLimit)}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
                         <span>{copy.broadcastsPerMonth}</span>
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">{formatLimitValue(plan.broadcastLimit)}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{localizeLimit(plan.broadcastLimit)}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
                         <span>{copy.aiAssistants}</span>
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">{formatLimitValue(plan.chatbotLimit)}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{localizeLimit(plan.chatbotLimit)}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
                         <span>{copy.teamMembers}</span>
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">{formatLimitValue(plan.userLimit)}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{localizeLimit(plan.userLimit)}</span>
                       </div>
                     </div>
 
                     <ul className="mb-8 space-y-3">
-                      {plan.cardHighlights.map((feature) => (
+                      {planCopy.cardHighlights.map((feature) => (
                         <li key={feature} className="flex items-start gap-3 text-sm leading-6 text-slate-700 dark:text-slate-300">
                           <span className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#25D366]/10 text-[#128C7E]">
                             <Check className="h-3.5 w-3.5" />
@@ -876,7 +1104,7 @@ export default function Home() {
                       >
                         {user ? copy.viewPricing : copy.startTrial}
                       </button>
-                      <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{plan.audience}</p>
+                      <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{planCopy.audience}</p>
                     </div>
                   </div>
                 );
@@ -890,7 +1118,7 @@ export default function Home() {
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">{copy.pricingValueStatement}</p>
               </div>
               <div className="flex flex-wrap gap-3 text-sm text-slate-600 dark:text-slate-400">
-                {PRICING_TRUST_SIGNALS.map((signal) => (
+                {copy.trustSignals.map((signal) => (
                   <span key={signal} className="rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2 font-semibold text-slate-700 dark:text-slate-300">
                     {signal}
                   </span>
@@ -928,7 +1156,7 @@ export default function Home() {
                 return (
                   <section key={group.title} className="rounded-[1.75rem] border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
                     <div className="mb-4">
-                      <h4 className="text-sm font-bold uppercase tracking-[0.22em] text-slate-500">{group.title}</h4>
+                      <h4 className="text-sm font-bold uppercase tracking-[0.22em] text-slate-500">{localizeComparisonGroup(group.title)}</h4>
                       <p className="mt-1 text-sm text-slate-500">
                         {comparisonExpanded ? copy.fullFeatureBreakdown : copy.topItemsShown}
                       </p>
@@ -940,16 +1168,16 @@ export default function Home() {
                             <th className="sticky left-0 z-20 bg-white px-5 py-4 font-bold text-slate-700 shadow-[10px_0_24px_-22px_rgba(15,23,42,0.55)]">
                               {copy.feature}
                             </th>
-                            <th className="px-4 py-4 font-bold">Starter</th>
-                            <th className="bg-[#25D366]/8 px-4 py-4 font-bold text-[#128C7E]">Growth</th>
-                            <th className="px-4 py-4 font-bold">Pro</th>
+                            <th className="px-4 py-4 font-bold">{copy.plans.STARTER.name}</th>
+                            <th className="bg-[#25D366]/8 px-4 py-4 font-bold text-[#128C7E]">{copy.plans.GROWTH.name}</th>
+                            <th className="px-4 py-4 font-bold">{copy.plans.PRO.name}</th>
                           </tr>
                         </thead>
                         <tbody>
                           {rows.map((row) => (
                             <tr key={row.label} className="group border-t border-slate-200 text-sm transition-colors hover:bg-slate-50">
                               <td className="sticky left-0 z-10 bg-white px-5 py-4 font-semibold text-slate-900 shadow-[10px_0_24px_-22px_rgba(15,23,42,0.45)] group-hover:bg-slate-50">
-                                {row.label}
+                                {localizeComparisonRow(row.label)}
                               </td>
                               {PLAN_ORDER.map((planKey) => {
                                 const meta = getComparisonCellMeta(row.values[planKey]);
@@ -966,7 +1194,7 @@ export default function Home() {
                                       ) : meta.tone === 'excluded' ? (
                                         <Minus className="h-3.5 w-3.5" />
                                       ) : null}
-                                      {meta.label}
+                                      {localizeComparisonValue(meta.label)}
                                     </span>
                                   </td>
                                 );
@@ -993,7 +1221,7 @@ export default function Home() {
               </div>
 
               <div className="mt-8 space-y-4">
-                {PRICING_FAQ.map((item, index) => {
+                {copy.faqItems.map((item, index) => {
                   const isOpen = openFaqIndex === index;
                   const panelId = `pricing-faq-panel-${index}`;
                   const buttonId = `pricing-faq-button-${index}`;
@@ -1044,7 +1272,7 @@ export default function Home() {
                 {copy.growthDesc}
               </p>
               <ul className="mt-8 space-y-4">
-                {PLANS.GROWTH.valueProps.map((item) => (
+                {copy.plans.GROWTH.valueProps.map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm leading-6 text-white/85">
                     <span className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-[#86efac]">
                       <Check className="h-3.5 w-3.5" />
