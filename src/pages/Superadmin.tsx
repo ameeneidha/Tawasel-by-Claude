@@ -96,6 +96,8 @@ type SuperadminWorkspaceSummary = {
   planOverride?: string | null;
   planOverrideUntil?: string | null;
   subscriptionStatus?: string | null;
+  trialStartedAt?: string | null;
+  trialEndsAt?: string | null;
   stripeCustomerId?: string | null;
   createdAt: string;
   members: WorkspaceMember[];
@@ -148,7 +150,7 @@ type SuperadminUsersResponse = {
   users: SuperadminUser[];
 };
 
-type ModalType = 'suspend' | 'override' | 'refund' | null;
+type ModalType = 'suspend' | 'override' | 'refund' | 'trial' | null;
 
 const tabs: Array<{ id: SuperadminTab; label: string }> = [
   { id: 'overview', label: 'Overview' },
@@ -209,6 +211,8 @@ function getStatusTone(status?: string | null, suspended?: boolean) {
     case 'active':
     case 'trialing':
       return 'bg-emerald-100 text-emerald-700';
+    case 'trial_expired':
+      return 'bg-orange-100 text-orange-700';
     case 'past_due':
       return 'bg-amber-100 text-amber-700';
     case 'canceled':
@@ -412,6 +416,8 @@ export default function Superadmin() {
   const [suspendReason, setSuspendReason] = useState('');
   const [overridePlan, setOverridePlan] = useState('PRO');
   const [overrideDays, setOverrideDays] = useState('30');
+  const [trialDays, setTrialDays] = useState('30');
+  const [trialPlan, setTrialPlan] = useState('GROWTH');
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('requested_by_customer');
   const [latestCharge, setLatestCharge] = useState<any>(null);
@@ -512,6 +518,8 @@ export default function Superadmin() {
     setSuspendReason('');
     setOverridePlan('PRO');
     setOverrideDays('30');
+    setTrialDays('30');
+    setTrialPlan(workspace.plan && workspace.plan !== 'NONE' ? workspace.plan : 'GROWTH');
     setRefundAmount('');
     setRefundReason('requested_by_customer');
     setLatestCharge(null);
@@ -580,6 +588,42 @@ export default function Superadmin() {
       await refreshWorkspaces();
     } catch (err: any) {
       toast.error(err?.response?.data?.error || 'Failed to remove override.');
+    }
+  };
+
+  const handleTrialAction = async (action: 'start' | 'extend' | 'expire' | 'activate') => {
+    if (!modalWorkspace) return;
+    setModalLoading(true);
+    try {
+      if (action === 'start') {
+        await axios.post(`/api/superadmin/workspaces/${modalWorkspace.id}/trial`, {
+          days: Number(trialDays) || 30,
+          plan: trialPlan,
+        });
+        toast.success(`Trial started for ${trialDays || 30} days.`);
+      } else if (action === 'extend') {
+        await axios.post(`/api/superadmin/workspaces/${modalWorkspace.id}/extend-trial`, {
+          days: Number(trialDays) || 7,
+        });
+        toast.success(`Trial extended by ${trialDays || 7} days.`);
+      } else if (action === 'expire') {
+        await axios.post(`/api/superadmin/workspaces/${modalWorkspace.id}/expire-trial`);
+        toast.success('Trial expired.');
+      } else {
+        await axios.post(`/api/superadmin/workspaces/${modalWorkspace.id}/activate`, {
+          plan: trialPlan,
+        });
+        toast.success(`Workspace activated on ${trialPlan}.`);
+      }
+      await refreshWorkspaces();
+      if (selectedWorkspaceId === modalWorkspace.id) {
+        await fetchWorkspaceDetail(modalWorkspace.id);
+      }
+      closeModal();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Trial action failed.');
+    } finally {
+      setModalLoading(false);
     }
   };
 
@@ -677,7 +721,7 @@ export default function Superadmin() {
                     label="Subscribers"
                     value={String(stats.activeSubscribers)}
                     icon={<UserCheck className="h-6 w-6" />}
-                    helper="Active or trialing workspaces currently paying for access."
+                    helper="Active paid workspaces plus non-expired trials with full access."
                   />
                   <SuperadminStatCard
                     label="Total Revenue"
@@ -1005,6 +1049,14 @@ export default function Superadmin() {
                                 </button>
                                 <button
                                   type="button"
+                                  title="Trial Controls"
+                                  onClick={() => openModal('trial', workspace)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 transition hover:bg-emerald-200"
+                                >
+                                  <CreditCard className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
                                   title="Impersonate"
                                   onClick={() => handleImpersonate(workspace)}
                                   className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-600 transition hover:bg-amber-200"
@@ -1225,6 +1277,13 @@ export default function Superadmin() {
                     <Crown className="h-4 w-4" />
                     Override Plan
                   </button>
+                  <button
+                    onClick={() => openModal('trial', selectedWorkspace)}
+                    className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-200"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Trial Controls
+                  </button>
                   {hasActiveOverride(selectedWorkspace) && (
                     <button
                       onClick={() => handleRemoveOverride(selectedWorkspace)}
@@ -1280,6 +1339,9 @@ export default function Superadmin() {
                       <p className="mt-3 text-sm text-rose-600">Reason: {selectedWorkspace.suspendedReason}</p>
                     )}
                     <p className="mt-4 text-sm text-slate-500">Created {formatDate(selectedWorkspace.createdAt)}</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Trial {selectedWorkspace.trialEndsAt ? `ends ${formatDate(selectedWorkspace.trialEndsAt)}` : 'not set'}
+                    </p>
                     <p className="mt-1 text-sm text-slate-500">
                       Renewal {formatDate(selectedWorkspace.subscriptionCurrentPeriodEnd)}
                     </p>
@@ -1477,6 +1539,90 @@ export default function Superadmin() {
                   >
                     {modalLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                     Apply Override
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Trial Controls Modal */}
+            {modalType === 'trial' && (
+              <>
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+                    <CreditCard className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Trial Controls</h3>
+                    <p className="text-sm text-slate-500">{modalWorkspace.name}</p>
+                  </div>
+                </div>
+
+                <div className="mb-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+                  <p>Status: <span className="font-semibold text-slate-900">{modalWorkspace.subscriptionStatus || 'inactive'}</span></p>
+                  <p className="mt-1">Trial ends: <span className="font-semibold text-slate-900">{formatDate(modalWorkspace.trialEndsAt)}</span></p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">Trial / extension days</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={180}
+                      value={trialDays}
+                      onChange={(e) => setTrialDays(e.target.value)}
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#25D366] focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">Plan</label>
+                    <select
+                      value={trialPlan}
+                      onChange={(e) => setTrialPlan(e.target.value)}
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#25D366] focus:bg-white"
+                    >
+                      <option value="STARTER">STARTER</option>
+                      <option value="GROWTH">GROWTH</option>
+                      <option value="PRO">PRO</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <button
+                    onClick={() => handleTrialAction('start')}
+                    disabled={modalLoading}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {modalLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Start 30-day Trial
+                  </button>
+                  <button
+                    onClick={() => handleTrialAction('extend')}
+                    disabled={modalLoading}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Extend Trial
+                  </button>
+                  <button
+                    onClick={() => handleTrialAction('activate')}
+                    disabled={modalLoading}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    Mark Active
+                  </button>
+                  <button
+                    onClick={() => handleTrialAction('expire')}
+                    disabled={modalLoading}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-100 px-5 py-2.5 text-sm font-semibold text-orange-700 transition hover:bg-orange-200 disabled:opacity-50"
+                  >
+                    Expire Trial
+                  </button>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                  <button onClick={closeModal} className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+                    Close
                   </button>
                 </div>
               </>

@@ -45,7 +45,9 @@ import {
 } from "./server/config.js";
 
 import {
-  requireAuth, authRateLimiter, getUserByToken, hasSubscription,
+  requireAuth, authRateLimiter, getUserByToken,
+  hasWorkspaceSubscriptionAccess, getWorkspaceSubscriptionBlockReason,
+  getTrialEndDate, TRIAL_DAYS,
   requireWorkspaceAccessById, requireWorkspaceAccessFromQuery,
   requireConversationAccess, requireContactAccess,
   requireVerifiedEmail, requireSuperadmin,
@@ -1303,8 +1305,8 @@ async function startServer() {
         return res.status(403).json({ error: "Workspace access denied" });
       }
 
-      if (!membership.workspace || !hasSubscription(membership.workspace.subscriptionStatus)) {
-        return res.status(403).json({ error: "Choose a paid plan to use AI chatbots" });
+      if (!membership.workspace || !hasWorkspaceSubscriptionAccess(membership.workspace)) {
+        return res.status(403).json({ error: getWorkspaceSubscriptionBlockReason(membership.workspace) });
       }
 
       const quota = await checkAiQuota(chatbot.workspaceId);
@@ -1486,11 +1488,15 @@ async function startServer() {
       });
 
       // Create initial workspace for the user
+      const trialStartedAt = new Date();
       const workspace = await prisma.workspace.create({
         data: {
           name: `${name}'s Workspace`,
           slug: `${name.toLowerCase().replace(/ /g, '-')}-${Date.now()}`,
-          plan: 'NONE',
+          plan: 'GROWTH',
+          subscriptionStatus: 'trialing',
+          trialStartedAt,
+          trialEndsAt: getTrialEndDate(trialStartedAt),
         }
       });
 
@@ -1713,7 +1719,7 @@ async function startServer() {
       const workspace = await prisma.workspace.findUnique({
         where: { slug: req.params.slug },
         select: {
-          id: true, name: true, suspended: true,
+          id: true, name: true, suspended: true, subscriptionStatus: true, trialEndsAt: true,
           services: {
             where: { enabled: true },
             orderBy: { name: "asc" },
@@ -1728,6 +1734,9 @@ async function startServer() {
       });
       if (!workspace) return res.status(404).json({ error: "Booking page not found" });
       if (workspace.suspended) return res.status(403).json({ error: "This business is currently unavailable" });
+      if (!hasWorkspaceSubscriptionAccess(workspace)) {
+        return res.status(403).json({ error: "This business booking page is currently unavailable" });
+      }
       res.json({ id: workspace.id, name: workspace.name, services: workspace.services, staff: workspace.staffMembers });
     } catch (err) {
       console.error("[public-book:info]", err);
@@ -1741,8 +1750,14 @@ async function startServer() {
       const { serviceId, staffId, date } = req.query as Record<string, string>;
       if (!serviceId || !date) return res.status(400).json({ error: "serviceId and date are required" });
 
-      const workspace = await prisma.workspace.findUnique({ where: { slug: req.params.slug }, select: { id: true } });
+      const workspace = await prisma.workspace.findUnique({
+        where: { slug: req.params.slug },
+        select: { id: true, subscriptionStatus: true, trialEndsAt: true, suspended: true },
+      });
       if (!workspace) return res.status(404).json({ error: "Not found" });
+      if (workspace.suspended || !hasWorkspaceSubscriptionAccess(workspace)) {
+        return res.status(403).json({ error: "This business booking page is currently unavailable" });
+      }
 
       const service = await prisma.service.findFirst({
         where: { id: serviceId, workspaceId: workspace.id, enabled: true },
@@ -1829,8 +1844,14 @@ async function startServer() {
         return res.status(400).json({ error: "serviceId, date, slot, and customerPhone are required" });
       }
 
-      const workspace = await prisma.workspace.findUnique({ where: { slug: req.params.slug }, select: { id: true, name: true } });
+      const workspace = await prisma.workspace.findUnique({
+        where: { slug: req.params.slug },
+        select: { id: true, name: true, subscriptionStatus: true, trialEndsAt: true, suspended: true },
+      });
       if (!workspace) return res.status(404).json({ error: "Not found" });
+      if (workspace.suspended || !hasWorkspaceSubscriptionAccess(workspace)) {
+        return res.status(403).json({ error: "This business booking page is currently unavailable" });
+      }
 
       const service = await prisma.service.findFirst({ where: { id: serviceId, workspaceId: workspace.id, enabled: true } });
       if (!service) return res.status(404).json({ error: "Service not found" });
@@ -2131,11 +2152,15 @@ async function startServer() {
     
     try {
       // 1. Create Workspace
+      const trialStartedAt = new Date();
       const workspace = await prisma.workspace.create({
         data: {
           name,
           slug,
-          plan: 'NONE',
+          plan: 'GROWTH',
+          subscriptionStatus: 'trialing',
+          trialStartedAt,
+          trialEndsAt: getTrialEndDate(trialStartedAt),
         }
       });
 
@@ -2186,8 +2211,8 @@ async function startServer() {
           return res.status(403).json({ error: 'Verify your email before using this feature' });
         }
 
-        if (!hasSubscription(membership.workspace.subscriptionStatus)) {
-          return res.status(403).json({ error: 'Subscribe to a plan to use this feature' });
+        if (!hasWorkspaceSubscriptionAccess(membership.workspace)) {
+          return res.status(403).json({ error: getWorkspaceSubscriptionBlockReason(membership.workspace) });
         }
 
         const summary = await getDashboardSections(workspaceId, req.query);
@@ -6044,6 +6069,7 @@ async function startServer() {
             id: true,
             plan: true,
             subscriptionStatus: true,
+            trialEndsAt: true,
             suspended: true,
             createdAt: true,
           }
@@ -6055,9 +6081,7 @@ async function startServer() {
 
       const totalRevenue = ledgerEntries.reduce((sum, entry) => sum + entry.amount, 0);
       const recentSignups = allWorkspaces.filter((workspace) => workspace.createdAt >= thirtyDaysAgo).length;
-      const activeSubscribers = allWorkspaces.filter((workspace) =>
-        ['active', 'trialing'].includes(String(workspace.subscriptionStatus || '').toLowerCase())
-      ).length;
+      const activeSubscribers = allWorkspaces.filter((workspace) => hasWorkspaceSubscriptionAccess(workspace)).length;
       const suspendedCount = allWorkspaces.filter((w: any) => w.suspended).length;
 
       res.json({
@@ -6283,6 +6307,98 @@ async function startServer() {
     }
   });
 
+  // ── Superadmin: Trial Controls ─────────────────────────────────
+
+  app.post("/api/superadmin/workspaces/:id/trial", requireAuth, requireSuperadmin, async (req, res) => {
+    try {
+      const days = Math.max(1, Math.min(180, Number(req.body?.days) || TRIAL_DAYS));
+      const plan = String(req.body?.plan || "GROWTH").toUpperCase();
+      if (!['STARTER', 'GROWTH', 'PRO'].includes(plan)) {
+        return res.status(400).json({ error: 'Invalid plan. Must be STARTER, GROWTH, or PRO.' });
+      }
+      const now = new Date();
+      const workspace = await prisma.workspace.update({
+        where: { id: req.params.id },
+        data: {
+          plan,
+          subscriptionStatus: "trialing",
+          trialStartedAt: now,
+          trialEndsAt: getTrialEndDate(now, days),
+          suspended: false,
+          suspendedReason: null,
+        },
+      });
+      res.json({ success: true, id: workspace.id, subscriptionStatus: workspace.subscriptionStatus, trialEndsAt: workspace.trialEndsAt });
+    } catch (error) {
+      console.error('[superadmin:trial]', error);
+      res.status(500).json({ error: 'Failed to start trial' });
+    }
+  });
+
+  app.post("/api/superadmin/workspaces/:id/extend-trial", requireAuth, requireSuperadmin, async (req, res) => {
+    try {
+      const days = Math.max(1, Math.min(180, Number(req.body?.days) || 7));
+      const current = await prisma.workspace.findUnique({
+        where: { id: req.params.id },
+        select: { trialEndsAt: true },
+      });
+      if (!current) return res.status(404).json({ error: 'Workspace not found' });
+      const base = current.trialEndsAt && new Date(current.trialEndsAt) > new Date()
+        ? new Date(current.trialEndsAt)
+        : new Date();
+      const workspace = await prisma.workspace.update({
+        where: { id: req.params.id },
+        data: {
+          subscriptionStatus: "trialing",
+          trialStartedAt: current.trialEndsAt ? undefined : new Date(),
+          trialEndsAt: getTrialEndDate(base, days),
+        },
+      });
+      res.json({ success: true, id: workspace.id, subscriptionStatus: workspace.subscriptionStatus, trialEndsAt: workspace.trialEndsAt });
+    } catch (error) {
+      console.error('[superadmin:extend-trial]', error);
+      res.status(500).json({ error: 'Failed to extend trial' });
+    }
+  });
+
+  app.post("/api/superadmin/workspaces/:id/expire-trial", requireAuth, requireSuperadmin, async (req, res) => {
+    try {
+      const workspace = await prisma.workspace.update({
+        where: { id: req.params.id },
+        data: {
+          subscriptionStatus: "trial_expired",
+          trialEndsAt: new Date(),
+        },
+      });
+      res.json({ success: true, id: workspace.id, subscriptionStatus: workspace.subscriptionStatus, trialEndsAt: workspace.trialEndsAt });
+    } catch (error) {
+      console.error('[superadmin:expire-trial]', error);
+      res.status(500).json({ error: 'Failed to expire trial' });
+    }
+  });
+
+  app.post("/api/superadmin/workspaces/:id/activate", requireAuth, requireSuperadmin, async (req, res) => {
+    try {
+      const plan = String(req.body?.plan || "GROWTH").toUpperCase();
+      if (!['STARTER', 'GROWTH', 'PRO'].includes(plan)) {
+        return res.status(400).json({ error: 'Invalid plan. Must be STARTER, GROWTH, or PRO.' });
+      }
+      const workspace = await prisma.workspace.update({
+        where: { id: req.params.id },
+        data: {
+          plan,
+          subscriptionStatus: "active",
+          subscriptionCurrentPeriodEnd: null,
+          trialEndsAt: null,
+        },
+      });
+      res.json({ success: true, id: workspace.id, plan: workspace.plan, subscriptionStatus: workspace.subscriptionStatus });
+    } catch (error) {
+      console.error('[superadmin:activate]', error);
+      res.status(500).json({ error: 'Failed to activate workspace' });
+    }
+  });
+
   // ── Superadmin: Impersonate Workspace ───────────────────────────
 
   app.post("/api/superadmin/impersonate/:workspaceId", requireAuth, requireSuperadmin, async (req: any, res) => {
@@ -6367,7 +6483,7 @@ async function startServer() {
         prisma.message.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
         prisma.message.count({ where: { createdAt: { gte: todayStart } } }),
         prisma.workspace.findMany({
-          select: { id: true, plan: true, subscriptionStatus: true },
+          select: { id: true, plan: true, subscriptionStatus: true, trialEndsAt: true },
         }),
       ]);
 
@@ -6392,7 +6508,7 @@ async function startServer() {
       const planPrices: Record<string, number> = { STARTER: 99, GROWTH: 279, PRO: 549 };
       let mrr = 0;
       for (const ws of allWorkspaces) {
-        if (['active', 'trialing'].includes(String(ws.subscriptionStatus || '').toLowerCase())) {
+        if (hasWorkspaceSubscriptionAccess(ws)) {
           mrr += planPrices[String(ws.plan || '').toUpperCase()] || 0;
         }
       }

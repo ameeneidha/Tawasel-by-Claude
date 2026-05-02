@@ -37,6 +37,8 @@ model Workspace {
   subscriptionStatus String?
   subscriptionCurrentPeriodEnd DateTime?
   subscriptionCancelAtPeriodEnd Boolean @default(false)
+  trialStartedAt DateTime?
+  trialEndsAt    DateTime?
   suspended     Boolean   @default(false)
   suspendedReason String?
   planOverride  String?

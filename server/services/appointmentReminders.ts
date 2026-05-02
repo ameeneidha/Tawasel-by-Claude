@@ -14,6 +14,14 @@ const SCHEDULER_TOLERANCE_MS = 20 * 60 * 1000; // ±20 min window around target 
 // TODO: store timezone per workspace and pass it in here.
 const REMINDER_TIMEZONE = process.env.REMINDER_TIMEZONE || "Asia/Dubai";
 
+function workspaceCanSendReminders(workspace?: { subscriptionStatus?: string | null; trialEndsAt?: Date | string | null } | null) {
+  const status = String(workspace?.subscriptionStatus || "").toLowerCase();
+  if (status === "active") return true;
+  if (status !== "trialing") return false;
+  if (!workspace?.trialEndsAt) return true;
+  return new Date(workspace.trialEndsAt).getTime() >= Date.now();
+}
+
 function formatReminderTime(date: Date): string {
   return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: REMINDER_TIMEZONE });
 }
@@ -167,7 +175,7 @@ async function runRulesBasedReminders() {
           contact:   { select: { id: true, name: true, phoneNumber: true } },
           service:   { select: { name: true, durationMin: true, price: true, currency: true } },
           staff:     { select: { name: true } },
-          workspace: { select: { id: true, name: true } },
+          workspace: { select: { id: true, name: true, subscriptionStatus: true, trialEndsAt: true } },
         },
       });
 
@@ -181,6 +189,7 @@ async function runRulesBasedReminders() {
 
       for (const appt of appointments) {
         if (!appt.contact?.phoneNumber) continue;
+        if (!workspaceCanSendReminders(appt.workspace)) continue;
 
         const customerName = appt.contact.name || "there";
         const businessName = appt.workspace?.name || "us";

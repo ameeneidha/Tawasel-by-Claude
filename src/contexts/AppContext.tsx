@@ -30,6 +30,8 @@ interface Workspace {
   subscriptionStatus?: string | null;
   subscriptionCurrentPeriodEnd?: string | null;
   subscriptionCancelAtPeriodEnd?: boolean;
+  trialStartedAt?: string | null;
+  trialEndsAt?: string | null;
   membership?: WorkspaceMembership;
   members?: { userId: string; role: string }[];
 }
@@ -73,6 +75,13 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const SUPERADMIN_EMAIL = (import.meta.env.VITE_SUPERADMIN_EMAIL || '').trim().toLowerCase();
 const CONNECTED_ACCOUNTS_STORAGE_KEY = 'connectedAccounts';
 const isSuperadminUser = (user: User | null) => (user?.email || '').toLowerCase() === SUPERADMIN_EMAIL;
+const hasWorkspaceAccessSubscription = (workspace: Workspace | null) => {
+  const status = String(workspace?.subscriptionStatus || '').toLowerCase();
+  if (status === 'active') return true;
+  if (status !== 'trialing') return false;
+  if (!workspace?.trialEndsAt) return true;
+  return new Date(workspace.trialEndsAt).getTime() >= Date.now();
+};
 
 const sanitizeConnectedAccount = (value: any): ConnectedAccount | null => {
   if (!value || typeof value !== 'object') return null;
@@ -407,7 +416,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const isSuperadmin = isSuperadminUser(user);
   const hasVerifiedEmail = !!user?.emailVerified;
-  const hasActiveSubscription = ['active', 'trialing'].includes((activeWorkspace?.subscriptionStatus || '').toLowerCase());
+  const hasActiveSubscription = hasWorkspaceAccessSubscription(activeWorkspace);
   const hasFullAccess = isSuperadmin || isImpersonating || (hasVerifiedEmail && hasActiveSubscription);
   const workspaceRole: 'OWNER' | 'ADMIN' | 'USER' = (activeWorkspace?.membership?.role as 'OWNER' | 'ADMIN' | 'USER') || 'USER';
 

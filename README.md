@@ -89,6 +89,12 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### May 2, 2026 - 30-day workspace trial system
+
+- **Added no-card trial lifecycle** - new workspaces now start on a 30-day `trialing` Growth workspace with `trialStartedAt` and `trialEndsAt`; expired trials lose access to sending, bookings, reminders, and automation until upgraded.
+- **Added superadmin trial controls** - superadmin can start/extend/expire trials and mark a workspace active from the workspace controls panel.
+- **Added trial UX** - active trial workspaces show days remaining in-app, and expired trials show a plan prompt while preserving login/view access.
+
 ### May 2, 2026 - Public booking confirmation fixes
 
 - **Fixed public booking confirmation templates** - the confirmation sender now reads the approved template body and sends only the variables that template actually uses, preventing Meta `#132000` parameter-count rejections when older approved templates have fewer placeholders.

@@ -34,7 +34,7 @@ const routeTitleKeys: Record<string, string> = {
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isLoading, requestEmailVerification, hasVerifiedEmail, hasActiveSubscription, hasFullAccess, isSuperadmin, isImpersonating, impersonatingWorkspaceName, stopImpersonation } = useApp();
+  const { user, isLoading, requestEmailVerification, hasVerifiedEmail, hasActiveSubscription, hasFullAccess, activeWorkspace, isSuperadmin, isImpersonating, impersonatingWorkspaceName, stopImpersonation } = useApp();
   const { toggle } = useSidebar();
   const { t } = useTranslation();
   const [isVerifying, setIsVerifying] = useState(false);
@@ -67,6 +67,10 @@ export default function AppLayout() {
 
   const isBillingRoute = location.pathname.startsWith('/app/settings/billing');
   const isInboxRoute = location.pathname.startsWith('/app/inbox');
+  const subscriptionStatus = String(activeWorkspace?.subscriptionStatus || '').toLowerCase();
+  const trialEndsAt = activeWorkspace?.trialEndsAt ? new Date(activeWorkspace.trialEndsAt) : null;
+  const trialDaysLeft = trialEndsAt ? Math.ceil((trialEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)) : null;
+  const isActiveTrial = subscriptionStatus === 'trialing' && hasActiveSubscription;
 
   if (!isSuperadmin && !hasFullAccess && !isBillingRoute && !isInboxRoute) {
     return <Navigate to="/app/inbox" replace />;
@@ -143,7 +147,7 @@ export default function AppLayout() {
           <div className="bg-blue-50 border-b border-blue-100 px-4 py-2 flex items-center justify-between">
             <div className="flex items-center gap-2 text-blue-700 text-sm font-medium">
               <Lock className="w-4 h-4" />
-              <span>You are in restricted mode. You can view Inbox and choose a plan, but the CRM unlocks only after subscription payment.</span>
+              <span>{subscriptionStatus === 'trial_expired' ? 'Your 30-day trial has ended. Choose a plan to continue sending messages, bookings, reminders, and automation.' : 'You are in restricted mode. You can view Inbox and choose a plan, but the CRM unlocks only after subscription payment.'}</span>
             </div>
             <button
               onClick={() => navigate('/app/settings/billing/plans')}
@@ -151,6 +155,25 @@ export default function AppLayout() {
             >
               <CreditCard className="w-3 h-3" />
               Choose Plan
+            </button>
+          </div>
+        )}
+        {!isSuperadmin && !isImpersonating && hasVerifiedEmail && isActiveTrial && (
+          <div className="bg-emerald-50 border-b border-emerald-100 px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-emerald-700 text-sm font-medium">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>
+                {trialDaysLeft !== null
+                  ? `Your Tawasel trial is active. ${Math.max(0, trialDaysLeft)} day${trialDaysLeft === 1 ? '' : 's'} left to prove it in the business.`
+                  : 'Your Tawasel trial is active. Use it in the business, then decide.'}
+              </span>
+            </div>
+            <button
+              onClick={() => navigate('/app/settings/billing/plans')}
+              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <CreditCard className="w-3 h-3" />
+              View Plans
             </button>
           </div>
         )}

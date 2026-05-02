@@ -66,8 +66,35 @@ export const getUserByToken = async (req: any) => {
   return prisma.user.findUnique({ where: { id: req.user.userId } });
 };
 
+export const TRIAL_DAYS = 30;
+
+export const getTrialEndDate = (from = new Date(), days = TRIAL_DAYS) =>
+  new Date(from.getTime() + days * 24 * 60 * 60 * 1000);
+
 export const hasSubscription = (status?: string | null) =>
   ["active", "trialing"].includes((status || "").toLowerCase());
+
+export const hasWorkspaceSubscriptionAccess = (workspace?: {
+  subscriptionStatus?: string | null;
+  trialEndsAt?: Date | string | null;
+} | null) => {
+  const status = String(workspace?.subscriptionStatus || "").toLowerCase();
+  if (status === "active") return true;
+  if (status !== "trialing") return false;
+  if (!workspace?.trialEndsAt) return true;
+  return new Date(workspace.trialEndsAt).getTime() >= Date.now();
+};
+
+export const getWorkspaceSubscriptionBlockReason = (workspace?: {
+  subscriptionStatus?: string | null;
+  trialEndsAt?: Date | string | null;
+} | null) => {
+  const status = String(workspace?.subscriptionStatus || "").toLowerCase();
+  if (status === "trialing" && workspace?.trialEndsAt && new Date(workspace.trialEndsAt).getTime() < Date.now()) {
+    return "Your Tawasel trial has ended. Choose a plan to continue sending messages, bookings, reminders, and automation.";
+  }
+  return "Subscribe to a plan to use this feature";
+};
 
 // ── Workspace Access ───────────────────────────────────────────────
 
@@ -196,10 +223,10 @@ export const requireSubscribedWorkspaceById = async (
       .status(403)
       .json({ error: "Verify your email before using this feature" });
   }
-  if (!hasSubscription(membership.workspace.subscriptionStatus)) {
+  if (!hasWorkspaceSubscriptionAccess(membership.workspace)) {
     return res
       .status(403)
-      .json({ error: "Subscribe to a plan to use this feature" });
+      .json({ error: getWorkspaceSubscriptionBlockReason(membership.workspace) });
   }
   next();
 };
@@ -247,10 +274,10 @@ export const requireSubscribedWorkspaceManagerById = async (
       .json({ error: "Verify your email before using this feature" });
   }
 
-  if (!hasSubscription(membership.workspace.subscriptionStatus)) {
+  if (!hasWorkspaceSubscriptionAccess(membership.workspace)) {
     return res
       .status(403)
-      .json({ error: "Subscribe to a plan to use this feature" });
+      .json({ error: getWorkspaceSubscriptionBlockReason(membership.workspace) });
   }
 
   if (
