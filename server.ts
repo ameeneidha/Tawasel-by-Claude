@@ -1922,8 +1922,26 @@ async function startServer() {
             + " at " + startTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz });
 
           if (confirmedTemplate) {
-            await sendTemplateMessage(phone, "tawasel_booking_confirmation", "en_US",
-              [customerName?.trim() || "there", service.name, staffMember.name, dateTimeStr, workspace.name],
+            const templateValues: Record<number, string> = {
+              1: customerName?.trim() || "there",
+              2: service.name,
+              3: staffMember.name,
+              4: dateTimeStr,
+              5: workspace.name,
+            };
+            const variableIndexes = Array.from(
+              new Set(
+                Array.from(confirmedTemplate.content.matchAll(/\{\{(\d+)\}\}/g))
+                  .map((match) => Number(match[1]))
+                  .filter((index) => Number.isInteger(index) && index > 0)
+              )
+            ).sort((a, b) => a - b);
+            const parameters = variableIndexes.length > 0
+              ? variableIndexes.map((index) => templateValues[index] || "")
+              : [templateValues[1], templateValues[2], templateValues[3], templateValues[4], templateValues[5]];
+
+            await sendTemplateMessage(phone, confirmedTemplate.name, confirmedTemplate.language || "en_US",
+              parameters,
               config as { accessToken: string; phoneNumberId: string }
             );
           } else {

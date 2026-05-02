@@ -89,6 +89,10 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### May 2, 2026 - Public booking confirmation fix
+
+- **Fixed public booking confirmation templates** - the confirmation sender now reads the approved template body and sends only the variables that template actually uses, preventing Meta `#132000` parameter-count rejections when older approved templates have fewer placeholders.
+
 ### April 28, 2026 - Instagram Phase 5 audit
 
 - **Added `INSTAGRAM_AUDIT.md`** - repo-specific audit and implementation plan for Instagram Inbox + Comment Replies.
