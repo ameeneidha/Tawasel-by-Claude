@@ -98,6 +98,7 @@ npx vite build       # Production build
 
 ## Recently Completed (May 2, 2026) - Public booking QA fixes
 
+- Public booking `/book/:slug` now supports an Arabic/English language toggle, RTL layout direction, Arabic customer-facing labels, and Arabic UAE date/time formatting for the full booking flow.
 - Added a no-card 30-day trial lifecycle: new workspaces start as `trialing` on Growth with `trialStartedAt` / `trialEndsAt`, expired trials lose access to sending/bookings/reminders/automation, and superadmin can start, extend, expire, or mark active from workspace controls.
 - Updated the public landing page to lead with the 30-day no-card trial, remove stale billing-unlock language and fake trust count, and use `VITE_SUPERADMIN_EMAIL` for browser-side superadmin redirects.
 - Public booking `/book/:slug` customer name and WhatsApp number inputs now force visible text/background/caret styles so typed values are readable.
