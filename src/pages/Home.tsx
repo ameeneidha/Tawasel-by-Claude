@@ -77,6 +77,7 @@ const FOOTER_TRUST_POINTS = [
   'Shared WhatsApp inbox and AI automation',
   'Built for UAE and GCC operations',
 ];
+const TRIAL_PROMISES = ['30 days', 'No card required', 'Growth workspace included'];
 
 const getComparisonCellMeta = (value: boolean | number | string) => {
   if (typeof value === 'boolean') {
@@ -149,9 +150,8 @@ export default function Home() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [comparisonExpanded, setComparisonExpanded] = useState(false);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
-  const trustedTeamMarkers = ['MK', 'SA', 'LR', 'NH'];
   const getPostLoginPath = (nextUser?: { email?: string | null }) =>
-    (nextUser?.email || '').toLowerCase() === (process.env.SUPERADMIN_EMAIL || '').toLowerCase() ? '/app/superadmin' : '/app/dashboard';
+    (nextUser?.email || '').toLowerCase() === (import.meta.env.VITE_SUPERADMIN_EMAIL || '').toLowerCase() ? '/app/superadmin' : '/app/dashboard';
 
   const handlePlanSelect = (planId: string) => {
     sessionStorage.setItem('pendingPlan', planId);
@@ -238,7 +238,7 @@ export default function Home() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#25D366]">
               <MessageSquare className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight dark:text-white">Tawasel App</span>
+            <span className="text-xl font-bold tracking-tight dark:text-white">Tawasel</span>
           </div>
 
           <div className="hidden items-center gap-8 text-sm font-medium text-slate-600 dark:text-slate-400 md:flex">
@@ -274,32 +274,34 @@ export default function Home() {
           >
             <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[#25D366]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#25D366]">
               <Zap className="h-3 w-3" />
-              Built for UAE teams that run on WhatsApp
+              30-day no-card trial for UAE WhatsApp teams
             </div>
             <h1 className="mb-6 text-5xl font-bold leading-[1.05] tracking-tight lg:text-7xl">
-              Turn WhatsApp into your
-              <span className="text-[#25D366]"> sales, support, and follow-up engine.</span>
+              Use Tawasel in your real business
+              <span className="text-[#25D366]"> for 30 days.</span>
             </h1>
             <p className="mb-8 max-w-xl text-xl leading-relaxed text-slate-600 dark:text-slate-400">
-              Tawasel gives your team one shared WhatsApp inbox, one CRM workflow, and one performance dashboard so no lead gets lost between replies, follow-ups, and broadcasts.
+              Connect WhatsApp, share your booking link, send reminders, and handle real customers. If it creates value after a month, keep it. If not, walk away.
             </p>
             <div className="flex flex-wrap gap-4">
               <a
-                href="#pricing"
+                href="#login"
                 className="flex items-center gap-2 rounded-xl bg-[#25D366] px-8 py-4 font-bold text-white shadow-lg shadow-[#25D366]/20 transition-all hover:bg-[#128C7E]"
               >
-                View Pricing <ArrowRight className="h-5 w-5" />
+                Start 30-Day Trial <ArrowRight className="h-5 w-5" />
               </a>
-              <div className="ml-0 flex items-center -space-x-2">
-                {trustedTeamMarkers.map((initials) => (
-                  <div
-                    key={initials}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white dark:border-slate-800 bg-slate-900 text-xs font-bold text-white"
-                  >
-                    {initials}
-                  </div>
+              <a
+                href="#pricing"
+                className="flex items-center gap-2 rounded-xl border border-slate-300 px-8 py-4 font-bold text-slate-700 transition-all hover:border-slate-900 hover:text-slate-950 dark:border-slate-700 dark:text-slate-300 dark:hover:border-white dark:hover:text-white"
+              >
+                View Pricing
+              </a>
+              <div className="flex w-full flex-wrap gap-2 pt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                {TRIAL_PROMISES.map((item) => (
+                  <span key={item} className="rounded-full border border-slate-200 bg-white px-3 py-1 dark:border-slate-800 dark:bg-slate-900">
+                    {item}
+                  </span>
                 ))}
-                <span className="ml-4 text-sm font-medium text-slate-500 dark:text-slate-400">Trusted by 2,000+ teams</span>
               </div>
             </div>
           </motion.div>
@@ -312,10 +314,10 @@ export default function Home() {
             className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-8 lg:p-12"
           >
             <div className="mb-8">
-              <h2 className="mb-2 text-2xl font-bold">{isSignUp ? 'Create your account' : 'Sign in to Tawasel App'}</h2>
+              <h2 className="mb-2 text-2xl font-bold">{isSignUp ? 'Start your 30-day trial' : 'Sign in to Tawasel'}</h2>
               <p className="text-slate-500 dark:text-slate-400">
                 {isSignUp
-                  ? 'Create your workspace now, then unlock your WhatsApp inbox, CRM, and automation from billing.'
+                  ? 'Create your workspace and start a Growth trial immediately. No card required.'
                   : 'Access your dashboard, WhatsApp inbox, and team workflows.'}
               </p>
             </div>
@@ -478,7 +480,7 @@ export default function Home() {
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <>
-                    {isSignUp ? 'Create Account' : 'Sign In'}
+                    {isSignUp ? 'Create Trial Workspace' : 'Sign In'}
                     {isSignUp ? <Zap className="h-5 w-5 text-[#25D366]" /> : <LogIn className="h-5 w-5" />}
                   </>
                 )}
@@ -487,7 +489,7 @@ export default function Home() {
 
             {isSignUp ? (
               <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-                Your workspace opens first, then billing unlocks the paid package you choose.
+                You can operate with real customers for 30 days before choosing whether to pay.
               </p>
             ) : null}
           </motion.div>
@@ -559,7 +561,7 @@ export default function Home() {
               </button>
             </div>
             <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
-              Annual pricing is already defined and can be activated in checkout when billing goes live.
+              Start with a no-card Growth trial, then keep the plan that fits your team.
             </p>
           </div>
 
@@ -649,7 +651,7 @@ export default function Home() {
                             : 'border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white hover:border-slate-900 dark:hover:border-white hover:bg-slate-900 dark:hover:bg-white hover:text-white dark:hover:text-slate-900'
                         }`}
                       >
-                        {user ? 'Choose Plan' : 'Start With This Plan'}
+                        {user ? 'Choose Plan' : 'Start 30-Day Trial'}
                       </button>
                       <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{plan.audience}</p>
                     </div>
@@ -851,11 +853,10 @@ export default function Home() {
                   Ready to centralize operations?
                 </div>
                 <h2 className="mt-6 text-4xl font-bold tracking-tight text-white lg:text-5xl">
-                  Run WhatsApp sales, support, broadcasts, and AI from one operating system.
+                  Prove the WhatsApp booking workflow in your real business.
                 </h2>
                 <p className="mt-4 max-w-2xl text-base leading-8 text-white/70 lg:text-lg">
-                  Start with the plan that fits today, bring your current WhatsApp workflows into one inbox, and give your team a
-                  clearer path from first message to closed deal.
+                  Start with a Growth workspace, connect WhatsApp, send reminders, and decide after 30 days using real customer activity.
                 </p>
               </div>
 
@@ -865,7 +866,7 @@ export default function Home() {
                   onClick={() => handlePlanSelect('growth')}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-7 py-4 text-sm font-bold text-white shadow-lg shadow-[#25D366]/20 transition hover:bg-[#128C7E]"
                 >
-                  Start Free Trial
+                  Start 30-Day Trial
                   <ArrowRight className="h-4 w-4" />
                 </button>
                 <button
@@ -904,7 +905,7 @@ export default function Home() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#25D366] shadow-[0_18px_38px_-18px_rgba(37,211,102,0.65)]">
                   <MessageSquare className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold tracking-tight">Tawasel App</span>
+                <span className="text-2xl font-bold tracking-tight">Tawasel</span>
               </div>
               <p className="max-w-md text-sm leading-7 text-white/65">
                 The premium operating layer for WhatsApp-driven sales, support, CRM workflows, and performance reporting
@@ -943,7 +944,7 @@ export default function Home() {
                 </li>
                 <li>
                   <Link to="/register" className="transition-colors hover:text-white">
-                    Start Free Trial
+                    Start 30-Day Trial
                   </Link>
                 </li>
                 <li>
@@ -997,7 +998,7 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col gap-3 pt-8 text-sm text-white/45 md:flex-row md:items-center md:justify-between">
-            <p>© {new Date().getFullYear()} Tawasel App. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Tawasel. All rights reserved.</p>
             <p>
               By{' '}
               <a href="https://tawasel.io" target="_blank" rel="noopener noreferrer" className="font-medium text-[#86efac] hover:underline">

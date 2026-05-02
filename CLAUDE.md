@@ -99,6 +99,7 @@ npx vite build       # Production build
 ## Recently Completed (May 2, 2026) - Public booking QA fixes
 
 - Added a no-card 30-day trial lifecycle: new workspaces start as `trialing` on Growth with `trialStartedAt` / `trialEndsAt`, expired trials lose access to sending/bookings/reminders/automation, and superadmin can start, extend, expire, or mark active from workspace controls.
+- Updated the public landing page to lead with the 30-day no-card trial, remove stale billing-unlock language and fake trust count, and use `VITE_SUPERADMIN_EMAIL` for browser-side superadmin redirects.
 - Public booking `/book/:slug` customer name and WhatsApp number inputs now force visible text/background/caret styles so typed values are readable.
 - Business Settings now shows the stable public booking link with a Copy Link action and explains that changing the business name does not change the slug.
 - Public booking confirmation now reads the approved WhatsApp template body and sends only the variables that template actually uses, avoiding Meta `#132000` parameter-count failures with older approved confirmation templates.

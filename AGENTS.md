@@ -77,6 +77,7 @@ npx vite build       # Production build
 - Public booking confirmation now reads the approved WhatsApp template body and sends only the variables that template actually uses, avoiding Meta `#132000` parameter-count failures with older approved confirmation templates.
 - Public booking confirmation now supports the newer four-variable template order (`customer`, `business`, `date/time`, `staff`) while preserving the legacy five-variable Tawasel template order.
 - Added a no-card 30-day trial lifecycle: new workspaces start as `trialing` on Growth with `trialStartedAt` / `trialEndsAt`, expired trials lose access to sending/bookings/reminders/automation, and superadmin can start, extend, expire, or mark active from workspace controls.
+- Updated the public landing page to lead with the 30-day no-card trial, remove stale billing-unlock language and fake trust count, and use `VITE_SUPERADMIN_EMAIL` for browser-side superadmin redirects.
 
 ## Recently Completed (April 28, 2026) - Instagram Phase 5 Audit
 

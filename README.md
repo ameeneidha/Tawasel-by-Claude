@@ -96,6 +96,7 @@ The repo also includes an App Platform spec:
 - **Added trial UX** - active trial workspaces show days remaining in-app, and expired trials show a plan prompt while preserving login/view access.
 
 ### May 2, 2026 - Public booking confirmation fixes
+- **Updated landing page positioning** - the main page now leads with the 30-day no-card trial, removes stale billing-unlock language and fake trust count, and fixes browser-side superadmin routing to use `VITE_SUPERADMIN_EMAIL`.
 
 - **Fixed public booking confirmation templates** - the confirmation sender now reads the approved template body and sends only the variables that template actually uses, preventing Meta `#132000` parameter-count rejections when older approved templates have fewer placeholders.
 
