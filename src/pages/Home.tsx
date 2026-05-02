@@ -40,31 +40,37 @@ import {
 
 const FEATURE_ITEMS = [
   {
+    id: 'sharedInbox',
     title: 'One shared WhatsApp inbox for your team',
     desc: 'Manage every WhatsApp conversation, handoff, and follow-up from one workspace instead of juggling personal phones and scattered chats.',
     icon: Globe,
   },
   {
+    id: 'aiWarm',
     title: 'AI that keeps WhatsApp leads warm after hours',
     desc: 'Let Tawasel answer FAQs, qualify WhatsApp leads, and support customers while your team is offline.',
     icon: Zap,
   },
   {
+    id: 'kpiDashboard',
     title: 'KPI dashboard built for operations',
     desc: 'Track WhatsApp unread messages, SLA risk, pipeline health, broadcast performance, and AI spend in one dashboard.',
     icon: BarChart3,
   },
   {
+    id: 'teamCollaboration',
     title: 'Real team collaboration',
     desc: 'Assign chats, add internal notes, track ownership, and see exactly who replied to each customer.',
     icon: Users,
   },
   {
+    id: 'secureDesign',
     title: 'Secure by design',
     desc: 'Use verified workspaces, role-based permissions, and a controlled onboarding flow for every account.',
     icon: Shield,
   },
   {
+    id: 'broadcasts',
     title: 'WhatsApp broadcasts with targeting and review',
     desc: 'Segment WhatsApp contacts by pipeline or list, preview campaigns, send tests, and review delivery performance after launch.',
     icon: MessageSquare,
@@ -119,6 +125,64 @@ const HOME_COPY = {
     company: 'Company',
     startTrialLink: 'Start 30-Day Trial',
     allRights: 'All rights reserved.',
+    featureSectionTitle: 'Everything you need to run WhatsApp like a real revenue channel',
+    featureSectionDesc: 'Tawasel is not just a shared WhatsApp inbox. It combines WhatsApp CRM, AI automation, broadcasts, and accountability so your team can move faster without losing context.',
+    featureItems: {
+      sharedInbox: {
+        title: 'One shared WhatsApp inbox for your team',
+        desc: 'Manage every WhatsApp conversation, handoff, and follow-up from one workspace instead of juggling personal phones and scattered chats.',
+      },
+      aiWarm: {
+        title: 'AI that keeps WhatsApp leads warm after hours',
+        desc: 'Let Tawasel answer FAQs, qualify WhatsApp leads, and support customers while your team is offline.',
+      },
+      kpiDashboard: {
+        title: 'KPI dashboard built for operations',
+        desc: 'Track WhatsApp unread messages, SLA risk, pipeline health, broadcast performance, and AI spend in one dashboard.',
+      },
+      teamCollaboration: {
+        title: 'Real team collaboration',
+        desc: 'Assign chats, add internal notes, track ownership, and see exactly who replied to each customer.',
+      },
+      secureDesign: {
+        title: 'Secure by design',
+        desc: 'Use verified workspaces, role-based permissions, and a controlled onboarding flow for every account.',
+      },
+      broadcasts: {
+        title: 'WhatsApp broadcasts with targeting and review',
+        desc: 'Segment WhatsApp contacts by pipeline or list, preview campaigns, send tests, and review delivery performance after launch.',
+      },
+    },
+    pricingSectionDesc: 'Tawasel keeps your WhatsApp inbox, CRM, broadcasts, and AI in one operational system, so every upgrade unlocks clearer execution, not just more seats.',
+    whyMove: 'Why teams move to Tawasel',
+    pricingValueStatement: PRICING_VALUE_STATEMENT,
+    comparison: 'Comparison',
+    comparisonTitle: 'Compare the features that change operations day to day.',
+    comparisonDesc: 'We surface the highest-impact differences first so teams can scan quickly, then expand into the full matrix when they need detail.',
+    showCondensed: 'Show condensed comparison',
+    expandComparison: 'Expand full comparison',
+    fullFeatureBreakdown: 'Full feature breakdown',
+    topItemsShown: 'Top items shown first for faster scanning',
+    feature: 'Feature',
+    faq: 'FAQ',
+    faqTitle: 'Answers for teams comparing tools and rollout effort.',
+    faqDesc: 'The questions below cover the common blockers before a team moves customer operations into one platform.',
+    whyGrowth: 'Why teams choose Growth',
+    growthTitle: 'The fastest path from missed chats to structured operations.',
+    growthDesc: 'Most SMEs in clinics, academies, sales teams, and service businesses start here because it unlocks the WhatsApp workflows that make shared inbox operations usable in real life.',
+    startWithGrowth: 'Start with Growth',
+    builtForTeams: 'Built for teams that need',
+    teamNeeds: [
+      'Faster lead response across every WhatsApp inquiry',
+      'One shared WhatsApp inbox with clear ownership',
+      'Arabic and English customer operations',
+      'Broadcasts, CRM, and AI in one workspace',
+    ],
+    passwordMax: 'Maximum 72 characters.',
+    contacts: 'Contacts',
+    broadcastsPerMonth: 'Broadcasts / month',
+    aiAssistants: 'AI assistants',
+    teamMembers: 'Team members',
   },
   ar: {
     languageToggle: 'English',
@@ -158,6 +222,64 @@ const HOME_COPY = {
     company: 'الشركة',
     startTrialLink: 'ابدأ تجربة 30 يوماً',
     allRights: 'جميع الحقوق محفوظة.',
+    featureSectionTitle: 'كل ما تحتاجه لتشغيل واتساب كقناة إيرادات حقيقية',
+    featureSectionDesc: 'تواصل ليس مجرد صندوق واتساب مشترك. يجمع بين CRM واتساب، والأتمتة بالذكاء الاصطناعي، والبث الجماعي، والمساءلة حتى يتحرك فريقك بسرعة بدون فقدان السياق.',
+    featureItems: {
+      sharedInbox: {
+        title: 'صندوق واتساب مشترك لفريقك',
+        desc: 'أدر كل محادثات واتساب والتحويلات والمتابعات من مساحة واحدة بدلاً من الهواتف الشخصية والمحادثات المتفرقة.',
+      },
+      aiWarm: {
+        title: 'ذكاء اصطناعي يحافظ على تفاعل عملاء واتساب خارج الدوام',
+        desc: 'دع تواصل يجيب عن الأسئلة، يؤهل العملاء المحتملين، ويدعم العملاء عندما يكون فريقك غير متصل.',
+      },
+      kpiDashboard: {
+        title: 'لوحة مؤشرات مصممة للتشغيل',
+        desc: 'تابع رسائل واتساب غير المقروءة، ومخاطر SLA، وصحة مسار المبيعات، وأداء البث، وتكلفة الذكاء الاصطناعي في لوحة واحدة.',
+      },
+      teamCollaboration: {
+        title: 'تعاون حقيقي بين الفريق',
+        desc: 'أسند المحادثات، أضف ملاحظات داخلية، تابع الملكية، واعرف بالضبط من رد على كل عميل.',
+      },
+      secureDesign: {
+        title: 'مصمم بأمان من البداية',
+        desc: 'استخدم مساحات عمل موثقة، وصلاحيات حسب الدور، وتدفق إعداد مضبوط لكل حساب.',
+      },
+      broadcasts: {
+        title: 'بث واتساب مع استهداف ومراجعة',
+        desc: 'قسّم جهات واتساب حسب المسار أو القوائم، عاين الحملات، أرسل اختبارات، وراجع أداء التسليم بعد الإطلاق.',
+      },
+    },
+    pricingSectionDesc: 'يجمع تواصل صندوق واتساب، وCRM، والبث الجماعي، والذكاء الاصطناعي في نظام تشغيل واحد، لذلك كل ترقية تمنحك تنفيذ أوضح وليس مجرد مقاعد أكثر.',
+    whyMove: 'لماذا تنتقل الفرق إلى تواصل',
+    pricingValueStatement: 'ابدأ من صندوق واتساب مشترك، ثم أضف CRM، الأتمتة، الحجوزات، والتقارير عندما يحتاجها فريقك.',
+    comparison: 'المقارنة',
+    comparisonTitle: 'قارن المزايا التي تغيّر التشغيل اليومي.',
+    comparisonDesc: 'نعرض الفروقات الأعلى تأثيراً أولاً حتى تتمكن الفرق من الفحص بسرعة، ثم يمكن توسيع الجدول الكامل عند الحاجة للتفاصيل.',
+    showCondensed: 'عرض المقارنة المختصرة',
+    expandComparison: 'توسيع المقارنة الكاملة',
+    fullFeatureBreakdown: 'تفصيل كامل للمزايا',
+    topItemsShown: 'أهم العناصر معروضة أولاً للفحص السريع',
+    feature: 'الميزة',
+    faq: 'الأسئلة الشائعة',
+    faqTitle: 'إجابات للفرق التي تقارن الأدوات وجهد الإطلاق.',
+    faqDesc: 'الأسئلة أدناه تغطي العوائق الشائعة قبل نقل عمليات العملاء إلى منصة واحدة.',
+    whyGrowth: 'لماذا تختار الفرق Growth',
+    growthTitle: 'أسرع طريق من المحادثات الفائتة إلى عمليات منظمة.',
+    growthDesc: 'معظم الشركات الصغيرة والمتوسطة في العيادات والأكاديميات وفرق المبيعات والخدمات تبدأ هنا لأن هذه الباقة تفتح سير عمل واتساب الذي يجعل الصندوق المشترك عملياً في الواقع.',
+    startWithGrowth: 'ابدأ مع Growth',
+    builtForTeams: 'مصمم للفرق التي تحتاج إلى',
+    teamNeeds: [
+      'استجابة أسرع لكل استفسار عبر واتساب',
+      'صندوق واتساب مشترك مع ملكية واضحة',
+      'عمليات عملاء بالعربية والإنجليزية',
+      'بث جماعي وCRM وذكاء اصطناعي في مساحة واحدة',
+    ],
+    passwordMax: 'الحد الأقصى 72 حرفاً.',
+    contacts: 'جهات الاتصال',
+    broadcastsPerMonth: 'البث الشهري',
+    aiAssistants: 'مساعدو الذكاء الاصطناعي',
+    teamMembers: 'أعضاء الفريق',
   },
 } as const;
 
@@ -535,7 +657,7 @@ export default function Home() {
                         <span className={item.valid ? 'text-slate-800 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400'}>{item.label}</span>
                       </div>
                     ))}
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Maximum 72 characters.</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">{copy.passwordMax}</p>
                   </div>
 
                   <div className="space-y-1.5">
@@ -599,14 +721,16 @@ export default function Home() {
       <section id="features" className="bg-slate-50 dark:bg-slate-900 py-24">
         <div className="mx-auto max-w-7xl px-4">
           <div className="mb-16 text-center">
-            <h2 className="mb-4 text-3xl font-bold dark:text-white">Everything you need to run WhatsApp like a real revenue channel</h2>
+            <h2 className="mb-4 text-3xl font-bold dark:text-white">{copy.featureSectionTitle}</h2>
             <p className="mx-auto max-w-2xl text-slate-600 dark:text-slate-400">
-              Tawasel is not just a shared WhatsApp inbox. It combines WhatsApp CRM, AI automation, broadcasts, and accountability so your team can move faster without losing context.
+              {copy.featureSectionDesc}
             </p>
           </div>
 
           <div className="grid gap-8 md:grid-cols-3">
-            {FEATURE_ITEMS.map((feature) => (
+            {FEATURE_ITEMS.map((feature) => {
+              const featureCopy = copy.featureItems[feature.id as keyof typeof copy.featureItems];
+              return (
               <div
                 key={feature.title}
                 className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-8 transition-all hover:-translate-y-1 hover:shadow-xl"
@@ -614,10 +738,10 @@ export default function Home() {
                 <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-[#25D366]/10">
                   <feature.icon className="h-6 w-6 text-[#25D366]" />
                 </div>
-                <h3 className="mb-3 text-xl font-bold dark:text-white">{feature.title}</h3>
-                <p className="leading-relaxed text-slate-600 dark:text-slate-400">{feature.desc}</p>
+                <h3 className="mb-3 text-xl font-bold dark:text-white">{featureCopy.title}</h3>
+                <p className="leading-relaxed text-slate-600 dark:text-slate-400">{featureCopy.desc}</p>
               </div>
-            ))}
+            )})}
           </div>
         </div>
       </section>
@@ -633,8 +757,7 @@ export default function Home() {
               Pick the plan that matches your team today.
             </h2>
             <p className="mx-auto max-w-3xl text-base leading-8 text-slate-600 dark:text-slate-400 lg:text-lg">
-              Tawasel keeps your WhatsApp inbox, CRM, broadcasts, and AI in one operational system, so every upgrade unlocks clearer
-              execution, not just more seats.
+              {copy.pricingSectionDesc}
             </p>
             <div className="mt-8 inline-flex rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1.5 shadow-sm shadow-slate-200/70">
               <button
@@ -713,19 +836,19 @@ export default function Home() {
 
                     <div className="mb-8 grid gap-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4">
                       <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
-                        <span>Contacts</span>
+                        <span>{copy.contacts}</span>
                         <span className="font-semibold text-slate-900 dark:text-slate-100">{formatLimitValue(plan.contactsLimit)}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
-                        <span>Broadcasts / month</span>
+                        <span>{copy.broadcastsPerMonth}</span>
                         <span className="font-semibold text-slate-900 dark:text-slate-100">{formatLimitValue(plan.broadcastLimit)}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
-                        <span>AI assistants</span>
+                        <span>{copy.aiAssistants}</span>
                         <span className="font-semibold text-slate-900 dark:text-slate-100">{formatLimitValue(plan.chatbotLimit)}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
-                        <span>Team members</span>
+                        <span>{copy.teamMembers}</span>
                         <span className="font-semibold text-slate-900 dark:text-slate-100">{formatLimitValue(plan.userLimit)}</span>
                       </div>
                     </div>
@@ -763,8 +886,8 @@ export default function Home() {
           <div className="mt-12 rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-6 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.28)] sm:px-8">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#128C7E]">Why teams move to Tawasel</p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">{PRICING_VALUE_STATEMENT}</p>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#128C7E]">{copy.whyMove}</p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">{copy.pricingValueStatement}</p>
               </div>
               <div className="flex flex-wrap gap-3 text-sm text-slate-600 dark:text-slate-400">
                 {PRICING_TRUST_SIGNALS.map((signal) => (
@@ -779,10 +902,10 @@ export default function Home() {
           <div className="mt-16 rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.28)] sm:p-8 lg:p-10">
             <div className="flex flex-col gap-4 border-b border-slate-200 dark:border-slate-800 pb-8 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#128C7E]">Comparison</p>
-                <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Compare the features that change operations day to day.</h3>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#128C7E]">{copy.comparison}</p>
+                <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">{copy.comparisonTitle}</h3>
                 <p className="mt-3 text-base leading-7 text-slate-600">
-                  We surface the highest-impact differences first so teams can scan quickly, then expand into the full matrix when they need detail.
+                  {copy.comparisonDesc}
                 </p>
               </div>
               {hasExpandableComparisonRows ? (
@@ -793,7 +916,7 @@ export default function Home() {
                   aria-expanded={comparisonExpanded}
                   aria-controls="pricing-comparison-groups"
                 >
-                  {comparisonExpanded ? 'Show condensed comparison' : 'Expand full comparison'}
+                  {comparisonExpanded ? copy.showCondensed : copy.expandComparison}
                   {comparisonExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </button>
               ) : null}
@@ -807,7 +930,7 @@ export default function Home() {
                     <div className="mb-4">
                       <h4 className="text-sm font-bold uppercase tracking-[0.22em] text-slate-500">{group.title}</h4>
                       <p className="mt-1 text-sm text-slate-500">
-                        {comparisonExpanded ? 'Full feature breakdown' : 'Top items shown first for faster scanning'}
+                        {comparisonExpanded ? copy.fullFeatureBreakdown : copy.topItemsShown}
                       </p>
                     </div>
                     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
@@ -815,7 +938,7 @@ export default function Home() {
                         <thead>
                           <tr className="text-left text-xs uppercase tracking-[0.18em] text-slate-500">
                             <th className="sticky left-0 z-20 bg-white px-5 py-4 font-bold text-slate-700 shadow-[10px_0_24px_-22px_rgba(15,23,42,0.55)]">
-                              Feature
+                              {copy.feature}
                             </th>
                             <th className="px-4 py-4 font-bold">Starter</th>
                             <th className="bg-[#25D366]/8 px-4 py-4 font-bold text-[#128C7E]">Growth</th>
@@ -862,10 +985,10 @@ export default function Home() {
           <div className="mt-16 grid gap-10 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.28)]">
               <div className="max-w-2xl">
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#128C7E]">FAQ</p>
-                <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Answers for teams comparing tools and rollout effort.</h3>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#128C7E]">{copy.faq}</p>
+                <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">{copy.faqTitle}</h3>
                 <p className="mt-3 text-base leading-7 text-slate-600">
-                  The questions below cover the common blockers before a team moves customer operations into one platform.
+                  {copy.faqDesc}
                 </p>
               </div>
 
@@ -915,10 +1038,10 @@ export default function Home() {
             </div>
 
             <aside className="rounded-[2rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-[0_28px_70px_-36px_rgba(15,23,42,0.75)]">
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#86efac]">Why teams choose Growth</p>
-              <h3 className="mt-3 text-2xl font-bold tracking-tight">The fastest path from missed chats to structured operations.</h3>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#86efac]">{copy.whyGrowth}</p>
+              <h3 className="mt-3 text-2xl font-bold tracking-tight">{copy.growthTitle}</h3>
               <p className="mt-4 text-sm leading-7 text-white/75">
-                Most SMEs in clinics, academies, sales teams, and service businesses start here because it unlocks the WhatsApp workflows that make shared inbox operations usable in real life.
+                {copy.growthDesc}
               </p>
               <ul className="mt-8 space-y-4">
                 {PLANS.GROWTH.valueProps.map((item) => (
@@ -935,7 +1058,7 @@ export default function Home() {
                 onClick={() => handlePlanSelect('growth')}
                 className="mt-8 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] py-4 text-sm font-bold text-white transition hover:bg-[#128C7E]"
               >
-                Start with Growth
+                {copy.startWithGrowth}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </aside>
@@ -1086,12 +1209,11 @@ export default function Home() {
             </div>
 
             <div>
-              <h4 className="mb-5 text-sm font-bold uppercase tracking-[0.18em] text-white/45">Built for teams that need</h4>
+              <h4 className="mb-5 text-sm font-bold uppercase tracking-[0.18em] text-white/45">{copy.builtForTeams}</h4>
               <ul className="space-y-4 text-sm text-white/65">
-                <li>Faster lead response across every WhatsApp inquiry</li>
-                <li>One shared WhatsApp inbox with clear ownership</li>
-                <li>Arabic and English customer operations</li>
-                <li>Broadcasts, CRM, and AI in one workspace</li>
+                {copy.teamNeeds.map((need) => (
+                  <li key={need}>{need}</li>
+                ))}
               </ul>
             </div>
           </div>
