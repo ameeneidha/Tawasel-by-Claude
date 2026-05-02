@@ -290,7 +290,22 @@
     "lostDealReasonsDesc": "لماذا تخرج الفرص من مسار المبيعات.",
     "lostReasonsEmpty": "سيظهر تقرير أسباب الخسارة بعد أن يبدأ الفريق بتصنيف الصفقات الخاسرة.",
     "justNow": "الآن",
-    "whatsapp": "واتساب"
+    "whatsapp": "واتساب",
+    "alertOverdueConversationsTitle": "{{count}} محادثة متأخرة",
+    "alertOverdueConversationsDesc": "هناك عملاء ينتظرون بعد تجاوز وقت الاستجابة المحدد.",
+    "alertUnreadMessagesTitle": "{{count}} رسالة عميل غير مقروءة",
+    "alertUnreadMessagesDesc": "راجع صندوق الوارد وأسند المتابعة بسرعة.",
+    "alertStaleLeadsTitle": "{{count}} عميل محتمل راكد",
+    "alertStaleLeadsDesc": "هؤلاء العملاء المحتملون لم يتفاعلوا منذ أكثر من 7 أيام.",
+    "alertFailedMessagesTitle": "{{count}} رسالة صادرة فاشلة",
+    "alertFailedMessagesDesc": "إحدى الرسائل الأخيرة لم تصل إلى القناة بنجاح.",
+    "alertDisconnectedChannelsTitle": "توجد قناة أو أكثر تحتاج إلى إعادة اتصال",
+    "alertDisconnectedChannelsDesc": "القنوات غير المتصلة توقف الرسائل الواردة والبث الجماعي.",
+    "alertPlanLimitsTitle": "مساحة العمل تقترب من حد الباقة",
+    "alertOverdueConversationsTitlePlural": "{{count}} محادثات متأخرة",
+    "alertUnreadMessagesTitlePlural": "{{count}} رسائل عملاء غير مقروءة",
+    "alertStaleLeadsTitlePlural": "{{count}} عملاء محتملون راكدون",
+    "alertFailedMessagesTitlePlural": "{{count}} رسائل صادرة فاشلة"
   },
   "inbox": {
     "title": "صندوق الوارد",

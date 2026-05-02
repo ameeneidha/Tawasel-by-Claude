@@ -290,7 +290,22 @@
     "lostDealReasonsDesc": "Why opportunities are falling out of the funnel.",
     "lostReasonsEmpty": "Lost reason reporting will appear after the team starts tagging lost deals.",
     "justNow": "Just now",
-    "whatsapp": "WhatsApp"
+    "whatsapp": "WhatsApp",
+    "alertOverdueConversationsTitle": "{{count}} overdue conversation",
+    "alertOverdueConversationsDesc": "Customers are waiting past the SLA threshold right now.",
+    "alertUnreadMessagesTitle": "{{count}} unread customer message",
+    "alertUnreadMessagesDesc": "Review the inbox and assign follow-up quickly.",
+    "alertStaleLeadsTitle": "{{count}} stale lead",
+    "alertStaleLeadsDesc": "These leads have gone quiet for more than 7 days.",
+    "alertFailedMessagesTitle": "{{count}} failed outbound message",
+    "alertFailedMessagesDesc": "A recent send did not reach the channel successfully.",
+    "alertDisconnectedChannelsTitle": "One or more channels need reconnection",
+    "alertDisconnectedChannelsDesc": "Disconnected channels stop inbound messages and broadcasts.",
+    "alertPlanLimitsTitle": "Workspace is nearing a plan limit",
+    "alertOverdueConversationsTitlePlural": "{{count}} overdue conversations",
+    "alertUnreadMessagesTitlePlural": "{{count}} unread customer messages",
+    "alertStaleLeadsTitlePlural": "{{count}} stale leads",
+    "alertFailedMessagesTitlePlural": "{{count}} failed outbound messages"
   },
   "inbox": {
     "title": "Inbox",

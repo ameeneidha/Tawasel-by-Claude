@@ -72,6 +72,7 @@ npx vite build       # Production build
 
 ## Recently Completed (May 2, 2026) - Public booking QA fixes
 
+- Main dashboard alert cards now localize backend-generated alerts such as stale leads, unread messages, overdue conversations, failed sends, and disconnected channels.
 - Public booking `/book/:slug` now supports an Arabic/English language toggle, RTL layout direction, Arabic customer-facing labels, and Arabic UAE date/time formatting for the full booking flow.
 - Public booking `/book/:slug` customer name and WhatsApp number inputs now force visible text/background/caret styles so typed values are readable.
 - Business Settings now shows the stable public booking link with a Copy Link action and explains that changing the business name does not change the slug.

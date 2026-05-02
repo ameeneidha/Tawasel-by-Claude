@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   AlertTriangle,
   Bot,
@@ -173,6 +174,53 @@ const formatDateTime = (value?: string | null, fallback = 'Just now') => {
     hour: 'numeric',
     minute: '2-digit',
   }).format(new Date(value));
+};
+
+const getLeadingCount = (value: string) => Number(value.match(/^\d+/)?.[0] || 0);
+
+const translateCount = (t: TFunction, singularKey: string, pluralKey: string, count: number) =>
+  t(count === 1 ? singularKey : pluralKey, { count });
+
+const getLocalizedAlert = (alert: DashboardSummary['alerts'][number], t: TFunction) => {
+  const count = getLeadingCount(alert.title);
+
+  switch (alert.id) {
+    case 'overdue-conversations':
+      return {
+        title: translateCount(t, 'dashboard.alertOverdueConversationsTitle', 'dashboard.alertOverdueConversationsTitlePlural', count),
+        description: t('dashboard.alertOverdueConversationsDesc'),
+      };
+    case 'unread-messages':
+      return {
+        title: translateCount(t, 'dashboard.alertUnreadMessagesTitle', 'dashboard.alertUnreadMessagesTitlePlural', count),
+        description: t('dashboard.alertUnreadMessagesDesc'),
+      };
+    case 'stale-leads':
+      return {
+        title: translateCount(t, 'dashboard.alertStaleLeadsTitle', 'dashboard.alertStaleLeadsTitlePlural', count),
+        description: t('dashboard.alertStaleLeadsDesc'),
+      };
+    case 'failed-messages':
+      return {
+        title: translateCount(t, 'dashboard.alertFailedMessagesTitle', 'dashboard.alertFailedMessagesTitlePlural', count),
+        description: t('dashboard.alertFailedMessagesDesc'),
+      };
+    case 'disconnected-channels':
+      return {
+        title: t('dashboard.alertDisconnectedChannelsTitle'),
+        description: t('dashboard.alertDisconnectedChannelsDesc'),
+      };
+    case 'plan-limits':
+      return {
+        title: t('dashboard.alertPlanLimitsTitle'),
+        description: alert.description,
+      };
+    default:
+      return {
+        title: alert.title,
+        description: alert.description,
+      };
+  }
 };
 
 export default function Dashboard() {
@@ -653,19 +701,23 @@ export default function Dashboard() {
               <SectionCard>
                 <SectionHeader title={t('dashboard.alertsActionCenter')} description={t('dashboard.alertsActionCenterDesc')} />
                 <div className="space-y-3">
-                  {summary.alerts.length > 0 ? summary.alerts.map((alert) => (
-                    <Link key={alert.id} to={alert.href} className={cn('block rounded-2xl border px-4 py-3 transition-colors', alert.severity === 'critical' && 'border-red-200 bg-red-50/80 dark:border-red-900/30 dark:bg-red-950/40', alert.severity === 'warning' && 'border-amber-200 bg-amber-50/80 dark:border-amber-900/30 dark:bg-amber-950/30', alert.severity === 'info' && 'border-blue-200 bg-blue-50/80 dark:border-blue-900/30 dark:bg-blue-950/30')}>
-                      <div className="flex items-start gap-3">
-                        <div className={cn('mt-0.5 rounded-full p-1.5', alert.severity === 'critical' && 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300', alert.severity === 'warning' && 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300', alert.severity === 'info' && 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300')}>
-                          <AlertTriangle className="w-4 h-4" />
+                  {summary.alerts.length > 0 ? summary.alerts.map((alert) => {
+                    const localizedAlert = getLocalizedAlert(alert, t);
+
+                    return (
+                      <Link key={alert.id} to={alert.href} className={cn('block rounded-2xl border px-4 py-3 transition-colors', alert.severity === 'critical' && 'border-red-200 bg-red-50/80 dark:border-red-900/30 dark:bg-red-950/40', alert.severity === 'warning' && 'border-amber-200 bg-amber-50/80 dark:border-amber-900/30 dark:bg-amber-950/30', alert.severity === 'info' && 'border-blue-200 bg-blue-50/80 dark:border-blue-900/30 dark:bg-blue-950/30')}>
+                        <div className="flex items-start gap-3">
+                          <div className={cn('mt-0.5 rounded-full p-1.5', alert.severity === 'critical' && 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300', alert.severity === 'warning' && 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300', alert.severity === 'info' && 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300')}>
+                            <AlertTriangle className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900 dark:text-white">{localizedAlert.title}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{localizedAlert.description}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-white">{alert.title}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{alert.description}</p>
-                        </div>
-                      </div>
-                    </Link>
-                  )) : <EmptyState message={t('dashboard.alertsEmpty')} />}
+                      </Link>
+                    );
+                  }) : <EmptyState message={t('dashboard.alertsEmpty')} />}
                 </div>
               </SectionCard>
 
