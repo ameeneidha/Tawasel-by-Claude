@@ -1,5 +1,5 @@
 import prisma from "../../src/lib/prisma.js";
-import { openai } from "../config.js";
+import { openai, resolveWorkspacePlanLimits } from "../config.js";
 import { getAIResponse } from "./ai.js";
 import {
   downloadMetaMedia,
@@ -14,6 +14,8 @@ export type AudioTranscriptionJobData = {
 
 const TRANSCRIPTION_MODEL = process.env.OPENAI_TRANSCRIPTION_MODEL || "whisper-1";
 const TRANSCRIPTION_LANGUAGE_HINT = (process.env.OPENAI_TRANSCRIPTION_LANGUAGE || "ar").trim();
+const TRANSCRIPTION_USAGE_TYPE = "TRANSCRIPTION_SECOND";
+const TRANSCRIPTION_COST_PER_MINUTE_USD = 0.006;
 
 function buildAudioFile(buffer: Buffer, filename: string, contentType: string) {
   return new File([buffer], filename, { type: contentType }) as any;
@@ -21,6 +23,41 @@ function buildAudioFile(buffer: Buffer, filename: string, contentType: string) {
 
 function getTranscriptText(result: any) {
   return String(result?.text || "").trim();
+}
+
+function getStartOfCurrentMonth() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+function estimateAudioDurationSeconds(buffer: Buffer) {
+  // WhatsApp voice notes are usually Opus/Ogg. This conservative fallback is only used
+  // when the transcription provider does not return duration metadata.
+  return Math.max(1, Math.ceil(buffer.length / 2000));
+}
+
+function getTranscriptionDurationSeconds(result: any, buffer: Buffer) {
+  const duration = Number(result?.duration || result?.metadata?.duration || 0);
+  if (Number.isFinite(duration) && duration > 0) {
+    return Math.max(1, Math.ceil(duration));
+  }
+  return estimateAudioDurationSeconds(buffer);
+}
+
+function transcriptionCostForSeconds(seconds: number) {
+  return Math.round((seconds / 60) * TRANSCRIPTION_COST_PER_MINUTE_USD * 1_000_000) / 1_000_000;
+}
+
+async function getWorkspaceTranscriptionSecondsThisMonth(workspaceId: string) {
+  const result = await prisma.usageLog.aggregate({
+    where: {
+      workspaceId,
+      type: TRANSCRIPTION_USAGE_TYPE,
+      createdAt: { gte: getStartOfCurrentMonth() },
+    },
+    _sum: { quantity: true },
+  });
+  return result._sum.quantity || 0;
 }
 
 async function maybeRunAiForTranscribedMessage(message: any, ctx: WebhookContext) {
@@ -133,6 +170,14 @@ export async function processAudioTranscription(
       conversation: {
         include: {
           contact: true,
+          workspace: {
+            select: {
+              id: true,
+              plan: true,
+              planOverride: true,
+              planOverrideUntil: true,
+            },
+          },
           number: true,
           instagramAccount: true,
         },
@@ -165,6 +210,15 @@ export async function processAudioTranscription(
       throw new Error("OpenAI is not configured");
     }
 
+    const limits = resolveWorkspacePlanLimits(message.conversation.workspace);
+    const usedSeconds = await getWorkspaceTranscriptionSecondsThisMonth(message.conversation.workspaceId);
+    const limitSeconds = limits.transcriptionMinutesPerMonth * 60;
+    if (usedSeconds >= limitSeconds) {
+      throw new Error(
+        `Monthly voice transcription limit reached (${limits.transcriptionMinutesPerMonth} minutes). Upgrade the workspace or wait until next month.`
+      );
+    }
+
     const accessToken =
       message.conversation.channelType === "INSTAGRAM"
         ? message.conversation.instagramAccount?.pageAccessToken ||
@@ -179,6 +233,13 @@ export async function processAudioTranscription(
     }
 
     const media = await downloadMetaMedia(message.mediaId, accessToken);
+    const estimatedDurationSeconds = estimateAudioDurationSeconds(media.buffer);
+    if (usedSeconds + estimatedDurationSeconds > limitSeconds) {
+      throw new Error(
+        `Monthly voice transcription limit reached (${limits.transcriptionMinutesPerMonth} minutes). Upgrade the workspace or wait until next month.`
+      );
+    }
+
     const contentType = message.mediaMimeType || media.contentType || "audio/ogg";
     const filename = message.mediaFilename || "voice-note.ogg";
     const file = buildAudioFile(media.buffer, filename, contentType);
@@ -194,30 +255,41 @@ export async function processAudioTranscription(
 
     const result = await openai.audio.transcriptions.create(transcriptionRequest);
     const transcription = getTranscriptText(result);
+    const durationSeconds = getTranscriptionDurationSeconds(result, media.buffer);
 
     if (!transcription) {
       throw new Error("Transcription returned empty text");
     }
 
-    const updatedMessage = await prisma.message.update({
-      where: { id: message.id },
-      data: {
-        transcription,
-        transcriptionLang: String((result as any)?.language || TRANSCRIPTION_LANGUAGE_HINT || "").trim() || null,
-        transcriptionStatus: "COMPLETED",
-        transcriptionError: null,
-        transcribedAt: new Date(),
-      },
-      include: {
-        conversation: {
-          include: {
-            contact: true,
-            number: true,
-            instagramAccount: true,
+    const [updatedMessage] = await prisma.$transaction([
+      prisma.message.update({
+        where: { id: message.id },
+        data: {
+          transcription,
+          transcriptionLang: String((result as any)?.language || TRANSCRIPTION_LANGUAGE_HINT || "").trim() || null,
+          transcriptionStatus: "COMPLETED",
+          transcriptionError: null,
+          transcribedAt: new Date(),
+        },
+        include: {
+          conversation: {
+            include: {
+              contact: true,
+              number: true,
+              instagramAccount: true,
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.usageLog.create({
+        data: {
+          workspaceId: message.conversation.workspaceId,
+          type: TRANSCRIPTION_USAGE_TYPE,
+          quantity: durationSeconds,
+          cost: transcriptionCostForSeconds(durationSeconds),
+        },
+      }),
+    ]);
 
     ctx.emit(updatedMessage.conversation.workspaceId, "message-transcribed", {
       messageId: updatedMessage.id,

@@ -18,6 +18,7 @@ import {
   LogIn,
   Mail,
   MessageSquare,
+  Mic,
   Minus,
   Sparkles,
   Shield,
@@ -50,6 +51,12 @@ const FEATURE_ITEMS = [
     title: 'AI that keeps WhatsApp leads warm after hours',
     desc: 'Let Tawasel answer FAQs, qualify WhatsApp leads, and support customers while your team is offline.',
     icon: Zap,
+  },
+  {
+    id: 'voiceBooking',
+    title: 'Voice notes become bookable customer requests',
+    desc: 'Transcribe WhatsApp voice notes, show the text in Inbox, and let AI use Arabic voice requests to move bookings forward.',
+    icon: Mic,
   },
   {
     id: 'kpiDashboard',
@@ -137,6 +144,10 @@ const HOME_COPY = {
         title: 'AI that keeps WhatsApp leads warm after hours',
         desc: 'Let Tawasel answer FAQs, qualify WhatsApp leads, and support customers while your team is offline.',
       },
+      voiceBooking: {
+        title: 'Voice notes become bookable customer requests',
+        desc: 'Transcribe WhatsApp voice notes, show the text in Inbox, and let AI use Arabic voice requests to move bookings forward.',
+      },
       kpiDashboard: {
         title: 'KPI dashboard built for operations',
         desc: 'Track WhatsApp unread messages, SLA risk, pipeline health, broadcast performance, and AI spend in one dashboard.',
@@ -183,6 +194,7 @@ const HOME_COPY = {
     contacts: 'Contacts',
     broadcastsPerMonth: 'Broadcasts / month',
     aiAssistants: 'AI assistants',
+    voiceMinutes: 'Voice minutes / month',
     teamMembers: 'Team members',
     pricingBadge: 'Pricing built for operators, not vanity metrics',
     pricingTitle: 'Pick the plan that matches your team today.',
@@ -246,6 +258,7 @@ const HOME_COPY = {
       'WhatsApp quick replies': 'WhatsApp quick replies',
       'AI assistants': 'AI assistants',
       'AI messages per month': 'AI messages per month',
+      'Voice transcription minutes / month': 'Voice transcription minutes / month',
       'Workflow automations': 'Workflow automations',
       'Multi-language AI': 'Multi-language AI',
       'WhatsApp conversation history': 'WhatsApp conversation history',
@@ -312,6 +325,10 @@ const HOME_COPY = {
         title: 'ذكاء اصطناعي يحافظ على تفاعل عملاء واتساب خارج الدوام',
         desc: 'دع تواصل يجيب عن الأسئلة، يؤهل العملاء المحتملين، ويدعم العملاء عندما يكون فريقك غير متصل.',
       },
+      voiceBooking: {
+        title: 'تحويل الملاحظات الصوتية إلى طلبات حجز',
+        desc: 'حوّل فويسات واتساب إلى نص داخل الصندوق، ودع الذكاء الاصطناعي يستخدم طلبات الحجز الصوتية بالعربية لإكمال الحجز.',
+      },
       kpiDashboard: {
         title: 'لوحة مؤشرات مصممة للتشغيل',
         desc: 'تابع رسائل واتساب غير المقروءة، ومخاطر SLA، وصحة مسار المبيعات، وأداء البث، وتكلفة الذكاء الاصطناعي في لوحة واحدة.',
@@ -358,6 +375,7 @@ const HOME_COPY = {
     contacts: 'جهات الاتصال',
     broadcastsPerMonth: 'البث الشهري',
     aiAssistants: 'مساعدو الذكاء الاصطناعي',
+    voiceMinutes: 'دقائق الصوت شهرياً',
     teamMembers: 'أعضاء الفريق',
     pricingBadge: 'أسعار مبنية للتشغيل، لا للأرقام الشكلية',
     pricingTitle: 'اختر الباقة التي تناسب فريقك اليوم.',
@@ -385,6 +403,7 @@ const HOME_COPY = {
           'حتى 1,000 جهة اتصال في CRM واتساب',
           '500 رسالة بث واتساب شهرياً',
           'مساعد ذكاء اصطناعي واحد مع 1,000 رسالة شهرياً',
+          '60 دقيقة تحويل صوت إلى نص شهرياً',
           'حجوزات مواعيد مع 5 خدمات و100 حجز شهرياً',
         ],
         valueProps: [
@@ -405,6 +424,7 @@ const HOME_COPY = {
           '5,000 جهة اتصال في CRM واتساب',
           '3,000 رسالة بث واتساب شهرياً',
           '3 مساعدين ذكاء اصطناعي مع 5,000 رسالة شهرياً',
+          '300 دقيقة تحويل صوت إلى نص شهرياً',
           'حجوزات مواعيد مع 20 خدمة و5 موظفين و500 حجز شهرياً',
         ],
         valueProps: [
@@ -425,6 +445,7 @@ const HOME_COPY = {
           '25,000 جهة اتصال في CRM واتساب',
           '10,000 رسالة بث واتساب شهرياً',
           '10 مساعدين ذكاء اصطناعي مع 25,000 رسالة شهرياً',
+          '1,500 دقيقة تحويل صوت إلى نص شهرياً',
           'حجوزات مواعيد غير محدودة مع 10 موظفين',
         ],
         valueProps: [
@@ -457,6 +478,7 @@ const HOME_COPY = {
       'WhatsApp quick replies': 'ردود واتساب السريعة',
       'AI assistants': 'مساعدو الذكاء الاصطناعي',
       'AI messages per month': 'رسائل الذكاء الاصطناعي شهرياً',
+      'Voice transcription minutes / month': 'دقائق تحويل الصوت إلى نص شهرياً',
       'Workflow automations': 'أتمتة سير العمل',
       'Multi-language AI': 'ذكاء اصطناعي متعدد اللغات',
       'WhatsApp conversation history': 'سجل محادثات واتساب',
@@ -1089,6 +1111,10 @@ export default function Home() {
                       <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
                         <span>{copy.aiAssistants}</span>
                         <span className="font-semibold text-slate-900 dark:text-slate-100">{localizeLimit(plan.chatbotLimit)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
+                        <span>{copy.voiceMinutes}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{localizeLimit(plan.transcriptionMinutesPerMonth)}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
                         <span>{copy.teamMembers}</span>

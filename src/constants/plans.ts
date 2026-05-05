@@ -22,6 +22,7 @@ export interface PlanConfig {
   broadcastLimit: number;
   automationLimit: number;
   aiMessagesPerMonth: number;
+  transcriptionMinutesPerMonth: number;
   serviceLimit: number;
   staffLimit: number;
   appointmentLimit: number;
@@ -84,6 +85,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
     broadcastLimit: 500,
     automationLimit: 3,
     aiMessagesPerMonth: 1000,
+    transcriptionMinutesPerMonth: 60,
     serviceLimit: 5,
     staffLimit: 1,
     appointmentLimit: 100,
@@ -100,6 +102,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
       'Up to 1,000 WhatsApp CRM contacts',
       '500 WhatsApp broadcast messages per month',
       '1 AI assistant with 1,000 AI messages per month',
+      '60 voice transcription minutes per month',
       'Appointment booking with 5 services and 100 bookings per month',
     ],
     billingHighlights: [
@@ -152,6 +155,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
     broadcastLimit: 3000,
     automationLimit: 15,
     aiMessagesPerMonth: 5000,
+    transcriptionMinutesPerMonth: 300,
     serviceLimit: 20,
     staffLimit: 5,
     appointmentLimit: 500,
@@ -169,6 +173,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
       '5,000 WhatsApp CRM contacts',
       '3,000 WhatsApp broadcast messages per month',
       '3 AI assistants with 5,000 AI messages per month',
+      '300 voice transcription minutes per month',
       'Appointment booking with 20 services, 5 staff, and 500 bookings per month',
     ],
     billingHighlights: [
@@ -221,6 +226,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
     broadcastLimit: 10000,
     automationLimit: 999999,
     aiMessagesPerMonth: 25000,
+    transcriptionMinutesPerMonth: 1500,
     serviceLimit: 999999,
     staffLimit: 10,
     appointmentLimit: 999999,
@@ -237,6 +243,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
       '25,000 WhatsApp CRM contacts',
       '10,000 WhatsApp broadcast messages per month',
       '10 AI assistants with 25,000 AI messages per month',
+      '1,500 voice transcription minutes per month',
       'Unlimited appointment booking with 10 staff members',
     ],
     billingHighlights: [
@@ -396,6 +403,10 @@ export const PRICING_COMPARISON_GROUPS: ComparisonGroup[] = [
       {
         label: 'AI messages per month',
         values: { STARTER: '1,000', GROWTH: '5,000', PRO: '25,000' },
+      },
+      {
+        label: 'Voice transcription minutes / month',
+        values: { STARTER: '60', GROWTH: '300', PRO: '1,500' },
       },
       {
         label: 'Workflow automations',

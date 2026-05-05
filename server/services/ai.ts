@@ -1520,6 +1520,7 @@ export const getPlanLimitSnapshot = (plan?: string | null) =>
       broadcasts: 500,
       automations: 3,
       aiMessagesPerMonth: 1000,
+      transcriptionMinutesPerMonth: 60,
       services: 5,
       staffMembers: 1,
       appointmentsPerMonth: 100,
