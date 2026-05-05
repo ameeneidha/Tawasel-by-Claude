@@ -14,6 +14,7 @@ Tawasel App is a full-stack WhatsApp CRM and automation platform built with Reac
 ## Latest Product Slice
 
 - Voice note transcription V1: incoming WhatsApp audio messages are transcribed by the BullMQ worker, shown live in Inbox, retryable when failed, and passed into the existing AI chatbot flow for appointment booking.
+- Arabic booking resolver now handles common GCC staff-name variants, Arabic month dates like `6 مايو 2026`, and spoken time words like `الساعة الثالثة ظهرا`.
 - AI booking now resolves Arabic/English service, staff, date, and time phrases with deterministic backend matching, reducing repeated confirmations without adding another AI request.
 - Landing-page sign-in now shares the same remember-me storage behavior as `/login`, avoiding stale local/session auth state when moving between the homepage and app routes.
 

@@ -188,6 +188,96 @@ const ARABIC_DIGIT_MAP: Record<string, string> = {
   "۹": "9",
 };
 
+const ARABIC_NUMBER_WORDS: Record<string, number> = {
+  "واحد": 1,
+  "واحدة": 1,
+  "الاوله": 1,
+  "الأولى": 1,
+  "اثنين": 2,
+  "اثنان": 2,
+  "الثانيه": 2,
+  "الثانية": 2,
+  "ثلاثه": 3,
+  "ثلاثة": 3,
+  "الثالثه": 3,
+  "الثالثة": 3,
+  "اربعه": 4,
+  "أربعة": 4,
+  "الرابعه": 4,
+  "الرابعة": 4,
+  "خمسه": 5,
+  "خمسة": 5,
+  "الخامسه": 5,
+  "الخامسة": 5,
+  "سته": 6,
+  "ستة": 6,
+  "السادسه": 6,
+  "السادسة": 6,
+  "سبعه": 7,
+  "سبعة": 7,
+  "السابعه": 7,
+  "السابعة": 7,
+  "ثمانيه": 8,
+  "ثمانية": 8,
+  "الثامنه": 8,
+  "الثامنة": 8,
+  "تسعه": 9,
+  "تسعة": 9,
+  "التاسعه": 9,
+  "التاسعة": 9,
+  "عشره": 10,
+  "عشرة": 10,
+  "العاشره": 10,
+  "العاشرة": 10,
+  "احد عشر": 11,
+  "الحاديه عشر": 11,
+  "الحادية عشر": 11,
+  "اثنا عشر": 12,
+  "الثانيه عشر": 12,
+  "الثانية عشر": 12,
+};
+
+const BOOKING_MONTHS: Record<string, number> = {
+  january: 1,
+  jan: 1,
+  يناير: 1,
+  february: 2,
+  feb: 2,
+  فبراير: 2,
+  march: 3,
+  mar: 3,
+  مارس: 3,
+  april: 4,
+  apr: 4,
+  ابريل: 4,
+  أبريل: 4,
+  may: 5,
+  مايو: 5,
+  june: 6,
+  jun: 6,
+  يونيو: 6,
+  july: 7,
+  jul: 7,
+  يوليو: 7,
+  august: 8,
+  aug: 8,
+  اغسطس: 8,
+  أغسطس: 8,
+  september: 9,
+  sep: 9,
+  سبتمبر: 9,
+  october: 10,
+  oct: 10,
+  اكتوبر: 10,
+  أكتوبر: 10,
+  november: 11,
+  nov: 11,
+  نوفمبر: 11,
+  december: 12,
+  dec: 12,
+  ديسمبر: 12,
+};
+
 function normalizeBookingText(value?: string | null) {
   return String(value || "")
     .toLowerCase()
@@ -203,6 +293,16 @@ function normalizeBookingText(value?: string | null) {
     .trim();
 }
 
+function replaceArabicNumberWords(text: string) {
+  let normalized = normalizeBookingText(text);
+  const entries = Object.entries(ARABIC_NUMBER_WORDS).sort((a, b) => b[0].length - a[0].length);
+  for (const [word, value] of entries) {
+    const normalizedWord = normalizeBookingText(word);
+    normalized = normalized.replace(new RegExp(`\\b${normalizedWord}\\b`, "g"), String(value));
+  }
+  return normalized;
+}
+
 function bookingAliasesForName(name: string) {
   const normalized = normalizeBookingText(name);
   const aliases = new Set<string>([normalized]);
@@ -211,6 +311,9 @@ function bookingAliasesForName(name: string) {
     [/hair\s*cut|haircut|cut|قص|شعر|قص الشعر|حلاقه شعر|حلقه شعر|حلقة شعربة/i, ["haircut", "قص الشعر", "قص شعر"]],
     [/shav|beard|حلاقه|حلاقة|ذقن|لحيه|لحية/i, ["shaving", "حلاقه", "حلاقة"]],
     [/nail|اظافر|اضافر|الاظافر|الأظافر|مناكير/i, ["nails", "اظافر", "العنايه بالاظافر"]],
+    [/ameen|amin|almenhali|al\s*menhali|alminhali/i, ["امين", "أمين", "امين المنهالي", "أمين المنهالي", "امين المنهاري", "أمين المنهاري", "من هالي", "منهالي", "المنهالي", "المنهاري"]],
+    [/nasser|nasir/i, ["ناصر"]],
+    [/noura|nora|noora/i, ["نوره", "نورة"]],
   ];
 
   for (const [pattern, values] of aliasPairs) {
@@ -290,12 +393,46 @@ function formatDubaiDate(date: Date) {
   }).format(date);
 }
 
+function parseExplicitDubaiDate(dateText?: string | null) {
+  const normalized = normalizeBookingText(dateText);
+  if (!normalized) return null;
+
+  const numericMatch = normalized.match(/\b(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?\b/);
+  if (numericMatch) {
+    const day = Number(numericMatch[1]);
+    const month = Number(numericMatch[2]);
+    const currentYear = getDubaiDateParts().year;
+    let year = Number(numericMatch[3] || currentYear);
+    if (year < 100) year += 2000;
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+  }
+
+  const monthNames = Object.keys(BOOKING_MONTHS)
+    .map((month) => normalizeBookingText(month))
+    .sort((a, b) => b.length - a.length)
+    .join("|");
+  const namedMonthMatch = normalized.match(new RegExp(`\\b(\\d{1,2})\\s+(${monthNames})(?:\\s+(\\d{4}))?\\b`));
+  if (!namedMonthMatch) return null;
+
+  const day = Number(namedMonthMatch[1]);
+  const month = BOOKING_MONTHS[namedMonthMatch[2]];
+  const year = Number(namedMonthMatch[3] || getDubaiDateParts().year);
+  if (!month || day < 1 || day > 31) return null;
+
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 function parseRelativeDubaiDate(dateText?: string | null) {
   const raw = String(dateText || "").trim();
   if (!raw) return null;
 
   const isoMatch = raw.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
   if (isoMatch) return isoMatch[0];
+
+  const explicitDate = parseExplicitDubaiDate(raw);
+  if (explicitDate) return explicitDate;
 
   const normalized = normalizeBookingText(raw);
   const today = getDubaiDateParts();
@@ -315,10 +452,13 @@ function parseRelativeDubaiDate(dateText?: string | null) {
 }
 
 function parseTimeText(timeText?: string | null) {
-  const normalized = normalizeBookingText(timeText);
+  const normalized = replaceArabicNumberWords(String(timeText || ""));
   if (!normalized) return null;
 
-  const match = normalized.match(/(\d{1,2})(?::(\d{2}))?/);
+  const match =
+    normalized.match(/\b(?:الساعه|ساعه|ساعة|at)\s*(\d{1,2})(?::(\d{2}))?\b/) ||
+    normalized.match(/\b(\d{1,2})(?::(\d{2}))?\s*(?:pm|am|ظهرا|ظهر|الظهر|العصر|مساء|ليل|صباح)\b/) ||
+    normalized.match(/\b(\d{1,2})(?::(\d{2}))?\b/);
   if (!match) return null;
 
   let hour = Number(match[1]);
