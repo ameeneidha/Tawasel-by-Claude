@@ -54,6 +54,14 @@ npx vite build       # Production build
 - `TAWASEL_OPERATOR_GUIDE_EN.md` - English operator playbook for onboarding users.
 - `TAWASEL_OPERATOR_GUIDE_AR.md` - Arabic operator playbook for UAE/GCC users.
 
+## Recently Completed (May 5, 2026) - Voice Note Transcription V1
+
+- WhatsApp audio messages now store transcription state on `Message`: `transcription`, `transcriptionLang`, `transcriptionStatus`, `transcriptionError`, and `transcribedAt`.
+- The BullMQ worker now handles a `transcribe-audio` job type on the existing `meta-webhooks` queue, downloads Meta audio media, transcribes with OpenAI Whisper, updates the message, and emits `message-transcribed`.
+- Inbox now shows live transcription states under audio messages: transcribing, completed transcript, failed state, and retry action.
+- Completed voice-note transcripts are fed into the existing AI chatbot flow so Arabic voice booking requests can trigger the current appointment tools.
+- Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
+
 ## Demo Accounts (after seeding)
 - Superadmin: ameeneidha@gmail.com / password123
 - Starter: starter@wabahub.local / password123

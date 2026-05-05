@@ -446,7 +446,12 @@
     "messageSendFailed": "تعذر إرسال الرسالة. يرجى المحاولة مرة أخرى.",
     "instagramNoAttachments": "مرفقات إنستغرام غير متاحة بعد. أرسل نصاً فقط حالياً.",
     "loadingMedia": "جارٍ تحميل الوسائط...",
-    "downloadAudio": "تحميل الصوت"
+    "downloadAudio": "تحميل الصوت",
+    "transcription": "التفريغ النصي",
+    "transcribing": "جارٍ تفريغ الملاحظة الصوتية...",
+    "transcriptionUnavailable": "التفريغ النصي غير متاح",
+    "transcriptionRetryQueued": "تمت إعادة محاولة التفريغ",
+    "transcriptionRetryFailed": "تعذرت إعادة محاولة التفريغ"
   },
   "contacts": {
     "title": "جهات الاتصال",

@@ -11,6 +11,10 @@ Tawasel App is a full-stack WhatsApp CRM and automation platform built with Reac
 - `TAWASEL_OPERATOR_GUIDE_EN.md` - English operator playbook for onboarding users.
 - `TAWASEL_OPERATOR_GUIDE_AR.md` - Arabic operator playbook for UAE/GCC users.
 
+## Latest Product Slice
+
+- Voice note transcription V1: incoming WhatsApp audio messages are transcribed by the BullMQ worker, shown live in Inbox, retryable when failed, and passed into the existing AI chatbot flow for appointment booking.
+
 ## Why Tawasel?
 
 Most businesses in the UAE run Facebook and Instagram ads that drive customers to WhatsApp. The problem is that leads get lost, replies are slow, and there's no way to track what's working. Tawasel solves this by turning WhatsApp into a structured sales and support system.

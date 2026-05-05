@@ -25,7 +25,7 @@ import cors from 'cors';
 import Stripe from "stripe";
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
-import { redisConnection, WEBHOOK_QUEUE_NAME, SOCKET_EVENTS_CHANNEL } from "./server/lib/redis.js";
+import { redisConnection, WEBHOOK_QUEUE_NAME, SOCKET_EVENTS_CHANNEL, TRANSCRIBE_AUDIO_JOB_NAME } from "./server/lib/redis.js";
 
 // ── Modular imports (extracted from this file) ─────────────────────
 import {
@@ -2393,6 +2393,55 @@ async function startServer() {
           error.message ||
           'Failed to load media',
       });
+    }
+  });
+
+  app.post("/api/messages/:id/transcribe/retry", requireAuth, async (req: any, res) => {
+    try {
+      const message = await prisma.message.findUnique({
+        where: { id: req.params.id },
+        include: { conversation: true },
+      });
+
+      if (!message || message.type !== 'AUDIO' || !message.mediaId) {
+        return res.status(404).json({ error: "Audio message not found" });
+      }
+
+      const membership = await prisma.workspaceMembership.findFirst({
+        where: {
+          workspaceId: message.conversation.workspaceId,
+          userId: req.user.userId,
+        },
+      });
+
+      if (!membership) {
+        return res.status(403).json({ error: "Workspace access denied" });
+      }
+
+      if (!webhookQueue) {
+        return res.status(503).json({ error: "Transcription queue is not available" });
+      }
+
+      const updatedMessage = await prisma.message.update({
+        where: { id: message.id },
+        data: {
+          transcriptionStatus: "PENDING",
+          transcriptionError: null,
+        },
+      });
+
+      await webhookQueue.add(TRANSCRIBE_AUDIO_JOB_NAME, { messageId: message.id });
+      io.to(message.conversation.workspaceId).emit("message-transcribed", {
+        messageId: updatedMessage.id,
+        conversationId: updatedMessage.conversationId,
+        transcriptionStatus: updatedMessage.transcriptionStatus,
+        transcriptionError: null,
+      });
+
+      res.json(updatedMessage);
+    } catch (error: any) {
+      console.error("Failed to retry audio transcription:", error?.message || error);
+      res.status(500).json({ error: error?.message || "Failed to retry transcription" });
     }
   });
 

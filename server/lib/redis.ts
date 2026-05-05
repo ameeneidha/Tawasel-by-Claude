@@ -6,3 +6,4 @@ export const redisConnection = new IORedis(process.env.REDIS_URL || "redis://127
 
 export const WEBHOOK_QUEUE_NAME = "meta-webhooks";
 export const SOCKET_EVENTS_CHANNEL = "socket-events";
+export const TRANSCRIBE_AUDIO_JOB_NAME = "transcribe-audio";

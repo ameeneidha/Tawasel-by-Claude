@@ -730,11 +730,21 @@ export async function getAIResponse(
         where: { conversationId: context.conversationId },
         orderBy: { createdAt: "desc" },
         take: 10,
-        select: { content: true, direction: true, senderType: true },
+        select: {
+          content: true,
+          direction: true,
+          senderType: true,
+          type: true,
+          transcription: true,
+          transcriptionStatus: true,
+        },
       });
       conversationMessages = recent.reverse().map((m) => ({
         role: m.direction === "INCOMING" ? "user" : "assistant",
-        content: m.content,
+        content:
+          m.type === "AUDIO" && m.transcriptionStatus === "COMPLETED" && m.transcription?.trim()
+            ? m.transcription.trim()
+            : m.content,
       }));
     }
 

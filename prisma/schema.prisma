@@ -227,6 +227,11 @@ model Message {
   mediaId       String?
   mediaMimeType String?
   mediaFilename String?
+  transcription String?
+  transcriptionLang String?
+  transcriptionStatus String @default("NONE") // NONE, PENDING, COMPLETED, FAILED
+  transcriptionError String?
+  transcribedAt DateTime?
   direction     String    // INCOMING, OUTGOING
   senderType    String    @default("USER") // USER, AI_BOT, SYSTEM
   senderName    String?

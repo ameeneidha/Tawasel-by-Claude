@@ -446,7 +446,12 @@
     "messageSendFailed": "Message could not be sent. Please try again.",
     "instagramNoAttachments": "Instagram attachments are not connected yet. Send text only for now.",
     "loadingMedia": "Loading media...",
-    "downloadAudio": "Download audio"
+    "downloadAudio": "Download audio",
+    "transcription": "Transcription",
+    "transcribing": "Transcribing voice note...",
+    "transcriptionUnavailable": "Transcription unavailable",
+    "transcriptionRetryQueued": "Transcription retry queued",
+    "transcriptionRetryFailed": "Could not retry transcription"
   },
   "contacts": {
     "title": "Contacts",

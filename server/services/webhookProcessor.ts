@@ -15,6 +15,7 @@ export type WebhookEmitter = (room: string, event: string, data: any) => void;
 
 export interface WebhookContext {
   emit: WebhookEmitter;
+  enqueueAudioTranscription?: (data: { messageId: string }) => Promise<void>;
 }
 
 const instagramProfileHydrationQueue = new Set<string>();
@@ -433,6 +434,7 @@ export async function processMetaWebhook(body: any, ctx: WebhookContext): Promis
             mediaId: incomingPayload.type === "TEXT" ? null : incomingPayload.mediaId,
             mediaMimeType: incomingPayload.type === "TEXT" ? null : incomingPayload.mediaMimeType,
             mediaFilename: incomingPayload.type === "TEXT" ? null : incomingPayload.mediaFilename,
+            transcriptionStatus: incomingPayload.type === "AUDIO" ? "PENDING" : "NONE",
             direction: "INCOMING",
             senderType: "USER",
             metaMessageId: message?.id || null,
@@ -462,6 +464,14 @@ export async function processMetaWebhook(body: any, ctx: WebhookContext): Promis
 
         ctx.emit(number.workspaceId, "new-message", newMsg);
         ctx.emit(number.workspaceId, "conversation-updated", conversation.id);
+
+        if (incomingPayload.type === "AUDIO") {
+          try {
+            await ctx.enqueueAudioTranscription?.({ messageId: newMsg.id });
+          } catch (error) {
+            console.error("[transcription] enqueue failed:", error);
+          }
+        }
 
         // AI Chatbot
         if (!conversation.aiPaused && number.autoReply && number.chatbotId && incomingPayload.aiInput) {

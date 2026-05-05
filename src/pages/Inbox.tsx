@@ -55,6 +55,11 @@ interface Message {
   mediaId?: string | null;
   mediaMimeType?: string | null;
   mediaFilename?: string | null;
+  transcription?: string | null;
+  transcriptionLang?: string | null;
+  transcriptionStatus?: 'NONE' | 'PENDING' | 'COMPLETED' | 'FAILED' | string;
+  transcriptionError?: string | null;
+  transcribedAt?: string | null;
   direction: 'INCOMING' | 'OUTGOING';
   senderType: 'USER' | 'AI_BOT' | 'SYSTEM';
   senderName?: string;
@@ -166,11 +171,27 @@ const getConversationContactLabel = (contact?: Conversation['contact']) => {
   return 'Unknown Contact';
 };
 
+const getMessagePreview = (message?: Message | null) => {
+  if (!message) return 'No messages';
+  if (message.type === 'AUDIO') {
+    if (message.transcriptionStatus === 'COMPLETED' && message.transcription?.trim()) {
+      return message.transcription.trim();
+    }
+    if (message.transcriptionStatus === 'PENDING') return 'Voice note - transcribing...';
+    if (message.transcriptionStatus === 'FAILED') return 'Voice note - transcription unavailable';
+    return message.content || 'Voice note';
+  }
+  if (message.type === 'IMAGE') return message.content && message.content !== '[Image]' ? message.content : 'Photo';
+  if (message.type === 'DOCUMENT') return message.mediaFilename || message.content || 'Document';
+  return message.content || 'No messages';
+};
+
 function MessageMedia({ message }: { message: Message }) {
   const { t } = useTranslation();
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(message.mediaId));
   const [error, setError] = useState<string | null>(null);
+  const [isRetryingTranscription, setIsRetryingTranscription] = useState(false);
 
   useEffect(() => {
     if (!message.mediaId) {
@@ -264,6 +285,46 @@ function MessageMedia({ message }: { message: Message }) {
             <Mic className="h-3.5 w-3.5" />
             {t('inbox.downloadAudio')}
           </a>
+        </div>
+      )}
+
+      {isAudio && (
+        <div className="rounded-xl border border-gray-200 bg-gray-50/80 px-3 py-2 text-xs text-gray-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-gray-200">
+          {message.transcriptionStatus === 'COMPLETED' && message.transcription?.trim() ? (
+            <div className="space-y-1">
+              <div className="font-semibold uppercase tracking-wide text-[10px] text-gray-400">
+                {t('inbox.transcription')}
+              </div>
+              <div className="whitespace-pre-wrap break-words leading-relaxed">{message.transcription}</div>
+            </div>
+          ) : message.transcriptionStatus === 'FAILED' ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-red-500">{t('inbox.transcriptionUnavailable')}</span>
+              <button
+                type="button"
+                disabled={isRetryingTranscription}
+                onClick={async () => {
+                  setIsRetryingTranscription(true);
+                  try {
+                    await axios.post(`/api/messages/${message.id}/transcribe/retry`);
+                    toast.success(t('inbox.transcriptionRetryQueued'));
+                  } catch (err) {
+                    toast.error(t('inbox.transcriptionRetryFailed'));
+                  } finally {
+                    setIsRetryingTranscription(false);
+                  }
+                }}
+                className="rounded-lg bg-white px-2 py-1 text-[10px] font-semibold text-[#128C7E] shadow-sm transition hover:bg-[#25D366]/10 disabled:opacity-60 dark:bg-slate-800"
+              >
+                {isRetryingTranscription ? t('common.loading') : t('common.retry')}
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {t('inbox.transcribing')}
+            </div>
+          )}
         </div>
       )}
 
@@ -447,6 +508,32 @@ export default function Inbox() {
         }
       });
 
+      socket.on('message-transcribed', (data: Partial<Message> & { messageId: string; conversationId: string }) => {
+        const applyTranscription = (msg: Message): Message =>
+          msg.id === data.messageId
+            ? {
+                ...msg,
+                transcription: data.transcription ?? msg.transcription,
+                transcriptionLang: data.transcriptionLang ?? msg.transcriptionLang,
+                transcriptionStatus: data.transcriptionStatus ?? msg.transcriptionStatus,
+                transcriptionError: data.transcriptionError ?? msg.transcriptionError,
+                transcribedAt: data.transcribedAt ?? msg.transcribedAt,
+              }
+            : msg;
+
+        if (selectedConv && data.conversationId === selectedConv.id) {
+          setMessages(prev => prev.map(applyTranscription));
+        }
+
+        setConversations(prev => prev.map(conv => {
+          if (conv.id !== data.conversationId) return conv;
+          return {
+            ...conv,
+            messages: conv.messages.map(applyTranscription),
+          };
+        }));
+      });
+
       // AI Escalation notification — agent needs to take over
       socket.on('ai-escalation', (data: { conversationId: string; contactName: string; reason: string }) => {
         // Play notification sound
@@ -482,6 +569,7 @@ export default function Inbox() {
         socket.off('conversation-updated');
         socket.off('conversation-deleted');
         socket.off('message-status-updated');
+        socket.off('message-transcribed');
         socket.off('ai-escalation');
         socket.disconnect();
       };
@@ -1175,7 +1263,7 @@ export default function Inbox() {
                         ? "font-semibold text-gray-800 dark:text-gray-200"
                         : "text-gray-500"
                     )}>
-                      {conv.messages[0]?.content || 'No messages'}
+                      {getMessagePreview(conv.messages[0])}
                     </p>
                     <div className="flex items-center gap-2 shrink-0">
                       {hasUnread && (
@@ -1524,7 +1612,7 @@ export default function Inbox() {
                               {quotedMsg.direction === 'INCOMING' ? (selectedConv?.contact?.name || 'Customer') : (quotedMsg.senderName || 'You')}
                             </div>
                             <div className="text-gray-600 dark:text-gray-300 line-clamp-2">
-                              {quotedMsg.type === 'IMAGE' ? '📷 Photo' : quotedMsg.type === 'AUDIO' ? '🎵 Audio' : quotedMsg.type === 'DOCUMENT' ? `📄 ${quotedMsg.mediaFilename || 'Document'}` : quotedMsg.content}
+                              {quotedMsg.type === 'IMAGE' ? 'Photo' : quotedMsg.type === 'AUDIO' ? getMessagePreview(quotedMsg) : quotedMsg.type === 'DOCUMENT' ? `${quotedMsg.mediaFilename || 'Document'}` : quotedMsg.content}
                             </div>
                           </div>
                           {quotedMsg.type === 'IMAGE' && quotedMsg.mediaId && (
@@ -1603,7 +1691,7 @@ export default function Inbox() {
                       {replyToMessage.direction === 'INCOMING' ? (selectedConv?.contact?.name || 'Customer') : (replyToMessage.senderName || 'You')}
                     </div>
                     <div className="text-gray-600 dark:text-gray-300 text-xs line-clamp-1">
-                      {replyToMessage.type === 'IMAGE' ? '📷 Photo' : replyToMessage.type === 'AUDIO' ? '🎵 Audio' : replyToMessage.type === 'DOCUMENT' ? `📄 ${replyToMessage.mediaFilename || 'Document'}` : replyToMessage.content}
+                      {replyToMessage.type === 'IMAGE' ? 'Photo' : replyToMessage.type === 'AUDIO' ? getMessagePreview(replyToMessage) : replyToMessage.type === 'DOCUMENT' ? `${replyToMessage.mediaFilename || 'Document'}` : replyToMessage.content}
                     </div>
                   </div>
                   {replyToMessage.type === 'IMAGE' && replyToMessage.mediaId && (
