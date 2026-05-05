@@ -74,6 +74,9 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 const SUPERADMIN_EMAIL = (import.meta.env.VITE_SUPERADMIN_EMAIL || '').trim().toLowerCase();
 const CONNECTED_ACCOUNTS_STORAGE_KEY = 'connectedAccounts';
+const SESSION_USER_STORAGE_KEY = 'user';
+const SESSION_TOKEN_STORAGE_KEY = 'token';
+const ACTIVE_WORKSPACE_STORAGE_KEY = 'activeWorkspaceId';
 const isSuperadminUser = (user: User | null) => (user?.email || '').toLowerCase() === SUPERADMIN_EMAIL;
 const hasWorkspaceAccessSubscription = (workspace: Workspace | null) => {
   const status = String(workspace?.subscriptionStatus || '').toLowerCase();
@@ -118,6 +121,29 @@ const readConnectedAccounts = (): ConnectedAccount[] => {
   } catch {
     return [];
   }
+};
+
+const readStoredSession = () => {
+  const localUser = localStorage.getItem(SESSION_USER_STORAGE_KEY);
+  const localToken = localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
+  if (localUser && localToken) {
+    return { user: localUser, token: localToken, storage: localStorage };
+  }
+
+  const sessionUser = sessionStorage.getItem(SESSION_USER_STORAGE_KEY);
+  const sessionToken = sessionStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
+  if (sessionUser && sessionToken) {
+    return { user: sessionUser, token: sessionToken, storage: sessionStorage };
+  }
+
+  return null;
+};
+
+const clearStoredSession = () => {
+  localStorage.removeItem(SESSION_USER_STORAGE_KEY);
+  localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem(SESSION_USER_STORAGE_KEY);
+  sessionStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
 };
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -177,9 +203,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setWorkspaces([]);
     setActiveWorkspace(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    localStorage.removeItem('activeWorkspaceId');
+    clearStoredSession();
+    localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
     delete axios.defaults.headers.common['Authorization'];
   };
 
@@ -201,8 +226,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
-    const savedToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const savedSession = readStoredSession();
+    const savedUser = savedSession?.user;
+    const savedToken = savedSession?.token;
     
     if (savedUser && savedToken) {
       const parsedUser = JSON.parse(savedUser);
@@ -214,18 +240,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Verify user still exists and get fresh data
       axios.get(`/api/users/${parsedUser.id}`).then(res => {
         setUser(res.data);
-        localStorage.setItem('user', JSON.stringify(res.data));
+        savedSession?.storage.setItem(SESSION_USER_STORAGE_KEY, JSON.stringify(res.data));
         upsertConnectedAccount(
           res.data,
           savedToken,
-          localStorage.getItem('activeWorkspaceId'),
+          localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY),
         );
         if (isSuperadminUser(res.data)) {
           setWorkspaces([]);
           setActiveWorkspace(null);
           setIsLoading(false);
         } else {
-          fetchWorkspaces(res.data.id, localStorage.getItem('activeWorkspaceId'));
+          fetchWorkspaces(res.data.id, localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY));
         }
       }).catch(() => {
         // If user not found or token invalid, clear session
@@ -242,7 +268,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       response => response,
       error => {
         if (error.response?.status === 401) {
-          const savedUserValue = localStorage.getItem('user');
+          const savedUserValue = readStoredSession()?.user;
           const savedUserId = savedUserValue ? JSON.parse(savedUserValue)?.id : user?.id;
           removeConnectedAccount(savedUserId);
           clearSessionState();
@@ -260,13 +286,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const data = Array.isArray(res.data) ? res.data : [];
       setWorkspaces(data);
       if (data.length > 0) {
-        const savedWsId = preferredWorkspaceId || localStorage.getItem('activeWorkspaceId');
+        const savedWsId = preferredWorkspaceId || localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY);
         const ws = data.find((w: Workspace) => w.id === savedWsId) || data[0];
         setActiveWorkspace(ws);
-        localStorage.setItem('activeWorkspaceId', ws.id);
+        localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, ws.id);
       } else {
         setActiveWorkspace(null);
-        localStorage.removeItem('activeWorkspaceId');
+        localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
       }
     } catch (error) {
       console.error('Failed to fetch workspaces', error);
@@ -280,20 +306,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setToken(t);
     if (u && t) {
       const storage = rememberMe ? localStorage : sessionStorage;
-      storage.setItem('user', JSON.stringify(u));
-      storage.setItem('token', t);
-      if (!rememberMe) {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-      }
+      clearStoredSession();
+      storage.setItem(SESSION_USER_STORAGE_KEY, JSON.stringify(u));
+      storage.setItem(SESSION_TOKEN_STORAGE_KEY, t);
       axios.defaults.headers.common['Authorization'] = `Bearer ${t}`;
-      upsertConnectedAccount(u, t, localStorage.getItem('activeWorkspaceId'));
+      upsertConnectedAccount(u, t, localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY));
       if (isSuperadminUser(u)) {
         setWorkspaces([]);
         setActiveWorkspace(null);
         setIsLoading(false);
       } else {
-        fetchWorkspaces(u.id, localStorage.getItem('activeWorkspaceId'));
+        fetchWorkspaces(u.id, localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY));
       }
     } else {
       clearSessionState();
@@ -304,9 +327,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handleSetActiveWorkspace = (ws: Workspace | null) => {
     setActiveWorkspace(ws);
     if (ws) {
-      localStorage.setItem('activeWorkspaceId', ws.id);
+      localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, ws.id);
     } else {
-      localStorage.removeItem('activeWorkspaceId');
+      localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
     }
     if (user && token) {
       updateConnectedAccounts((current) =>
@@ -335,14 +358,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const nextUser = res.data as User;
       setUser(nextUser);
       setToken(nextAccount.token);
-      localStorage.setItem('user', JSON.stringify(nextUser));
-      localStorage.setItem('token', nextAccount.token);
+      clearStoredSession();
+      localStorage.setItem(SESSION_USER_STORAGE_KEY, JSON.stringify(nextUser));
+      localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, nextAccount.token);
       upsertConnectedAccount(nextUser, nextAccount.token, nextAccount.lastWorkspaceId);
 
       if (isSuperadminUser(nextUser)) {
         setWorkspaces([]);
         setActiveWorkspace(null);
-        localStorage.removeItem('activeWorkspaceId');
+        localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
         setIsLoading(false);
       } else {
         await fetchWorkspaces(nextUser.id, nextAccount.lastWorkspaceId);
@@ -373,7 +397,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshWorkspaces = async () => {
     if (!user || isSuperadminUser(user)) return;
-    await fetchWorkspaces(user.id, localStorage.getItem('activeWorkspaceId'));
+    await fetchWorkspaces(user.id, localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY));
   };
 
   const startImpersonation = async (workspaceId: string, workspaceName: string) => {
@@ -386,7 +410,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const ws = data.find((w: Workspace) => w.id === workspaceId) || data[0];
       if (ws) {
         setActiveWorkspace(ws);
-        localStorage.setItem('activeWorkspaceId', ws.id);
+        localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, ws.id);
       }
       setIsImpersonating(true);
       setImpersonatingWorkspaceName(workspaceName);
@@ -407,7 +431,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setImpersonatingWorkspaceId(null);
       setWorkspaces([]);
       setActiveWorkspace(null);
-      localStorage.removeItem('activeWorkspaceId');
+      localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
     } catch (error) {
       console.error('Failed to stop impersonation', error);
       throw error;

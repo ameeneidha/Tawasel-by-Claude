@@ -109,6 +109,7 @@ const HOME_COPY = {
     emailAddress: 'Email Address',
     password: 'Password',
     forgotPassword: 'Forgot password?',
+    rememberMe: 'Remember me',
     confirmPassword: 'Confirm Password',
     alreadyHaveAccount: 'Already have an account?',
     newToTawasel: 'New to Tawasel?',
@@ -283,6 +284,7 @@ const HOME_COPY = {
     emailAddress: 'البريد الإلكتروني',
     password: 'كلمة المرور',
     forgotPassword: 'نسيت كلمة المرور؟',
+    rememberMe: 'تذكرني',
     confirmPassword: 'تأكيد كلمة المرور',
     alreadyHaveAccount: 'لديك حساب بالفعل؟',
     newToTawasel: 'جديد في تواصل؟',
@@ -569,6 +571,7 @@ export default function Home() {
   const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [comparisonExpanded, setComparisonExpanded] = useState(false);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
@@ -644,7 +647,7 @@ export default function Home() {
         ? { name: name.trim(), email: email.trim().toLowerCase(), password }
         : { email: email.trim().toLowerCase(), password };
       const response = await axios.post(endpoint, payload);
-      setUser(response.data.user, response.data.token);
+      setUser(response.data.user, response.data.token, isSignUp ? true : rememberMe);
       if (isSignUp) {
         navigate('/verify-email-sent', {
           state: {
@@ -868,6 +871,18 @@ export default function Home() {
                   </button>
                 </div>
               </div>
+
+              {!isSignUp ? (
+                <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(event) => setRememberMe(event.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-[#25D366] focus:ring-[#25D366]/20 dark:border-slate-600 dark:bg-slate-800"
+                  />
+                  {copy.rememberMe}
+                </label>
+              ) : null}
 
               {isSignUp ? (
                 <>
