@@ -480,6 +480,27 @@ function buildDubaiIso(date: string, time: string) {
   return `${date}T${time}:00+04:00`;
 }
 
+function buildResolverFallbackText(args: any) {
+  return [
+    args.text,
+    args.fullText,
+    args.utterance,
+    args.transcript,
+    args.message,
+    args.serviceName,
+    args.staffName,
+    args.dateText,
+    args.timeText,
+    args.service,
+    args.staff,
+    args.date,
+    args.time,
+    args.notes,
+  ]
+    .filter((value) => typeof value === "string" && value.trim())
+    .join(" ");
+}
+
 async function resolveBookingEntities(args: any, workspaceId: string) {
   const [services, staffMembers] = await Promise.all([
     prisma.service.findMany({
@@ -492,12 +513,13 @@ async function resolveBookingEntities(args: any, workspaceId: string) {
     }),
   ]);
 
-  const serviceQuery = args.serviceId || args.serviceName || args.service;
-  const staffQuery = args.staffId || args.staffName || args.staff;
+  const fallbackText = buildResolverFallbackText(args);
+  const serviceQuery = args.serviceId || args.serviceName || args.service || fallbackText;
+  const staffQuery = args.staffId || args.staffName || args.staff || fallbackText;
   const serviceMatch = pickBestBookingMatch(serviceQuery, services);
   const staffMatch = pickBestBookingMatch(staffQuery, staffMembers);
-  const resolvedDate = args.date || parseRelativeDubaiDate(args.dateText || args.date);
-  const resolvedTime = args.time || parseTimeText(args.timeText || args.time);
+  const resolvedDate = args.date || parseRelativeDubaiDate(args.dateText || args.date || fallbackText);
+  const resolvedTime = args.time || parseTimeText(args.timeText || args.time || fallbackText);
   const startTime = resolvedDate && resolvedTime ? buildDubaiIso(resolvedDate, resolvedTime) : null;
 
   return {
@@ -530,7 +552,7 @@ async function resolveBookingEntities(args: any, workspaceId: string) {
       resolvedTime ? null : "time",
     ].filter(Boolean),
     guidance:
-      "Use service.id, staff.id, and startTime for check_availability and book_appointment. If missing is empty and customer already confirmed, book_appointment immediately.",
+      "Use service.id, staff.id, and startTime for check_availability and book_appointment. Relative dates like بكرة/باكر are resolved in Asia/Dubai. If missing is empty and customer already confirmed, book_appointment immediately.",
   };
 }
 
@@ -544,6 +566,11 @@ const APPOINTMENT_TOOLS: any[] = [
       parameters: {
         type: "object",
         properties: {
+          text: {
+            type: "string",
+            description:
+              "Full customer sentence or voice-note transcript. Always pass this when available, especially for phrases like أريد قص الشعر عند أمين باكر الساعة الثالثة.",
+          },
           serviceName: { type: "string", description: "Service name or phrase, Arabic or English. Example: قص الشعر" },
           staffName: { type: "string", description: "Staff name or partial name, Arabic or English. Example: أمين" },
           dateText: { type: "string", description: "Natural date text. Example: بكرة, باكر, today, 2026-05-06" },
@@ -1186,7 +1213,7 @@ You can help customers with the full appointment lifecycle. Tools available:
 
 Rules:
 - For booking: guide step by step (service → staff → date → time → confirm).
-- If the customer gives booking details in Arabic, English, or a voice-note transcript, call resolve_booking_entities before check_availability or book_appointment. Do not translate service/staff names yourself.
+- If the customer gives booking details in Arabic, English, or a voice-note transcript, call resolve_booking_entities before check_availability or book_appointment. Always pass the full customer sentence/transcript in the resolver's text field when available, so relative dates like بكرة/باكر and mixed phrases are resolved automatically. Do not translate service/staff names yourself.
 - Treat Arabic and English labels as equivalent when the resolver returns IDs. For example, if the customer says "قص الشعر" and resolver returns service.name "Haircut", proceed with that resolved service.
 - Once the customer has provided service, staff, date, and time, check availability. After availability is confirmed and the customer says yes/نعم/صحيح/متأكد, call book_appointment immediately. Do not ask for confirmation again.
 - If resolver returns missing fields, ask only for the missing fields. If resolver returns ambiguous service or staff, ask the customer to choose between the matching options.
