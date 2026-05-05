@@ -4008,7 +4008,17 @@ async function startServer() {
         workspaceId,
         name,
         instructions,
-        enabled: true
+        enabled: true,
+        personaName: name || "AI Assistant",
+        primaryLanguage: "both",
+        preferredDialect: "auto",
+        tone: "friendly",
+        emojiUsage: "sparingly",
+        responseLength: "balanced",
+        allowedActions: JSON.stringify(["answer_faqs", "book_appointments", "escalate_to_agent"]),
+        blockedTopics: JSON.stringify(["competitors", "legal_advice", "medical_advice"]),
+        escalationRules: "Escalate when the customer is angry, asks for a manager, has a complaint, asks for a refund, or when the AI is unsure.",
+        aboutBusiness: "## About us\n\n## What makes us different\n\n## Common customer questions\nQ: \nA: \n\n## Things to mention if relevant\n- \n\n## Things to NEVER say\n- "
       },
       include: { numbers: true, instagramAccounts: true, tools: true }
     });
@@ -4019,7 +4029,24 @@ async function startServer() {
     const chatbot = await prisma.chatbot.findUnique({ where: { id: req.params.id } });
     return requireSubscribedWorkspaceById(req, res, next, chatbot?.workspaceId);
   }, async (req, res) => {
-    const { name, instructions, enabled, language, assignedNumberIds } = req.body;
+    const {
+      name,
+      instructions,
+      enabled,
+      language,
+      personaName,
+      industry,
+      primaryLanguage,
+      preferredDialect,
+      tone,
+      emojiUsage,
+      responseLength,
+      allowedActions,
+      blockedTopics,
+      escalationRules,
+      aboutBusiness,
+      assignedNumberIds
+    } = req.body;
     const existingChatbot = await prisma.chatbot.findUnique({
       where: { id: req.params.id },
       include: { numbers: true }
@@ -4061,7 +4088,18 @@ async function startServer() {
           name,
           instructions,
           enabled,
-          language
+          language,
+          personaName,
+          industry,
+          primaryLanguage,
+          preferredDialect,
+          tone,
+          emojiUsage,
+          responseLength,
+          allowedActions: Array.isArray(allowedActions) ? JSON.stringify(allowedActions) : allowedActions,
+          blockedTopics: Array.isArray(blockedTopics) ? JSON.stringify(blockedTopics) : blockedTopics,
+          escalationRules,
+          aboutBusiness
         }
       });
 

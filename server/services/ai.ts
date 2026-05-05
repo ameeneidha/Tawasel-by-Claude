@@ -480,6 +480,156 @@ function buildDubaiIso(date: string, time: string) {
   return `${date}T${time}:00+04:00`;
 }
 
+function parseJsonList(value?: string | null) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map((item) => String(item)).filter(Boolean) : [];
+  } catch {
+    return String(value)
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+}
+
+function labelFromKey(value: string) {
+  return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+async function getLiveBusinessData(workspaceId: string) {
+  const [workspace, services, staffMembers] = await Promise.all([
+    prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { name: true },
+    }),
+    prisma.service.findMany({
+      where: { workspaceId, enabled: true },
+      select: { name: true, description: true, durationMin: true, price: true, currency: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.staffMember.findMany({
+      where: { workspaceId, enabled: true },
+      select: {
+        name: true,
+        staffServices: {
+          include: {
+            service: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  return { workspace, services, staffMembers };
+}
+
+function buildLiveBusinessDataBlock(data: Awaited<ReturnType<typeof getLiveBusinessData>>) {
+  const servicesBlock = data.services.length
+    ? data.services
+        .map((service) => {
+          const price = `${service.price} ${service.currency}`;
+          const description = service.description?.trim() ? ` — ${service.description.trim()}` : "";
+          return `- ${service.name}: ${price}, ${service.durationMin} minutes${description}`;
+        })
+        .join("\n")
+    : "- No enabled services configured.";
+
+  const staffBlock = data.staffMembers.length
+    ? data.staffMembers
+        .map((staff) => {
+          const serviceNames = staff.staffServices.map((item) => item.service.name).filter(Boolean);
+          return `- ${staff.name}${serviceNames.length ? `: ${serviceNames.join(", ")}` : ": general availability"}`;
+        })
+        .join("\n")
+    : "- No enabled staff configured.";
+
+  return `# Live Business Data
+Business name: ${data.workspace?.name || "this business"}
+
+## Services and Prices
+${servicesBlock}
+
+## Staff
+${staffBlock}
+
+Source priority: live business data is the source of truth for services, prices, durations, staff, and availability. If any uploaded notes or custom instructions conflict with live business data, use live business data.`;
+}
+
+async function buildChatbotSystemPrompt(chatbot: any, workspaceId: string, hasServices: boolean) {
+  const businessData = await getLiveBusinessData(workspaceId);
+  const allowedActions = parseJsonList(chatbot.allowedActions);
+  const blockedTopics = parseJsonList(chatbot.blockedTopics);
+
+  const behaviorBlock = `# AI Identity and Behavior
+You are ${chatbot.personaName?.trim() || chatbot.name || "the AI assistant"} for ${businessData.workspace?.name || "this business"}.
+Industry: ${chatbot.industry?.trim() || "not specified"}.
+Primary language: ${chatbot.primaryLanguage || chatbot.language || "both"}.
+Preferred dialect: ${chatbot.preferredDialect || "auto"}.
+Tone: ${chatbot.tone || "friendly"}.
+Emoji usage: ${chatbot.emojiUsage || "sparingly"}.
+Response length: ${chatbot.responseLength || "balanced"}.
+Allowed actions: ${allowedActions.length ? allowedActions.map(labelFromKey).join(", ") : "answer customer questions and escalate when needed"}.
+Blocked topics: ${blockedTopics.length ? blockedTopics.map(labelFromKey).join(", ") : "do not discuss competitors, legal advice, medical advice, or unsupported promises"}.
+Escalation rules: ${chatbot.escalationRules?.trim() || "Escalate when the customer is angry, asks for a human, asks for a manager, has a complaint, or when you are unsure."}`;
+
+  const aboutBlock = chatbot.aboutBusiness?.trim()
+    ? `# About This Business
+${chatbot.aboutBusiness.trim()}`
+    : "";
+
+  const customInstructionsBlock = chatbot.instructions?.trim()
+    ? `# Custom Instructions
+${chatbot.instructions.trim()}`
+    : "";
+
+  const appointmentBlock = hasServices
+    ? `# Appointment Booking & Self-Service
+You can help customers with the full appointment lifecycle. Tools available:
+1. resolve_booking_entities — resolve Arabic/English service, staff, date, and time text into exact IDs and ISO time. This is deterministic backend logic and does not cost extra AI tokens beyond this tool call.
+2. list_services — show what can be booked
+3. list_staff — show staff (optionally filtered by service)
+4. check_availability — show open slots for a staff + service + date
+5. book_appointment — create a new booking (confirm details first)
+6. get_my_appointments — look up the customer's OWN upcoming appointments (use when they ask "do I have an appointment?", "when is my booking?", etc.)
+7. reschedule_my_appointment — move the customer's OWN appointment to a new time (confirm first)
+8. cancel_my_appointment — cancel the customer's OWN appointment (confirm first)
+
+Rules:
+- For booking: guide step by step (service → staff → date → time → confirm).
+- If the customer gives booking details in Arabic, English, or a voice-note transcript, call resolve_booking_entities before check_availability or book_appointment. Always pass the full customer sentence/transcript in the resolver's text field when available, so relative dates like بكرة/باكر and mixed phrases are resolved automatically. Do not translate service/staff names yourself.
+- Treat Arabic and English labels as equivalent when the resolver returns IDs. For example, if the customer says "قص الشعر" and resolver returns service.name "Haircut", proceed with that resolved service.
+- Once the customer has provided service, staff, date, and time, check availability. After availability is confirmed and the customer says yes/نعم/صحيح/متأكد, call book_appointment immediately. Do not ask for confirmation again.
+- If resolver returns missing fields, ask only for the missing fields. If resolver returns ambiguous service or staff, ask the customer to choose between the matching options.
+- For reschedule/cancel: always call get_my_appointments first to get the correct appointmentId, then confirm with the customer before calling reschedule/cancel.
+- You can ONLY view/modify appointments belonging to THIS customer (their phone number). If they ask about someone else's appointment, politely decline.
+- Keep appointment details brief and generic in responses — do not expose internal notes, IDs, or other customers' info.
+- When showing times, use a friendly format (e.g., "10:00 AM", "2:30 PM").
+- Today's date is ${new Date().toISOString().slice(0, 10)}.`
+    : "";
+
+  return [
+    behaviorBlock,
+    buildLiveBusinessDataBlock(businessData),
+    aboutBlock,
+    customInstructionsBlock,
+    appointmentBlock,
+    `# Escalation to Human Agent
+You have the ability to escalate conversations to a human agent. Use the escalate_to_agent tool when:
+- The customer explicitly asks to speak to a human, agent, representative, or person
+- You cannot answer the customer's question after trying your best
+- The customer seems frustrated, angry, or dissatisfied with your responses
+- The request involves refunds, complaints, account issues, or other sensitive matters that require human judgment
+- You've attempted to help 2-3 times but the customer is still not satisfied
+
+When escalating, provide a brief reason. After escalating, send a polite message letting the customer know a team member will assist them shortly.`,
+    APPENDED_CHATBOT_SAFETY_INSTRUCTIONS,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 function buildResolverFallbackText(args: any) {
   return [
     args.text,
@@ -1197,45 +1347,7 @@ export async function getAIResponse(
       }));
     }
 
-    const systemPrompt = [
-      chatbot.instructions?.trim(),
-      hasServices
-        ? `# Appointment Booking & Self-Service
-You can help customers with the full appointment lifecycle. Tools available:
-1. resolve_booking_entities — resolve Arabic/English service, staff, date, and time text into exact IDs and ISO time. This is deterministic backend logic and does not cost extra AI tokens beyond this tool call.
-2. list_services — show what can be booked
-3. list_staff — show staff (optionally filtered by service)
-4. check_availability — show open slots for a staff + service + date
-5. book_appointment — create a new booking (confirm details first)
-6. get_my_appointments — look up the customer's OWN upcoming appointments (use when they ask "do I have an appointment?", "when is my booking?", etc.)
-7. reschedule_my_appointment — move the customer's OWN appointment to a new time (confirm first)
-8. cancel_my_appointment — cancel the customer's OWN appointment (confirm first)
-
-Rules:
-- For booking: guide step by step (service → staff → date → time → confirm).
-- If the customer gives booking details in Arabic, English, or a voice-note transcript, call resolve_booking_entities before check_availability or book_appointment. Always pass the full customer sentence/transcript in the resolver's text field when available, so relative dates like بكرة/باكر and mixed phrases are resolved automatically. Do not translate service/staff names yourself.
-- Treat Arabic and English labels as equivalent when the resolver returns IDs. For example, if the customer says "قص الشعر" and resolver returns service.name "Haircut", proceed with that resolved service.
-- Once the customer has provided service, staff, date, and time, check availability. After availability is confirmed and the customer says yes/نعم/صحيح/متأكد, call book_appointment immediately. Do not ask for confirmation again.
-- If resolver returns missing fields, ask only for the missing fields. If resolver returns ambiguous service or staff, ask the customer to choose between the matching options.
-- For reschedule/cancel: always call get_my_appointments first to get the correct appointmentId, then confirm with the customer before calling reschedule/cancel.
-- You can ONLY view/modify appointments belonging to THIS customer (their phone number). If they ask about someone else's appointment, politely decline.
-- Keep appointment details brief and generic in responses — do not expose internal notes, IDs, or other customers' info.
-- When showing times, use a friendly format (e.g., "10:00 AM", "2:30 PM").
-- Today's date is ${new Date().toISOString().slice(0, 10)}.`
-        : "",
-      `# Escalation to Human Agent
-You have the ability to escalate conversations to a human agent. Use the escalate_to_agent tool when:
-- The customer explicitly asks to speak to a human, agent, representative, or person
-- You cannot answer the customer's question after trying your best
-- The customer seems frustrated, angry, or dissatisfied with your responses
-- The request involves refunds, complaints, account issues, or other sensitive matters that require human judgment
-- You've attempted to help 2-3 times but the customer is still not satisfied
-
-When escalating, provide a brief reason. After escalating, send a polite message letting the customer know a team member will assist them shortly.`,
-      APPENDED_CHATBOT_SAFETY_INSTRUCTIONS,
-    ]
-      .filter(Boolean)
-      .join("\n\n");
+    const systemPrompt = await buildChatbotSystemPrompt(chatbot, workspaceId, hasServices);
 
     const messages: any[] = [
       { role: "system", content: systemPrompt },

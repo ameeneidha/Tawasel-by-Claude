@@ -30,6 +30,47 @@ const APPENDED_SAFETY_INSTRUCTIONS = `# Safety Instructions
 - If the customer asks for a human agent or asks for something outside your allowed scope, say a human agent will follow up.
 - Do not claim abilities you do not have, such as generating images, videos, or checking third-party systems live.`;
 
+const ABOUT_BUSINESS_TEMPLATE = `## About us
+
+## What makes us different
+
+## Common customer questions
+Q:
+A:
+
+## Things to mention if relevant
+-
+
+## Things to NEVER say
+-`;
+
+const ACTION_OPTIONS = [
+  { value: 'answer_faqs', labelKey: 'chatbots.actionAnswerFaqs' },
+  { value: 'quote_prices', labelKey: 'chatbots.actionQuotePrices' },
+  { value: 'book_appointments', labelKey: 'chatbots.actionBookAppointments' },
+  { value: 'send_brochures', labelKey: 'chatbots.actionSendBrochures' },
+  { value: 'escalate_to_agent', labelKey: 'chatbots.actionEscalate' },
+];
+
+const BLOCKED_TOPIC_OPTIONS = [
+  { value: 'competitors', labelKey: 'chatbots.blockCompetitors' },
+  { value: 'legal_advice', labelKey: 'chatbots.blockLegalAdvice' },
+  { value: 'medical_advice', labelKey: 'chatbots.blockMedicalAdvice' },
+  { value: 'unauthorized_discounts', labelKey: 'chatbots.blockUnauthorizedDiscounts' },
+  { value: 'delivery_promises', labelKey: 'chatbots.blockDeliveryPromises' },
+];
+
+function parseJsonList(value: any, fallback: string[] = []) {
+  if (Array.isArray(value)) return value.map(String);
+  if (!value) return fallback;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function Chatbots() {
   const { t } = useTranslation();
   const { activeWorkspace } = useApp();
@@ -194,6 +235,23 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
   const [name, setName] = useState(bot.name);
   const [instructions, setInstructions] = useState(bot.instructions);
   const [language, setLanguage] = useState(bot.language || 'en');
+  const [personaName, setPersonaName] = useState(bot.personaName || bot.name || '');
+  const [industry, setIndustry] = useState(bot.industry || '');
+  const [primaryLanguage, setPrimaryLanguage] = useState(bot.primaryLanguage || 'both');
+  const [preferredDialect, setPreferredDialect] = useState(bot.preferredDialect || 'auto');
+  const [tone, setTone] = useState(bot.tone || 'friendly');
+  const [emojiUsage, setEmojiUsage] = useState(bot.emojiUsage || 'sparingly');
+  const [responseLength, setResponseLength] = useState(bot.responseLength || 'balanced');
+  const [allowedActions, setAllowedActions] = useState<string[]>(
+    parseJsonList(bot.allowedActions, ['answer_faqs', 'book_appointments', 'escalate_to_agent'])
+  );
+  const [blockedTopics, setBlockedTopics] = useState<string[]>(
+    parseJsonList(bot.blockedTopics, ['competitors', 'legal_advice', 'medical_advice'])
+  );
+  const [escalationRules, setEscalationRules] = useState(
+    bot.escalationRules || 'Escalate when the customer is angry, asks for a manager, has a complaint, asks for a refund, or when the AI is unsure.'
+  );
+  const [aboutBusiness, setAboutBusiness] = useState(bot.aboutBusiness || ABOUT_BUSINESS_TEMPLATE);
   const [enabled, setEnabled] = useState(bot.enabled);
   const [availableNumbers, setAvailableNumbers] = useState<any[]>([]);
   const [assignedNumberIds, setAssignedNumberIds] = useState<string[]>(
@@ -242,6 +300,12 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
     );
   };
 
+  const toggleListValue = (value: string, setter: React.Dispatch<React.SetStateAction<string[]>>) => {
+    setter((current) =>
+      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
+    );
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -250,6 +314,17 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
         name,
         instructions,
         language,
+        personaName,
+        industry,
+        primaryLanguage,
+        preferredDialect,
+        tone,
+        emojiUsage,
+        responseLength,
+        allowedActions,
+        blockedTopics,
+        escalationRules,
+        aboutBusiness,
         enabled,
         assignedNumberIds: selectionToSave,
         workspaceId: activeWorkspace?.id
@@ -378,6 +453,123 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-[#25D366]/10 text-gray-900 dark:text-white transition-colors"
+                  />
+                </div>
+                <div className="rounded-2xl border border-[#25D366]/15 bg-[#25D366]/5 p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('chatbots.liveBusinessData')}</h3>
+                  <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-400">
+                    {t('chatbots.liveBusinessDataDesc')}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold text-[#128C7E] dark:text-[#25D366]">
+                    {t('chatbots.sourcePriority')}
+                  </p>
+                </div>
+                <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('chatbots.aiBehavior')}</h3>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{t('chatbots.aiBehaviorDesc')}</p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('chatbots.personaName')}</label>
+                      <input
+                        value={personaName}
+                        onChange={(e) => setPersonaName(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#25D366]/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        placeholder="Sara from Salem Salon"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('chatbots.industry')}</label>
+                      <select value={industry} onChange={(e) => setIndustry(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-900 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                        <option value="">{t('chatbots.notSpecified')}</option>
+                        <option value="salon">{t('chatbots.industrySalon')}</option>
+                        <option value="clinic">{t('chatbots.industryClinic')}</option>
+                        <option value="driving_school">{t('chatbots.industryDrivingSchool')}</option>
+                        <option value="gym">{t('chatbots.industryGym')}</option>
+                        <option value="services">{t('chatbots.industryServices')}</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('chatbots.primaryLanguage')}</label>
+                      <select value={primaryLanguage} onChange={(e) => setPrimaryLanguage(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-900 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                        <option value="both">{t('chatbots.languageBoth')}</option>
+                        <option value="ar">{t('chatbots.arabic')}</option>
+                        <option value="en">{t('chatbots.english')}</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('chatbots.preferredDialect')}</label>
+                      <select value={preferredDialect} onChange={(e) => setPreferredDialect(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-900 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                        <option value="auto">{t('chatbots.dialectAuto')}</option>
+                        <option value="khaleeji">{t('chatbots.dialectKhaleeji')}</option>
+                        <option value="msa">{t('chatbots.dialectMsa')}</option>
+                        <option value="egyptian">{t('chatbots.dialectEgyptian')}</option>
+                        <option value="levantine">{t('chatbots.dialectLevantine')}</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('chatbots.tone')}</label>
+                      <select value={tone} onChange={(e) => setTone(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-900 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                        <option value="formal">{t('chatbots.toneFormal')}</option>
+                        <option value="friendly">{t('chatbots.toneFriendly')}</option>
+                        <option value="casual">{t('chatbots.toneCasual')}</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('chatbots.emojis')}</label>
+                      <select value={emojiUsage} onChange={(e) => setEmojiUsage(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-900 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                        <option value="never">{t('chatbots.never')}</option>
+                        <option value="sparingly">{t('chatbots.sparingly')}</option>
+                        <option value="freely">{t('chatbots.freely')}</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('chatbots.responseLength')}</label>
+                      <select value={responseLength} onChange={(e) => setResponseLength(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-900 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                        <option value="short">{t('chatbots.shortDirect')}</option>
+                        <option value="balanced">{t('chatbots.balanced')}</option>
+                        <option value="detailed">{t('chatbots.detailed')}</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('chatbots.aiCanDo')}</label>
+                      <div className="space-y-2">
+                        {ACTION_OPTIONS.map((option) => (
+                          <label key={option.value} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <input type="checkbox" checked={allowedActions.includes(option.value)} onChange={() => toggleListValue(option.value, setAllowedActions)} className="h-4 w-4 rounded border-gray-300 text-[#25D366]" />
+                            {t(option.labelKey)}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('chatbots.aiCannotDo')}</label>
+                      <div className="space-y-2">
+                        {BLOCKED_TOPIC_OPTIONS.map((option) => (
+                          <label key={option.value} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <input type="checkbox" checked={blockedTopics.includes(option.value)} onChange={() => toggleListValue(option.value, setBlockedTopics)} className="h-4 w-4 rounded border-gray-300 text-[#25D366]" />
+                            {t(option.labelKey)}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('chatbots.escalationRules')}</label>
+                    <textarea rows={3} value={escalationRules} onChange={(e) => setEscalationRules(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-relaxed text-gray-900 outline-none focus:ring-2 focus:ring-[#25D366]/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('chatbots.aboutBusiness')}</label>
+                  <textarea
+                    rows={10}
+                    value={aboutBusiness}
+                    onChange={(e) => setAboutBusiness(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-[#25D366]/10 resize-none text-sm leading-relaxed text-gray-900 dark:text-white transition-colors"
+                    placeholder={ABOUT_BUSINESS_TEMPLATE}
                   />
                 </div>
                 <div className="space-y-2">

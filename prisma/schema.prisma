@@ -352,6 +352,17 @@ model Chatbot {
   instructions  String
   enabled       Boolean   @default(true)
   language      String    @default("en")
+  personaName   String?
+  industry      String?
+  primaryLanguage String @default("both")
+  preferredDialect String @default("auto")
+  tone          String    @default("friendly")
+  emojiUsage    String   @default("sparingly")
+  responseLength String  @default("balanced")
+  allowedActions String?
+  blockedTopics String?
+  escalationRules String?
+  aboutBusiness String?
   workspaceId   String
   workspace     Workspace @relation(fields: [workspaceId], references: [id])
   numbers       WhatsAppNumber[]

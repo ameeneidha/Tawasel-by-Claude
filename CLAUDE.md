@@ -64,6 +64,7 @@ npx vite build       # Production build
 - Arabic booking resolver now handles common GCC staff-name variants, Arabic month dates like `6 مايو 2026`, and spoken time words like `الساعة الثالثة ظهرا`.
 - Resolver calls now accept the full customer sentence/transcript so relative dates like `باكر` are resolved automatically even when the AI does not split the date into a separate field.
 - Voice transcription is now plan-limited monthly: Starter 60 minutes, Growth 300 minutes, Pro 1,500 minutes. Usage is recorded in `UsageLog` as `TRANSCRIPTION_SECOND`, and the homepage/pricing copy exposes voice minutes as a product feature.
+- Chatbots now have structured AI behavior settings, an about-business knowledge template, and a prompt builder that injects live services/staff/prices from the database as the source of truth.
 - Landing-page sign-in now uses the same remember-me behavior as `/login`; AppContext reads one coherent auth storage source and clears both local/session storage on logout or invalid sessions.
 - Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
