@@ -163,7 +163,258 @@ const ESCALATION_TOOL = {
   },
 };
 
+const UAE_TIME_ZONE = process.env.REMINDER_TIMEZONE || "Asia/Dubai";
+
+const ARABIC_DIGIT_MAP: Record<string, string> = {
+  "٠": "0",
+  "١": "1",
+  "٢": "2",
+  "٣": "3",
+  "٤": "4",
+  "٥": "5",
+  "٦": "6",
+  "٧": "7",
+  "٨": "8",
+  "٩": "9",
+  "۰": "0",
+  "۱": "1",
+  "۲": "2",
+  "۳": "3",
+  "۴": "4",
+  "۵": "5",
+  "۶": "6",
+  "۷": "7",
+  "۸": "8",
+  "۹": "9",
+};
+
+function normalizeBookingText(value?: string | null) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[٠-٩۰-۹]/g, (digit) => ARABIC_DIGIT_MAP[digit] || digit)
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/ؤ/g, "و")
+    .replace(/ئ/g, "ي")
+    .replace(/[ًٌٍَُِّْـ]/g, "")
+    .replace(/[^\p{L}\p{N}\s:]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function bookingAliasesForName(name: string) {
+  const normalized = normalizeBookingText(name);
+  const aliases = new Set<string>([normalized]);
+
+  const aliasPairs: Array<[RegExp, string[]]> = [
+    [/hair\s*cut|haircut|cut|قص|شعر|قص الشعر|حلاقه شعر|حلقه شعر|حلقة شعربة/i, ["haircut", "قص الشعر", "قص شعر"]],
+    [/shav|beard|حلاقه|حلاقة|ذقن|لحيه|لحية/i, ["shaving", "حلاقه", "حلاقة"]],
+    [/nail|اظافر|اضافر|الاظافر|الأظافر|مناكير/i, ["nails", "اظافر", "العنايه بالاظافر"]],
+  ];
+
+  for (const [pattern, values] of aliasPairs) {
+    if (pattern.test(name) || pattern.test(normalized)) {
+      values.forEach((alias) => aliases.add(normalizeBookingText(alias)));
+    }
+  }
+
+  return [...aliases].filter(Boolean);
+}
+
+function scoreBookingMatch(query: string, candidate: { id: string; name: string }) {
+  const normalizedQuery = normalizeBookingText(query);
+  if (!normalizedQuery) return 0;
+  if (candidate.id === query) return 100;
+
+  const candidateAliases = bookingAliasesForName(candidate.name);
+  const queryAliases = bookingAliasesForName(query);
+
+  let score = 0;
+  for (const q of queryAliases) {
+    for (const c of candidateAliases) {
+      if (!q || !c) continue;
+      if (q === c) score = Math.max(score, 95);
+      else if (c.includes(q) || q.includes(c)) score = Math.max(score, 80);
+      else {
+        const qTokens = new Set(q.split(" ").filter(Boolean));
+        const cTokens = new Set(c.split(" ").filter(Boolean));
+        const overlap = [...qTokens].filter((token) => cTokens.has(token)).length;
+        if (overlap > 0) {
+          score = Math.max(score, 50 + overlap * 10);
+        }
+      }
+    }
+  }
+
+  return Math.min(score, 99);
+}
+
+function pickBestBookingMatch<T extends { id: string; name: string }>(query: string | undefined, candidates: T[]) {
+  const trimmed = String(query || "").trim();
+  if (!trimmed) return { match: null as T | null, confidence: 0, ambiguous: false };
+
+  const ranked = candidates
+    .map((candidate) => ({ candidate, score: scoreBookingMatch(trimmed, candidate) }))
+    .filter((item) => item.score >= 60)
+    .sort((a, b) => b.score - a.score);
+
+  if (ranked.length === 0) return { match: null as T | null, confidence: 0, ambiguous: false };
+
+  const best = ranked[0];
+  const second = ranked[1];
+  return {
+    match: best.candidate,
+    confidence: best.score,
+    ambiguous: Boolean(second && best.score < 90 && best.score - second.score < 15),
+  };
+}
+
+function getDubaiDateParts(baseDate = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: UAE_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(baseDate);
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value || 0);
+  return { year: get("year"), month: get("month"), day: get("day") };
+}
+
+function formatDubaiDate(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: UAE_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function parseRelativeDubaiDate(dateText?: string | null) {
+  const raw = String(dateText || "").trim();
+  if (!raw) return null;
+
+  const isoMatch = raw.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if (isoMatch) return isoMatch[0];
+
+  const normalized = normalizeBookingText(raw);
+  const today = getDubaiDateParts();
+  const date = new Date(Date.UTC(today.year, today.month - 1, today.day, 0, 0, 0));
+
+  if (/\b(بعد\s*بكره|بعد بكره|بعد باكر|بعد غد|day after tomorrow)\b/.test(normalized)) {
+    date.setUTCDate(date.getUTCDate() + 2);
+  } else if (/\b(بكره|باجر|باكر|غدا|غداً|tomorrow)\b/.test(normalized)) {
+    date.setUTCDate(date.getUTCDate() + 1);
+  } else if (/\b(اليوم|today)\b/.test(normalized)) {
+    // Keep today.
+  } else {
+    return null;
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function parseTimeText(timeText?: string | null) {
+  const normalized = normalizeBookingText(timeText);
+  if (!normalized) return null;
+
+  const match = normalized.match(/(\d{1,2})(?::(\d{2}))?/);
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2] || 0);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+
+  const isPm =
+    /\b(pm|مساء|المساء|الظهر|ظهر|العصر|عصر|بالليل|ليل)\b/.test(normalized) ||
+    normalized.includes("بعد الظهر");
+  const isAm = /\b(am|صباح|الصبح|فجر)\b/.test(normalized);
+
+  if (isPm && hour < 12) hour += 12;
+  if (isAm && hour === 12) hour = 0;
+
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function buildDubaiIso(date: string, time: string) {
+  return `${date}T${time}:00+04:00`;
+}
+
+async function resolveBookingEntities(args: any, workspaceId: string) {
+  const [services, staffMembers] = await Promise.all([
+    prisma.service.findMany({
+      where: { workspaceId, enabled: true },
+      select: { id: true, name: true, durationMin: true, price: true, currency: true },
+    }),
+    prisma.staffMember.findMany({
+      where: { workspaceId, enabled: true },
+      select: { id: true, name: true },
+    }),
+  ]);
+
+  const serviceQuery = args.serviceId || args.serviceName || args.service;
+  const staffQuery = args.staffId || args.staffName || args.staff;
+  const serviceMatch = pickBestBookingMatch(serviceQuery, services);
+  const staffMatch = pickBestBookingMatch(staffQuery, staffMembers);
+  const resolvedDate = args.date || parseRelativeDubaiDate(args.dateText || args.date);
+  const resolvedTime = args.time || parseTimeText(args.timeText || args.time);
+  const startTime = resolvedDate && resolvedTime ? buildDubaiIso(resolvedDate, resolvedTime) : null;
+
+  return {
+    service: serviceMatch.match
+      ? {
+          id: serviceMatch.match.id,
+          name: serviceMatch.match.name,
+          confidence: serviceMatch.confidence,
+          ambiguous: serviceMatch.ambiguous,
+          durationMin: serviceMatch.match.durationMin,
+          price: serviceMatch.match.price,
+          currency: serviceMatch.match.currency,
+        }
+      : null,
+    staff: staffMatch.match
+      ? {
+          id: staffMatch.match.id,
+          name: staffMatch.match.name,
+          confidence: staffMatch.confidence,
+          ambiguous: staffMatch.ambiguous,
+        }
+      : null,
+    date: resolvedDate,
+    time: resolvedTime,
+    startTime,
+    missing: [
+      serviceMatch.match ? null : "service",
+      staffMatch.match ? null : "staff",
+      resolvedDate ? null : "date",
+      resolvedTime ? null : "time",
+    ].filter(Boolean),
+    guidance:
+      "Use service.id, staff.id, and startTime for check_availability and book_appointment. If missing is empty and customer already confirmed, book_appointment immediately.",
+  };
+}
+
 const APPOINTMENT_TOOLS: any[] = [
+  {
+    type: "function",
+    function: {
+      name: "resolve_booking_entities",
+      description:
+        "Cost-free backend resolver for Arabic/English booking requests. Use this before checking availability or booking when the customer gives service, staff, date, or time in natural language or voice-note transcript.",
+      parameters: {
+        type: "object",
+        properties: {
+          serviceName: { type: "string", description: "Service name or phrase, Arabic or English. Example: قص الشعر" },
+          staffName: { type: "string", description: "Staff name or partial name, Arabic or English. Example: أمين" },
+          dateText: { type: "string", description: "Natural date text. Example: بكرة, باكر, today, 2026-05-06" },
+          timeText: { type: "string", description: "Natural time text. Example: الساعة 3 الظهر, 3pm, 15:00" },
+          date: { type: "string", description: "Optional date in YYYY-MM-DD format" },
+          time: { type: "string", description: "Optional time in HH:mm 24-hour format" },
+        },
+        required: [],
+      },
+    },
+  },
   {
     type: "function",
     function: {
@@ -293,6 +544,10 @@ async function executeAppointmentTool(
   contactId: string
 ): Promise<string> {
   try {
+    if (toolName === "resolve_booking_entities") {
+      return JSON.stringify(await resolveBookingEntities(args, workspaceId));
+    }
+
     if (toolName === "list_services") {
       const services = await prisma.service.findMany({
         where: { workspaceId, enabled: true },
@@ -344,7 +599,19 @@ async function executeAppointmentTool(
     }
 
     if (toolName === "check_availability") {
-      const { serviceId, staffId, date } = args;
+      let { serviceId, staffId, date } = args;
+      if (!serviceId || !staffId || !date) {
+        const resolved = await resolveBookingEntities(args, workspaceId);
+        serviceId = serviceId || resolved.service?.id;
+        staffId = staffId || resolved.staff?.id;
+        date = date || resolved.date;
+      }
+      if (!serviceId || !staffId || !date) {
+        return JSON.stringify({
+          error: "Missing service, staff, or date.",
+          resolved: await resolveBookingEntities(args, workspaceId),
+        });
+      }
       const service = await prisma.service.findUnique({
         where: { id: serviceId },
       });
@@ -436,7 +703,19 @@ async function executeAppointmentTool(
     }
 
     if (toolName === "book_appointment") {
-      const { serviceId, staffId, startTime, notes } = args;
+      let { serviceId, staffId, startTime, notes } = args;
+      if (!serviceId || !staffId || !startTime) {
+        const resolved = await resolveBookingEntities(args, workspaceId);
+        serviceId = serviceId || resolved.service?.id;
+        staffId = staffId || resolved.staff?.id;
+        startTime = startTime || resolved.startTime;
+      }
+      if (!serviceId || !staffId || !startTime) {
+        return JSON.stringify({
+          error: "Missing service, staff, or start time.",
+          resolved: await resolveBookingEntities(args, workspaceId),
+        });
+      }
 
       const service = await prisma.service.findUnique({
         where: { id: serviceId },
@@ -445,6 +724,9 @@ async function executeAppointmentTool(
         return JSON.stringify({ error: "Service not found" });
 
       const start = new Date(startTime);
+      if (isNaN(start.getTime()) || start.getTime() < Date.now()) {
+        return JSON.stringify({ error: "Appointment start time must be a valid future time." });
+      }
       const end = new Date(start.getTime() + service.durationMin * 60000);
 
       // Check overlap
@@ -753,16 +1035,21 @@ export async function getAIResponse(
       hasServices
         ? `# Appointment Booking & Self-Service
 You can help customers with the full appointment lifecycle. Tools available:
-1. list_services — show what can be booked
-2. list_staff — show staff (optionally filtered by service)
-3. check_availability — show open slots for a staff + service + date
-4. book_appointment — create a new booking (confirm details first)
-5. get_my_appointments — look up the customer's OWN upcoming appointments (use when they ask "do I have an appointment?", "when is my booking?", etc.)
-6. reschedule_my_appointment — move the customer's OWN appointment to a new time (confirm first)
-7. cancel_my_appointment — cancel the customer's OWN appointment (confirm first)
+1. resolve_booking_entities — resolve Arabic/English service, staff, date, and time text into exact IDs and ISO time. This is deterministic backend logic and does not cost extra AI tokens beyond this tool call.
+2. list_services — show what can be booked
+3. list_staff — show staff (optionally filtered by service)
+4. check_availability — show open slots for a staff + service + date
+5. book_appointment — create a new booking (confirm details first)
+6. get_my_appointments — look up the customer's OWN upcoming appointments (use when they ask "do I have an appointment?", "when is my booking?", etc.)
+7. reschedule_my_appointment — move the customer's OWN appointment to a new time (confirm first)
+8. cancel_my_appointment — cancel the customer's OWN appointment (confirm first)
 
 Rules:
 - For booking: guide step by step (service → staff → date → time → confirm).
+- If the customer gives booking details in Arabic, English, or a voice-note transcript, call resolve_booking_entities before check_availability or book_appointment. Do not translate service/staff names yourself.
+- Treat Arabic and English labels as equivalent when the resolver returns IDs. For example, if the customer says "قص الشعر" and resolver returns service.name "Haircut", proceed with that resolved service.
+- Once the customer has provided service, staff, date, and time, check availability. After availability is confirmed and the customer says yes/نعم/صحيح/متأكد, call book_appointment immediately. Do not ask for confirmation again.
+- If resolver returns missing fields, ask only for the missing fields. If resolver returns ambiguous service or staff, ask the customer to choose between the matching options.
 - For reschedule/cancel: always call get_my_appointments first to get the correct appointmentId, then confirm with the customer before calling reschedule/cancel.
 - You can ONLY view/modify appointments belonging to THIS customer (their phone number). If they ask about someone else's appointment, politely decline.
 - Keep appointment details brief and generic in responses — do not expose internal notes, IDs, or other customers' info.
