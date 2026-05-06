@@ -12,7 +12,6 @@ import {
   Sun,
   Plus,
   Trash2,
-  Copy,
   RefreshCw,
   ArrowLeft,
   Edit,
@@ -695,45 +694,39 @@ function ApiKeys() {
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white md:text-2xl">{t('settings.apiKeys')}</h2>
           <p className="text-gray-500 dark:text-gray-400 mt-1">{t('settings.apiKeysDesc')}</p>
         </div>
-        <button className="flex w-full items-center justify-center gap-2 px-4 py-3 bg-[#25D366] text-white font-medium rounded-xl hover:bg-[#128C7E] transition-all shadow-sm sm:w-auto sm:py-2">
+        <button
+          type="button"
+          disabled
+          className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-slate-200 px-4 py-3 font-medium text-slate-500 shadow-sm transition-all dark:bg-slate-800 dark:text-slate-400 sm:w-auto sm:py-2"
+        >
           <Plus className="w-4 h-4" />
           {t('settings.createNewKey')}
         </button>
       </div>
 
-      <div className="overflow-x-auto bg-white/80 dark:bg-slate-900/80 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
-        <div className="p-6 border-b border-gray-200 dark:border-slate-800">
-          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-            {t('settings.apiKeysHelp')}
-          </p>
+      <div className="tawasel-card p-6 md:p-8">
+        <div className="flex flex-col gap-5 md:flex-row md:items-start">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white dark:bg-white dark:text-slate-950">
+            <Key className="h-5 w-5" />
+          </div>
+          <div className="max-w-2xl">
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+              {t('settings.apiKeysNotEnabledTitle', { defaultValue: 'API access is not enabled yet' })}
+            </p>
+            <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
+              {t('settings.apiKeysNotEnabledBody', {
+                defaultValue:
+                  'No production API keys are currently generated or displayed in Tawasel. When public API access is ready, keys should only be shown once at creation time, stored hashed on the server, and managed with revoke/rotate controls.',
+              })}
+            </p>
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium leading-6 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+              {t('settings.apiKeysSecurityNote', {
+                defaultValue:
+                  'Security note: the previous row was a hardcoded placeholder, not a real key. It has been removed to avoid confusion.',
+              })}
+            </div>
+          </div>
         </div>
-        <table className="w-full text-left">
-          <thead>
-            <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800 transition-colors">
-              <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Key</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Created</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50 dark:divide-slate-800 transition-colors">
-            <tr className="hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
-              <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Production Key</td>
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-gray-500 dark:text-gray-400">sk_live_••••••••••••4567</span>
-                  <button className="p-1 text-gray-400 hover:text-[#25D366] transition-colors"><Copy className="w-3 h-3" /></button>
-                </div>
-              </td>
-              <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">Mar 08, 2024</td>
-              <td className="px-6 py-4 text-right">
-                <div className="flex items-center justify-end gap-2">
-                  <button className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
   );
