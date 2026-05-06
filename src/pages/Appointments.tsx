@@ -17,8 +17,6 @@ import {
   ChevronRight,
   Sparkles,
   CheckCircle2,
-  List,
-  Calendar,
   Copy,
   Send,
   AlertCircle,
@@ -172,6 +170,14 @@ function toInputDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+function toDubaiInputDate(date: Date | string) {
+  return new Date(date).toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' });
+}
+
+function formatCompactDate(date: Date | string) {
+  return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Dubai' });
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function Appointments() {
@@ -291,7 +297,7 @@ export default function Appointments() {
 
   const filtered = useMemo(() => {
     return appointments.filter((a) => {
-      const apptDate = new Date(a.startTime).toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' }); // YYYY-MM-DD in UAE tz
+      const apptDate = toDubaiInputDate(a.startTime); // YYYY-MM-DD in UAE tz
       if (filterDate && apptDate !== filterDate) return false;
       if (filterStatus !== 'ALL' && a.status !== filterStatus) return false;
       if (filterStaff !== 'ALL' && a.staffId !== filterStaff) return false;
@@ -307,6 +313,46 @@ export default function Appointments() {
       return true;
     }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   }, [appointments, filterDate, filterStatus, filterStaff, search]);
+
+  const appointmentStats = useMemo(() => {
+    const now = new Date();
+    const todayKey = toDubaiInputDate(now);
+    const selectedDayAppointments = appointments.filter((a) => toDubaiInputDate(a.startTime) === filterDate);
+    const activeSelected = selectedDayAppointments.filter((a) => a.status !== 'CANCELLED');
+    const confirmed = selectedDayAppointments.filter((a) => a.status === 'CONFIRMED').length;
+    const noShows = selectedDayAppointments.filter((a) => a.status === 'NO_SHOW').length;
+    const completed = selectedDayAppointments.filter((a) => a.status === 'COMPLETED').length;
+    const upNextToday = appointments
+      .filter((a) => {
+        const start = new Date(a.startTime);
+        return (
+          toDubaiInputDate(a.startTime) === todayKey &&
+          start.getTime() >= now.getTime() &&
+          !['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(a.status)
+        );
+      })
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+      .slice(0, 4);
+
+    return {
+      selectedDayTotal: selectedDayAppointments.length,
+      activeSelected: activeSelected.length,
+      confirmed,
+      noShows,
+      completed,
+      confirmRate: activeSelected.length ? Math.round((confirmed / activeSelected.length) * 100) : 0,
+      upNextToday,
+    };
+  }, [appointments, filterDate]);
+
+  const activeReminderRules = useMemo(
+    () => reminderRules.filter((rule) => rule.enabled),
+    [reminderRules]
+  );
+
+  const bookingLink = activeWorkspace?.slug
+    ? `${window.location.origin}/book/${activeWorkspace.slug}`
+    : '';
 
   // ─── Appointment actions ───────────────────────────────────────────────
 
@@ -537,31 +583,87 @@ export default function Appointments() {
   }
 
   return (
-    <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <CalendarCheck className="w-6 h-6 text-[#25D366]" />
-            {t('appointments.title')}
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {t('appointments.subtitle')}
-          </p>
+    <div className="min-h-full bg-[#FAFAF7] p-3 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white md:p-6">
+      <div className="mx-auto max-w-[1400px] space-y-5 md:space-y-6">
+      {/* Hero */}
+      <div className="rounded-[28px] border border-slate-200/80 bg-white px-5 py-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:px-7 md:py-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#128C7E]">
+              <span className="h-2 w-2 rounded-full bg-[#25D366]" />
+              {formatCompactDate(`${filterDate}T12:00:00+04:00`)} · {appointmentStats.selectedDayTotal} bookings
+            </div>
+            <h1 className="font-serif text-4xl leading-none text-slate-950 dark:text-white md:text-5xl">
+              Your schedule.
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400 md:text-[15px]">
+              Drag bookings to reschedule, check reminder coverage, and keep the day moving without jumping between screens.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="grid grid-cols-4 rounded-2xl bg-slate-100 p-1 text-sm font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+              {[
+                { key: 'day', label: 'Day', mode: 'calendar' as const, view: Views.DAY },
+                { key: 'week', label: 'Week', mode: 'calendar' as const, view: Views.WEEK },
+                { key: 'month', label: 'Month', mode: 'calendar' as const, view: Views.MONTH },
+                { key: 'list', label: 'List', mode: 'list' as const, view: calendarView },
+              ].map((item) => {
+                const active = item.mode === 'list' ? viewMode === 'list' : viewMode === 'calendar' && calendarView === item.view;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      setViewMode(item.mode);
+                      if (item.mode === 'calendar') setCalendarView(item.view);
+                    }}
+                    className={cn(
+                      'rounded-xl px-3 py-2 transition-colors',
+                      active ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'hover:text-slate-800 dark:hover:text-white'
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setShowBooking(true)}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-black dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
+            >
+              <Plus className="h-4 w-4" />
+              {t('appointments.bookAppointment')}
+            </button>
+          </div>
         </div>
+
+        {tab === 'appointments' && (
+          <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <AppointmentStatCard label="Booked" value={appointmentStats.selectedDayTotal} helper={`${filtered.length} after filters`} tone="leaf" />
+            <AppointmentStatCard label="Confirmed" value={appointmentStats.confirmed} helper={`${appointmentStats.confirmRate}% confirm rate`} tone="sky" />
+            <AppointmentStatCard label="No-shows" value={appointmentStats.noShows} helper={`${appointmentStats.completed} completed`} tone="rose" />
+            <AppointmentStatCard
+              label="Booking link"
+              value={activeWorkspace?.slug ? `/${activeWorkspace.slug}` : 'Not ready'}
+              helper={bookingLink ? 'Public self-booking active' : 'Workspace slug missing'}
+              tone="ink"
+              compact
+            />
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700">
+      <div className="flex overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         {(['appointments', 'services', 'staff', 'reminders'] as Tab[]).map((tabKey) => (
           <button
             key={tabKey}
             onClick={() => setTab(tabKey)}
             className={cn(
-              'shrink-0 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
+              'shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors',
               tab === tabKey
-                ? 'border-[#25D366] text-[#25D366]'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                ? 'bg-[#25D366] text-white shadow-sm'
+                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-gray-200'
             )}
           >
             {t(`appointments.tabs.${tabKey}`)}
@@ -631,49 +733,23 @@ export default function Appointments() {
       {tab === 'appointments' && (
         <div className="space-y-4">
           {/* Toolbar */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-            {/* List / Calendar toggle */}
-            <div className="grid grid-cols-2 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden sm:flex sm:items-center">
-              <button
-                onClick={() => setViewMode('list')}
-                className={cn(
-                  'flex items-center justify-center gap-1.5 px-3 py-2 text-sm transition-colors sm:py-1.5',
-                  viewMode === 'list'
-                    ? 'bg-[#25D366] text-white'
-                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800'
-                )}
-              >
-                <List className="w-3.5 h-3.5" /> List
-              </button>
-              <button
-                onClick={() => setViewMode('calendar')}
-                className={cn(
-                  'flex items-center justify-center gap-1.5 px-3 py-2 text-sm transition-colors sm:py-1.5',
-                  viewMode === 'calendar'
-                    ? 'bg-[#25D366] text-white'
-                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800'
-                )}
-              >
-                <Calendar className="w-3.5 h-3.5" /> Calendar
-              </button>
-            </div>
-
+          <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:flex-wrap sm:items-center">
             <div className="flex items-center gap-1">
-              <button onClick={() => navigateDate(-1)} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+              <button onClick={() => navigateDate(-1)} className="rounded-xl p-2 hover:bg-gray-100 dark:hover:bg-gray-800">
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <input
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
-                className="min-w-0 flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white sm:flex-none sm:py-1.5"
+                className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-[#FAFAF7] px-3 py-2 text-sm text-slate-900 dark:border-gray-700 dark:bg-slate-950 dark:text-white sm:flex-none"
               />
-              <button onClick={() => navigateDate(1)} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+              <button onClick={() => navigateDate(1)} className="rounded-xl p-2 hover:bg-gray-100 dark:hover:bg-gray-800">
                 <ChevronRight className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setFilterDate(toInputDate(new Date()))}
-                className="text-xs px-2.5 py-2 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 sm:py-1"
+                className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 {t('appointments.today')}
               </button>
@@ -683,7 +759,7 @@ export default function Appointments() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="min-w-0 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white sm:py-1.5"
+                className="min-w-0 rounded-xl border border-gray-200 bg-[#FAFAF7] px-3 py-2 text-sm text-slate-900 dark:border-gray-700 dark:bg-slate-950 dark:text-white"
               >
                 <option value="ALL">{t('appointments.allStatuses')}</option>
                 {STATUS_OPTIONS.map((s) => (
@@ -694,7 +770,7 @@ export default function Appointments() {
               <select
                 value={filterStaff}
                 onChange={(e) => setFilterStaff(e.target.value)}
-                className="min-w-0 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white sm:py-1.5"
+                className="min-w-0 rounded-xl border border-gray-200 bg-[#FAFAF7] px-3 py-2 text-sm text-slate-900 dark:border-gray-700 dark:bg-slate-950 dark:text-white"
               >
                 <option value="ALL">{t('appointments.allStaff')}</option>
                 {staff.filter((s) => s.enabled).map((s) => (
@@ -710,13 +786,13 @@ export default function Appointments() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t('appointments.searchPlaceholder')}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white sm:py-1.5"
+                className="w-full rounded-xl border border-gray-200 bg-[#FAFAF7] py-2 pl-9 pr-3 text-sm text-slate-900 dark:border-gray-700 dark:bg-slate-950 dark:text-white"
               />
             </div>
 
             <button
               onClick={() => setShowBooking(true)}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-medium transition-colors sm:py-2"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#20bd5a]"
             >
               <Plus className="w-4 h-4" />
               {t('appointments.bookAppointment')}
@@ -901,6 +977,120 @@ export default function Appointments() {
               onOpenTimeline={setTimelineAppointment}
             />
           )}
+
+          <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-6">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-bold text-slate-950 dark:text-white">Up next today</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    The next live bookings your team should be ready for.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFilterDate(toDubaiInputDate(new Date()))}
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  Today
+                </button>
+              </div>
+
+              {appointmentStats.upNextToday.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-[#FAFAF7] p-6 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+                  No more active bookings today.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {appointmentStats.upNextToday.map((appt) => (
+                    <button
+                      key={appt.id}
+                      type="button"
+                      onClick={() => setTimelineAppointment(appt)}
+                      className="group flex w-full items-center gap-4 rounded-2xl px-2 py-3 text-left transition-colors hover:bg-[#FAFAF7] dark:hover:bg-slate-950"
+                    >
+                      <div className="w-16 shrink-0 text-right">
+                        <p className="font-serif text-2xl leading-none text-slate-950 dark:text-white">{formatTime(appt.startTime).replace(' ', '')}</p>
+                      </div>
+                      <div
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                        style={{ backgroundColor: appt.service?.color || '#25D366' }}
+                      >
+                        {(appt.contact?.name || appt.contact?.phoneNumber || 'U')
+                          .split(' ')
+                          .map((part) => part[0])
+                          .join('')
+                          .slice(0, 2)
+                          .toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">
+                          {appt.contact?.name || appt.contact?.phoneNumber || t('appointments.unknown')}
+                        </p>
+                        <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                          {appt.service?.name} · {appt.service?.durationMin} min · with {appt.staff?.name}
+                        </p>
+                      </div>
+                      <span className={cn('shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold', STATUS_COLORS[appt.status] || 'bg-gray-100 text-gray-600')}>
+                        {appt.status.replace('_', ' ')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-bold text-slate-950 dark:text-white">Reminder rules</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Auto-send around every booking.</p>
+                </div>
+                <span className="rounded-full bg-[#25D366]/10 px-2.5 py-1 text-xs font-bold text-[#128C7E]">
+                  {activeReminderRules.length} active
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {reminderRules.slice(0, 3).map((rule) => (
+                  <div
+                    key={rule.id}
+                    className={cn(
+                      'flex items-center gap-3 rounded-2xl px-3 py-3',
+                      rule.enabled ? 'bg-[#25D366]/10 text-slate-950 dark:bg-[#25D366]/10 dark:text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                    )}
+                  >
+                    <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', rule.enabled ? 'bg-[#25D366]' : 'bg-slate-300 dark:bg-slate-600')} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{rule.name}</p>
+                      <p className="truncate text-xs opacity-70">{formatOffset(rule)}</p>
+                    </div>
+                    <span className="shrink-0 text-xs font-semibold opacity-70">
+                      {rule.templateName || (rule.messageBody ? 'Custom' : 'No template')}
+                    </span>
+                  </div>
+                ))}
+
+                {reminderRules.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-[#FAFAF7] p-4 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+                    No custom reminder rules yet. Legacy reminders can still run until you add rules.
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTab('reminders');
+                  openNewRule();
+                }}
+                className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 text-sm font-semibold text-slate-500 transition-colors hover:border-slate-500 hover:text-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-500 dark:hover:text-white"
+              >
+                <Plus className="h-4 w-4" />
+                Add a rule
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1345,6 +1535,7 @@ export default function Appointments() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -1352,6 +1543,37 @@ export default function Appointments() {
 // ═══════════════════════════════════════════════════════════════════════════
 // APPOINTMENT CALENDAR (react-big-calendar + drag-and-drop)
 // ═══════════════════════════════════════════════════════════════════════════
+
+function AppointmentStatCard({
+  label,
+  value,
+  helper,
+  tone,
+  compact = false,
+}: {
+  label: string;
+  value: string | number;
+  helper: string;
+  tone: 'leaf' | 'sky' | 'rose' | 'ink';
+  compact?: boolean;
+}) {
+  const toneClasses = {
+    leaf: 'text-[#128C7E]',
+    sky: 'text-blue-600',
+    rose: 'text-rose-600',
+    ink: 'text-slate-950 dark:text-white',
+  };
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-[#FAFAF7] p-4 dark:border-slate-800 dark:bg-slate-950">
+      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+      <p className={cn('mt-1 truncate font-serif leading-none', compact ? 'text-xl' : 'text-3xl', toneClasses[tone])}>
+        {value}
+      </p>
+      <p className="mt-2 truncate text-xs font-medium text-slate-500 dark:text-slate-400">{helper}</p>
+    </div>
+  );
+}
 
 function ReminderTimelineModal({
   wsId,
