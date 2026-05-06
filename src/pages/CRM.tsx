@@ -758,7 +758,13 @@ export default function CRM() {
         </div>
 
         <div className="mt-6 overflow-x-auto pb-2">
-          <div className="grid min-h-[580px] min-w-max grid-flow-col auto-cols-[18rem] gap-4">
+          <div
+            className="grid min-h-[580px] gap-4"
+            style={{
+              gridTemplateColumns: `repeat(${stageSummaries.length}, minmax(15rem, 1fr))`,
+              minWidth: stageSummaries.length > 5 ? `${stageSummaries.length * 17}rem` : '100%',
+            }}
+          >
             {stageSummaries.map((stage) => (
               <div key={stage.id} className="flex min-h-0 flex-col rounded-3xl border border-slate-200 bg-white/45 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/45">
                 <div className="border-b border-slate-200 px-2 pb-3 dark:border-slate-800">
