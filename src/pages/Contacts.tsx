@@ -44,6 +44,36 @@ Sarah Miller,+971553334444,WhatsApp Referral,CONTACTED,"Dubai"`;
 
 const normalizePhoneValue = (value?: string) => (value || '').replace(/\D/g, '');
 
+const getContactInitials = (contact: Pick<Contact, 'name' | 'phoneNumber'>) => {
+  const label = contact.name || contact.phoneNumber || 'C';
+  return label
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+};
+
+const getContactToneClass = (index: number) => {
+  const tones = [
+    'bg-[#25D366]/15 text-[#128C7E]',
+    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+    'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+    'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+  ];
+  return tones[index % tones.length];
+};
+
+const getStagePillClass = (stageKey?: string) => {
+  const key = (stageKey || '').toLowerCase();
+  if (key.includes('won')) return 'bg-[#25D366] text-white';
+  if (key.includes('qualified')) return 'bg-[#25D366]/10 text-[#128C7E]';
+  if (key.includes('contact')) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+  if (key.includes('lost')) return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300';
+  return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+};
+
 const normalizeColumnKey = (value: string) =>
   value
     .trim()
@@ -126,6 +156,33 @@ const guessColumnMapping = (headers: string[]) => {
   };
 };
 
+function ContactStatCard({
+  label,
+  value,
+  helper,
+  tone,
+}: {
+  label: string;
+  value: number;
+  helper: string;
+  tone: 'ink' | 'leaf' | 'sky' | 'sun';
+}) {
+  const toneClass = {
+    ink: 'text-slate-950 dark:text-white',
+    leaf: 'text-[#128C7E]',
+    sky: 'text-blue-600',
+    sun: 'text-amber-600',
+  };
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-[#FAFAF7] p-4 dark:border-slate-800 dark:bg-slate-950">
+      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+      <p className={cn('mt-1 font-serif text-3xl leading-none', toneClass[tone])}>{value.toLocaleString()}</p>
+      <p className="mt-2 truncate text-xs font-medium text-slate-500 dark:text-slate-400">{helper}</p>
+    </div>
+  );
+}
+
 export default function Contacts() {
   const { t } = useTranslation();
   const { activeWorkspace, hasFullAccess } = useApp();
@@ -133,6 +190,8 @@ export default function Contacts() {
   const [lists, setLists] = useState<ContactList[]>([]);
   const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
   const [selectedListId, setSelectedListId] = useState<'ALL' | string>('ALL');
+  const [selectedStage, setSelectedStage] = useState<'ALL' | string>('ALL');
+  const [selectedSource, setSelectedSource] = useState<'ALL' | string>('ALL');
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [bulkListNames, setBulkListNames] = useState<string[]>([]);
   const [search, setSearch] = useState('');
@@ -253,9 +312,32 @@ export default function Contacts() {
         selectedListId === 'ALL' ||
         contact.listMemberships?.some((membership) => membership.list.id === selectedListId);
 
-      return matchesSearch && matchesList;
+      const matchesStage = selectedStage === 'ALL' || contact.pipelineStage === selectedStage;
+      const matchesSource = selectedSource === 'ALL' || (contact.leadSource || t('contacts.directSearch')) === selectedSource;
+
+      return matchesSearch && matchesList && matchesStage && matchesSource;
     });
-  }, [contacts, search, selectedListId]);
+  }, [contacts, search, selectedListId, selectedStage, selectedSource, t]);
+
+  const contactStats = useMemo(() => {
+    const withPhone = contacts.filter((contact) => contact.phoneNumber);
+    const active = withPhone.filter((contact) => contact.permission !== 'BLOCKED').length;
+    const vip = withPhone.filter((contact) =>
+      contact.listMemberships?.some((membership) => /vip/i.test(membership.list.name))
+    ).length;
+    const noList = withPhone.filter((contact) => !contact.listMemberships?.length).length;
+    const leadSources = Array.from(
+      new Set(withPhone.map((contact) => contact.leadSource || t('contacts.directSearch')))
+    ).sort();
+
+    return {
+      total: withPhone.length,
+      active,
+      vip,
+      noList,
+      leadSources,
+    };
+  }, [contacts, t]);
 
   const selectedContacts = useMemo(
     () => contacts.filter((contact) => selectedContactIds.includes(contact.id)),
@@ -605,16 +687,16 @@ export default function Contacts() {
   }
 
   return (
-    <div className="h-full overflow-hidden bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
+    <div className="h-full overflow-hidden bg-[#FAFAF7] text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
       <div className="flex h-full flex-col md:flex-row">
-        <aside className="w-full shrink-0 border-b border-gray-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 md:w-72 md:border-b-0 md:border-r md:p-5">
+        <aside className="w-full shrink-0 border-b border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 md:w-72 md:border-b-0 md:border-r md:p-5">
           <button
             disabled={!hasFullAccess}
             onClick={() => {
               fetchLists();
               setShowListModal(true);
             }}
-            className="mb-3 inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-[#128C7E] disabled:opacity-60 md:mb-5 md:flex md:w-full md:rounded-2xl md:px-4 md:py-3"
+            className="mb-3 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-black disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100 md:mb-5 md:flex md:w-full md:rounded-2xl md:px-4 md:py-3"
             title={t('contacts.newContactList')}
           >
             <Plus className="h-4 w-4" />
@@ -626,7 +708,7 @@ export default function Contacts() {
             <button
               onClick={() => setSelectedListId('ALL')}
               className={cn(
-                "flex shrink-0 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm transition-colors md:w-full",
+                "flex shrink-0 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors md:w-full",
                 selectedListId === 'ALL'
                   ? "bg-[#25D366]/10 text-[#128C7E]"
                   : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-slate-800"
@@ -640,7 +722,7 @@ export default function Contacts() {
                 key={list.id}
                 onClick={() => setSelectedListId(list.id)}
                 className={cn(
-                  "flex max-w-[180px] shrink-0 items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors md:w-full md:max-w-none",
+                  "flex max-w-[180px] shrink-0 items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors md:w-full md:max-w-none",
                   selectedListId === list.id
                     ? "bg-[#25D366]/10 text-[#128C7E]"
                     : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-slate-800"
@@ -654,19 +736,26 @@ export default function Contacts() {
         </aside>
 
         <main className="flex-1 overflow-auto p-4 md:p-6">
-          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('contacts.title')}</h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {t('contacts.subtitle')}
-              </p>
-            </div>
+          <div className="mx-auto max-w-[1400px]">
+          <div className="mb-6 rounded-[28px] border border-slate-200/80 bg-white px-5 py-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:px-7 md:py-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#128C7E]">
+                  <span className="h-2 w-2 rounded-full bg-[#25D366]" />
+                  {contactStats.total.toLocaleString()} contacts · {filteredContacts.length.toLocaleString()} showing
+                </div>
+                <h1 className="font-serif text-4xl leading-none text-slate-950 dark:text-white md:text-5xl">Your people.</h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400 md:text-[15px]">
+                  Everyone who messages you, imported lists, and CRM leads in one place for follow-up.
+                </p>
+              </div>
             <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-3">
               <button
                 disabled={!hasFullAccess}
                 onClick={openImportModal}
-                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-600 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300 disabled:opacity-60 md:py-2"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:border-[#25D366] hover:text-[#25D366] disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-300 md:py-2"
               >
+                <Upload className="h-4 w-4" />
                 {t('contacts.importContacts')}
               </button>
               <button
@@ -675,25 +764,55 @@ export default function Contacts() {
                   fetchLists();
                   setShowContactModal(true);
                 }}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#128C7E] disabled:opacity-60 md:py-2"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-black disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100 md:py-2"
               >
                 <Plus className="h-4 w-4" />
                 {t('contacts.newContact')}
               </button>
             </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <ContactStatCard label="Total" value={contactStats.total} helper={`${lists.length} custom lists`} tone="ink" />
+              <ContactStatCard label="Active" value={contactStats.active} helper="Can receive outreach" tone="leaf" />
+              <ContactStatCard label="VIP" value={contactStats.vip} helper="Contacts in VIP lists" tone="sky" />
+              <ContactStatCard label="No list" value={contactStats.noList} helper="Ready to organize" tone="sun" />
+            </div>
           </div>
 
-          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
+          <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:flex-row md:items-center md:justify-between md:gap-3">
             <div className="relative w-full md:max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t('contacts.searchPlaceholder')}
-                className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm text-gray-900 outline-none focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                className="w-full rounded-xl border border-slate-200 bg-[#FAFAF7] py-3 pl-10 pr-4 text-sm text-slate-900 outline-none focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               />
             </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="grid grid-cols-2 gap-2 md:flex md:items-center">
+              <select
+                value={selectedStage}
+                onChange={(e) => setSelectedStage(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-[#FAFAF7] px-3 py-3 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+              >
+                <option value="ALL">Any stage</option>
+                {pipelineStages.map((stage) => (
+                  <option key={stage.id} value={stage.key}>{stage.name}</option>
+                ))}
+              </select>
+              <select
+                value={selectedSource}
+                onChange={(e) => setSelectedSource(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-[#FAFAF7] px-3 py-3 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+              >
+                <option value="ALL">Any source</option>
+                {contactStats.leadSources.map((source) => (
+                  <option key={source} value={source}>{source}</option>
+                ))}
+              </select>
+            </div>
+            <div className="text-sm font-semibold text-slate-500 dark:text-gray-400">
               {t('contacts.records', { count: filteredContacts.length })}
             </div>
           </div>
@@ -805,6 +924,7 @@ export default function Contacts() {
           <div className="space-y-3 md:hidden">
             {filteredContacts.map((contact) => {
               const selected = selectedContactIds.includes(contact.id);
+              const contactIndex = filteredContacts.findIndex((item) => item.id === contact.id);
               return (
                 <div key={contact.id} className={cn(
                   "rounded-2xl border bg-white p-4 shadow-sm dark:bg-slate-900",
@@ -818,8 +938,8 @@ export default function Contacts() {
                         <Square className="h-5 w-5 text-gray-400" />
                       )}
                     </button>
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-slate-800">
-                      <Users className="h-5 w-5" />
+                    <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold", getContactToneClass(contactIndex))}>
+                      {getContactInitials(contact)}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
@@ -849,7 +969,7 @@ export default function Contacts() {
                         </div>
                         <div>
                           <p className="text-xs text-gray-500 dark:text-gray-400">{t('contacts.statusColumn')}</p>
-                          <p className="truncate font-medium text-gray-800 dark:text-gray-200">
+                          <p className={cn("inline-flex truncate rounded-lg px-2 py-1 text-xs font-bold", getStagePillClass(contact.pipelineStage))}>
                             {getPipelineStageLabel(pipelineStages, contact.pipelineStage)}
                           </p>
                         </div>
@@ -923,11 +1043,12 @@ export default function Contacts() {
             )}
           </div>
 
-          <div className="hidden overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 md:block">
-            <table className="min-w-full divide-y divide-gray-100 dark:divide-slate-800">
-              <thead className="bg-gray-50 dark:bg-slate-950/50">
-                <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                  <th className="px-4 py-3">
+          <div className="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 md:block">
+            <div className="overflow-x-auto">
+            <table className="min-w-[960px] w-full divide-y divide-slate-100 text-sm dark:divide-slate-800">
+              <thead className="bg-[#FAFAF7] dark:bg-slate-950/50">
+                <tr className="text-left text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-gray-500">
+                  <th className="w-10 px-6 py-3">
                     <button
                       type="button"
                       onClick={() =>
@@ -944,17 +1065,17 @@ export default function Contacts() {
                     </button>
                   </th>
                   <th className="px-4 py-3">{t('contacts.nameColumn')}</th>
-                  <th className="px-4 py-3">{t('contacts.phoneColumn')}</th>
                   <th className="px-4 py-3">{t('contacts.leadSourceColumn')}</th>
+                  <th className="px-4 py-3">Stage</th>
                   <th className="px-4 py-3">{t('contacts.contactListsColumn')}</th>
                   <th className="px-4 py-3">{t('contacts.statusColumn')}</th>
-                  <th className="px-4 py-3 text-right">{t('appointments.actions')}</th>
+                  <th className="px-6 py-3 text-right">{t('appointments.actions')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                {filteredContacts.map((contact) => (
-                  <tr key={contact.id} className="text-sm text-gray-700 dark:text-gray-200">
-                    <td className="px-4 py-4">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredContacts.map((contact, index) => (
+                  <tr key={contact.id} className="text-sm text-slate-700 transition-colors hover:bg-[#FAFAF7] dark:text-gray-200 dark:hover:bg-slate-950/60">
+                    <td className="px-6 py-4">
                       <button type="button" onClick={() => toggleContactSelection(contact.id)}>
                         {selectedContactIds.includes(contact.id) ? (
                           <CheckSquare className="h-4 w-4 text-[#25D366]" />
@@ -963,9 +1084,23 @@ export default function Contacts() {
                         )}
                       </button>
                     </td>
-                    <td className="px-4 py-4 font-medium">{contact.name || '-'}</td>
-                    <td className="px-4 py-4">{contact.phoneNumber || '-'}</td>
-                    <td className="px-4 py-4">{contact.leadSource || t('contacts.directSearch')}</td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold", getContactToneClass(index))}>
+                          {getContactInitials(contact)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-slate-950 dark:text-white">{contact.name || contact.phoneNumber || '-'}</p>
+                          <p className="truncate text-xs text-slate-500 dark:text-slate-400">{contact.phoneNumber || '-'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 font-medium">{contact.leadSource || t('contacts.directSearch')}</td>
+                    <td className="px-4 py-4">
+                      <span className={cn("rounded-lg px-2.5 py-1 text-xs font-bold", getStagePillClass(contact.pipelineStage))}>
+                        {getPipelineStageLabel(pipelineStages, contact.pipelineStage)}
+                      </span>
+                    </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap gap-2">
                         {contact.listMemberships?.length ? contact.listMemberships.map((membership) => (
@@ -981,16 +1116,16 @@ export default function Contacts() {
                     <td className="px-4 py-4">
                       <span
                         className={cn(
-                          "rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider",
+                          "rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
                           contact.permission === 'BLOCKED'
                             ? "bg-red-100 text-red-600"
-                            : "bg-green-100 text-green-600"
+                            : "bg-[#25D366]/10 text-[#128C7E]"
                         )}
                       >
                         {contact.permission === 'BLOCKED' ? 'Blocked' : 'Active'}
                       </span>
                     </td>
-                    <td className="px-4 py-4 text-right">
+                    <td className="px-6 py-4 text-right">
                       <button
                         type="button"
                         onClick={() => deleteContact(contact)}
@@ -1049,6 +1184,8 @@ export default function Contacts() {
                 )}
               </tbody>
             </table>
+            </div>
+          </div>
           </div>
         </main>
       </div>

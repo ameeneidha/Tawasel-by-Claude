@@ -63,6 +63,7 @@ npx vite build       # Production build
 - Dashboard greeting is time-aware and chooses morning/afternoon/evening from the viewer's current local hour.
 - Added `src/components/TawaselLoader.tsx`, a lightweight inline SVG loader with pulse, typing, and orbit variants based on the Tawasel logo loader design. It is used for app boot, Inbox, Appointments, Channels, Chatbots, and Campaigns loading states without importing the bundled preview HTML.
 - Appointments now follows the same design-system direction from the uploaded template: premium schedule hero, selected-day KPI cards, Day/Week/Month/List segmented navigation, refreshed filter surface, and real up-next/reminder-rule panels while preserving current booking, drag-to-reschedule, and reminder timeline behavior.
+- Contacts now follows the same design-system direction from the uploaded template: people-focused hero, real contact KPI cards, stage/source filters, polished mobile cards, and a denser desktop table with initials, source, stage, list chips, and safe delete actions while preserving import, merge, and bulk list workflows.
 - Added lightweight shared CSS utilities for the inbox paper surface and small card shadow in `src/index.css`.
 - The refresh uses existing Tailwind/Radix/Lucide primitives only; no new frontend dependency was added, keeping runtime performance and bundle weight stable aside from the small optimized logo asset and one display font.
 - Deploy requires `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
