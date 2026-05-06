@@ -70,9 +70,10 @@ npx vite build       # Production build
 - CRM now follows the same design-system direction from the uploaded pipeline template: live pipeline hero, real KPI cards, responsive stage columns that keep the standard stages visible, initials-based lead cards, localized labels, and preserved stage movement/value editing/custom stage controls.
 - App-wide design-system pass: shared shell, topbar, sidebar, tooltips, auth screens, public legal/info pages, and remaining operational pages now use the new warm paper canvas, Instrument Serif page titles, rounded card/control language, and optimized Tawasel logo treatment without adding new frontend dependencies.
 - Settings API Keys no longer shows the old hardcoded placeholder production key; the page is now a disabled/coming-soon state until real public API key generation is implemented with one-time reveal, hashed storage, revoke, and rotate controls.
+- Chatbots are now channel-specific with `Chatbot.platform` (`WHATSAPP` or `INSTAGRAM`). The Chatbots page lets owners choose one platform per bot, assign WhatsApp numbers only to WhatsApp bots, assign connected Instagram accounts only to Instagram bots, and clears the other platform assignment on save.
 - Added lightweight shared CSS utilities for the inbox paper surface and small card shadow in `src/index.css`.
 - The refresh uses existing Tailwind/Radix/Lucide primitives only; no new frontend dependency was added, keeping runtime performance and bundle weight stable aside from the small optimized logo asset and one display font.
-- Deploy requires `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
+- Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ## Recently Completed (May 5, 2026) - Voice Note Transcription V1
 

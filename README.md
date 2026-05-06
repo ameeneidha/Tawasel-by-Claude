@@ -22,6 +22,7 @@ Tawasel App is a full-stack WhatsApp CRM and automation platform built with Reac
 - CRM visual refresh: the pipeline now uses the uploaded board design direction with a live pipeline hero, real KPI cards, responsive stage columns that keep the standard stages visible, initials-based lead cards, localized labels, and preserved stage movement/value editing/custom stage controls.
 - App-wide design-system pass: shared shell, topbar, sidebar, tooltips, auth screens, public legal/info pages, and remaining operational pages now use the new warm paper canvas, Instrument Serif page titles, rounded card/control language, and optimized Tawasel logo treatment without adding new frontend dependencies.
 - Settings API Keys no longer shows the old hardcoded placeholder production key; the page is now a disabled/coming-soon state until real public API key generation is implemented with one-time reveal, hashed storage, revoke, and rotate controls.
+- Chatbots are now channel-specific: each bot is marked as WhatsApp or Instagram, can only be assigned to channels from that platform, and the Chatbots page shows the correct WhatsApp numbers or Instagram accounts for that bot.
 - Voice note transcription V1: incoming WhatsApp audio messages are transcribed by the BullMQ worker, shown live in Inbox, retryable when failed, and passed into the existing AI chatbot flow for appointment booking.
 - Arabic booking resolver now handles common GCC staff-name variants, Arabic month dates like `6 مايو 2026`, and spoken time words like `الساعة الثالثة ظهرا`.
 - Resolver calls now accept the full customer sentence/transcript so relative dates like `باكر` are resolved automatically even when the AI does not split the date into a separate field.
@@ -120,6 +121,13 @@ The repo also includes an App Platform spec:
 - [`.do/app.yaml`](C:\Users\Khaled\Desktop\SaaS%20Whatsapp\SaaS-Whatsapp-CRM-main\SaaS-Whatsapp-CRM-main\.do\app.yaml)
 
 ## Update Log
+
+### May 6, 2026 - Channel-specific chatbot assignments
+
+- **Added chatbot platform ownership** - `Chatbot.platform` now stores whether a bot is for WhatsApp or Instagram, so one bot no longer represents every channel at once.
+- **Updated Chatbots UI** - owners can choose WhatsApp or Instagram per bot, assign WhatsApp numbers only to WhatsApp bots, and assign connected Instagram accounts only to Instagram bots.
+- **Protected cross-platform routing** - saving a bot clears assignments from the other platform, keeping the current one-bot-per-platform/account model clean while Instagram approval is pending.
+- **Deploy checklist**: `npx prisma db push` -> `npx prisma generate` -> `npx vite build` -> `pm2 restart ecosystem.config.cjs`.
 
 ### May 2, 2026 - 30-day workspace trial system
 

@@ -351,6 +351,7 @@ model Chatbot {
   name          String
   instructions  String
   enabled       Boolean   @default(true)
+  platform      String    @default("WHATSAPP") // WHATSAPP, INSTAGRAM
   language      String    @default("en")
   personaName   String?
   industry      String?

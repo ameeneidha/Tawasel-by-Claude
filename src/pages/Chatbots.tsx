@@ -14,7 +14,8 @@ import {
   MessageSquare,
   Send,
   Loader2,
-  ShieldCheck
+  ShieldCheck,
+  Instagram
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -113,7 +114,8 @@ export default function Chatbots() {
       const res = await axios.post('/api/chatbots', {
         workspaceId: activeWorkspace?.id,
         name: 'New AI Assistant',
-        instructions: 'You are a helpful assistant.'
+        instructions: 'You are a helpful assistant.',
+        platform: 'WHATSAPP'
       });
       setChatbots([...chatbots, res.data]);
       setSelectedBot(res.data);
@@ -190,15 +192,28 @@ export default function Chatbots() {
                   </div>
                 </div>
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{bot.name}</h3>
+                <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+                  {(bot.platform || 'WHATSAPP') === 'INSTAGRAM' ? <Instagram className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
+                  {(bot.platform || 'WHATSAPP') === 'INSTAGRAM' ? 'Instagram' : 'WhatsApp'}
+                </div>
                 <div className="flex flex-wrap gap-2 mb-6">
-                  {bot.numbers.map((num: any) => (
+                  {(bot.platform || 'WHATSAPP') === 'INSTAGRAM' ? bot.instagramAccounts?.map((account: any) => (
+                    <div key={account.id} className="flex items-center gap-1 px-2 py-1 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 text-[10px] font-medium rounded-lg border border-gray-200 dark:border-slate-700 transition-colors">
+                      <Instagram className="w-3 h-3" />
+                      @{account.username || account.name}
+                    </div>
+                  )) : bot.numbers.map((num: any) => (
                     <div key={num.id} className="flex items-center gap-1 px-2 py-1 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 text-[10px] font-medium rounded-lg border border-gray-200 dark:border-slate-700 transition-colors">
                       <Hash className="w-3 h-3" />
                       {num.phoneNumber}
                     </div>
                   ))}
-                  {bot.numbers.length === 0 && (
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500 italic">{t('chatbots.noNumbersAssigned')}</span>
+                  {((bot.platform || 'WHATSAPP') === 'INSTAGRAM' ? bot.instagramAccounts?.length === 0 : bot.numbers.length === 0) && (
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 italic">
+                      {(bot.platform || 'WHATSAPP') === 'INSTAGRAM'
+                        ? t('chatbots.noInstagramAssigned', { defaultValue: 'No Instagram account assigned' })
+                        : t('chatbots.noNumbersAssigned')}
+                    </span>
                   )}
                 </div>
                 <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-slate-800 transition-colors">
@@ -232,9 +247,13 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
   const [isBotTyping, setIsBotTyping] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingNumbers, setIsLoadingNumbers] = useState(true);
+  const [isLoadingInstagramAccounts, setIsLoadingInstagramAccounts] = useState(true);
   
   const [name, setName] = useState(bot.name);
   const [instructions, setInstructions] = useState(bot.instructions);
+  const [platform, setPlatform] = useState<'WHATSAPP' | 'INSTAGRAM'>(
+    (bot.platform || 'WHATSAPP') === 'INSTAGRAM' ? 'INSTAGRAM' : 'WHATSAPP'
+  );
   const [language, setLanguage] = useState(bot.language || 'en');
   const [personaName, setPersonaName] = useState(bot.personaName || bot.name || '');
   const [industry, setIndustry] = useState(bot.industry || '');
@@ -255,13 +274,19 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
   const [aboutBusiness, setAboutBusiness] = useState(bot.aboutBusiness || ABOUT_BUSINESS_TEMPLATE);
   const [enabled, setEnabled] = useState(bot.enabled);
   const [availableNumbers, setAvailableNumbers] = useState<any[]>([]);
+  const [availableInstagramAccounts, setAvailableInstagramAccounts] = useState<any[]>([]);
   const [assignedNumberIds, setAssignedNumberIds] = useState<string[]>(
     Array.isArray(bot.numbers) ? bot.numbers.map((num: any) => num.id) : []
+  );
+  const [assignedInstagramAccountIds, setAssignedInstagramAccountIds] = useState<string[]>(
+    Array.isArray(bot.instagramAccounts) ? bot.instagramAccounts.map((account: any) => account.id) : []
   );
 
   useEffect(() => {
     setAssignedNumberIds(Array.isArray(bot.numbers) ? bot.numbers.map((num: any) => num.id) : []);
-  }, [bot.id, bot.numbers]);
+    setAssignedInstagramAccountIds(Array.isArray(bot.instagramAccounts) ? bot.instagramAccounts.map((account: any) => account.id) : []);
+    setPlatform((bot.platform || 'WHATSAPP') === 'INSTAGRAM' ? 'INSTAGRAM' : 'WHATSAPP');
+  }, [bot.id, bot.numbers, bot.instagramAccounts, bot.platform]);
 
   useEffect(() => {
     const fetchAvailableNumbers = async () => {
@@ -293,11 +318,48 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
     fetchAvailableNumbers();
   }, [activeWorkspace?.id, bot.id]);
 
+  useEffect(() => {
+    const fetchAvailableInstagramAccounts = async () => {
+      if (!activeWorkspace?.id) {
+        setAvailableInstagramAccounts([]);
+        setIsLoadingInstagramAccounts(false);
+        return;
+      }
+
+      setIsLoadingInstagramAccounts(true);
+      try {
+        const res = await axios.get(`/api/instagram/accounts?workspaceId=${activeWorkspace.id}`);
+        const fetchedAccounts = Array.isArray(res.data) ? res.data : [];
+        setAvailableInstagramAccounts(fetchedAccounts);
+        setAssignedInstagramAccountIds(
+          fetchedAccounts
+            .filter((account: any) => account.chatbotId === bot.id || account.chatbot?.id === bot.id)
+            .map((account: any) => account.id)
+        );
+      } catch (error) {
+        console.error('Failed to fetch Instagram accounts', error);
+        setAvailableInstagramAccounts([]);
+      } finally {
+        setIsLoadingInstagramAccounts(false);
+      }
+    };
+
+    fetchAvailableInstagramAccounts();
+  }, [activeWorkspace?.id, bot.id]);
+
   const toggleAssignedNumber = (numberId: string) => {
     setAssignedNumberIds((current) =>
       current.includes(numberId)
         ? current.filter((id) => id !== numberId)
         : [...current, numberId]
+    );
+  };
+
+  const toggleAssignedInstagramAccount = (accountId: string) => {
+    setAssignedInstagramAccountIds((current) =>
+      current.includes(accountId)
+        ? current.filter((id) => id !== accountId)
+        : [...current, accountId]
     );
   };
 
@@ -311,6 +373,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
     setIsSaving(true);
     try {
       const selectionToSave = [...assignedNumberIds];
+      const instagramSelectionToSave = [...assignedInstagramAccountIds];
       await axios.patch(`/api/chatbots/${bot.id}`, {
         name,
         instructions,
@@ -327,21 +390,34 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
         escalationRules,
         aboutBusiness,
         enabled,
-        assignedNumberIds: selectionToSave,
+        platform,
+        assignedNumberIds: platform === 'WHATSAPP' ? selectionToSave : [],
+        assignedInstagramAccountIds: platform === 'INSTAGRAM' ? instagramSelectionToSave : [],
         workspaceId: activeWorkspace?.id
       });
 
       if (activeWorkspace?.id) {
-        const numbersRes = await axios.get(`/api/numbers?workspaceId=${activeWorkspace.id}`);
+        const [numbersRes, instagramRes] = await Promise.all([
+          axios.get(`/api/numbers?workspaceId=${activeWorkspace.id}`),
+          axios.get(`/api/instagram/accounts?workspaceId=${activeWorkspace.id}`),
+        ]);
         const refreshedNumbers = Array.isArray(numbersRes.data) ? numbersRes.data : [];
+        const refreshedInstagramAccounts = Array.isArray(instagramRes.data) ? instagramRes.data : [];
         setAvailableNumbers(refreshedNumbers);
+        setAvailableInstagramAccounts(refreshedInstagramAccounts);
         setAssignedNumberIds(
           refreshedNumbers
             .filter((number: any) => number.chatbotId === bot.id || number.chatbot?.id === bot.id)
             .map((number: any) => number.id)
         );
+        setAssignedInstagramAccountIds(
+          refreshedInstagramAccounts
+            .filter((account: any) => account.chatbotId === bot.id || account.chatbot?.id === bot.id)
+            .map((account: any) => account.id)
+        );
       } else {
         setAssignedNumberIds(selectionToSave);
+        setAssignedInstagramAccountIds(instagramSelectionToSave);
       }
 
       toast.success(t('chatbots.savedSuccess'));
@@ -456,6 +532,135 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                     className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-[#25D366]/10 text-gray-900 dark:text-white transition-colors"
                   />
                 </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {t('chatbots.platform', { defaultValue: 'Platform' })}
+                    </label>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {t('chatbots.platformDesc', { defaultValue: 'Each bot belongs to one platform. WhatsApp and Instagram bots stay separate.' })}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { id: 'WHATSAPP', label: 'WhatsApp', icon: MessageSquare },
+                      { id: 'INSTAGRAM', label: 'Instagram', icon: Instagram },
+                    ].map((option) => {
+                      const Icon = option.icon;
+                      const isSelected = platform === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setPlatform(option.id as 'WHATSAPP' | 'INSTAGRAM')}
+                          className={cn(
+                            'flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all',
+                            isSelected
+                              ? 'border-[#25D366] bg-[#25D366]/10 text-[#128C7E] dark:text-[#4ADE80]'
+                              : 'border-gray-200 bg-white text-gray-600 hover:border-[#25D366]/40 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300'
+                          )}
+                        >
+                          <Icon className="h-5 w-5" />
+                          <span className="text-sm font-bold">{option.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {platform === 'INSTAGRAM' && (
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {t('chatbots.assignedInstagramAccounts', { defaultValue: 'Assigned Instagram accounts' })}
+                      </label>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {t('chatbots.assignedInstagramDesc', { defaultValue: 'Choose which connected Instagram account this bot should answer. One account can only use one bot at a time.' })}
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:bg-slate-800 dark:text-gray-400">
+                      {t('chatbots.selected', { count: assignedInstagramAccountIds.length })}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {isLoadingInstagramAccounts ? (
+                      <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-400">
+                        <Loader2 className="h-4 w-4 animate-spin text-[#25D366]" />
+                        {t('chatbots.loadingInstagramAccounts', { defaultValue: 'Loading Instagram accounts...' })}
+                      </div>
+                    ) : availableInstagramAccounts.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-400">
+                        {t('chatbots.noInstagramConnected', { defaultValue: 'No Instagram account is connected yet. Connect Instagram first from Channels.' })}
+                      </div>
+                    ) : (
+                      availableInstagramAccounts.map((account) => {
+                        const isSelected = assignedInstagramAccountIds.includes(account.id);
+                        const assignedElsewhere = account.chatbot && account.chatbot.id !== bot.id;
+
+                        return (
+                          <label
+                            key={account.id}
+                            className={cn(
+                              "flex w-full cursor-pointer items-start justify-between rounded-2xl border px-4 py-3 text-left transition-all",
+                              isSelected
+                                ? "border-[#25D366] bg-[#25D366]/5 shadow-sm"
+                                : "border-gray-200 bg-white hover:border-[#25D366]/40 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800",
+                            )}
+                          >
+                            <div className="flex min-w-0 items-start gap-3">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleAssignedInstagramAccount(account.id)}
+                                className="mt-1 h-4 w-4 rounded border-gray-300 text-[#25D366] focus:ring-[#25D366]"
+                              />
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    @{account.username || account.name}
+                                  </span>
+                                  {assignedElsewhere && (
+                                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                                      {t('chatbots.currentlyAssigned', { name: account.chatbot.name })}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                                  <Instagram className="h-3 w-3" />
+                                  {account.name}
+                                </div>
+                                <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                                  {isSelected
+                                    ? t('chatbots.instagramWillAnswerAfterSave', { defaultValue: 'This bot will answer Instagram DMs after save.' })
+                                    : t('chatbots.tickToConnect')}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2 pl-3">
+                              <span
+                                className={cn(
+                                  "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                                  isSelected
+                                    ? "bg-[#25D366] text-white"
+                                    : "bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400",
+                                )}
+                              >
+                                {isSelected ? t('chatbots.selectedLabel') : t('chatbots.notAssigned')}
+                              </span>
+                              <CheckCircle2
+                                className={cn(
+                                  "h-4 w-4 transition-colors",
+                                  isSelected ? "text-[#25D366]" : "text-gray-300 dark:text-gray-600",
+                                )}
+                              />
+                            </div>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+                )}
                 <div className="rounded-2xl border border-[#25D366]/15 bg-[#25D366]/5 p-4">
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('chatbots.liveBusinessData')}</h3>
                   <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-400">
@@ -583,6 +788,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                     placeholder={t('chatbots.instructionsDescPlaceholder')}
                   />
                 </div>
+                {platform === 'WHATSAPP' && (
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -673,6 +879,7 @@ function ChatbotConfig({ bot, onBack }: { bot: any, onBack: () => void }) {
                     )}
                   </div>
                 </div>
+                )}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-3">
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('chatbots.appendedInstructions')}</label>

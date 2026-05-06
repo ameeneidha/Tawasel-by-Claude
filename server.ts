@@ -4000,6 +4000,7 @@ async function startServer() {
 
   app.post("/api/chatbots", requireAuth, requireRole('ADMIN', 'OWNER'), requireSubscribedWorkspaceFromBody, async (req, res) => {
     const { workspaceId, name, instructions } = req.body;
+    const platform = String(req.body.platform || "WHATSAPP").toUpperCase() === "INSTAGRAM" ? "INSTAGRAM" : "WHATSAPP";
     if (!(await enforceWorkspacePlanLimit(res, workspaceId, 'chatbots'))) {
       return;
     }
@@ -4008,6 +4009,7 @@ async function startServer() {
         workspaceId,
         name,
         instructions,
+        platform,
         enabled: true,
         personaName: name || "AI Assistant",
         primaryLanguage: "both",
@@ -4045,22 +4047,35 @@ async function startServer() {
       blockedTopics,
       escalationRules,
       aboutBusiness,
-      assignedNumberIds
+      assignedNumberIds,
+      assignedInstagramAccountIds,
+      platform: rawPlatform
     } = req.body;
     const existingChatbot = await prisma.chatbot.findUnique({
       where: { id: req.params.id },
-      include: { numbers: true }
+      include: { numbers: true, instagramAccounts: true }
     });
 
     if (!existingChatbot) {
       return res.status(404).json({ error: "Chatbot not found" });
     }
 
-    const normalizedAssignedNumberIds = assignedNumberIds === undefined
+    const platform = String(rawPlatform || existingChatbot.platform || "WHATSAPP").toUpperCase() === "INSTAGRAM" ? "INSTAGRAM" : "WHATSAPP";
+    const normalizedAssignedNumberIds = platform === "WHATSAPP" && assignedNumberIds === undefined
       ? existingChatbot.numbers.map((number) => number.id)
       : Array.from(
           new Set(
-            (Array.isArray(assignedNumberIds) ? assignedNumberIds : [])
+            (platform === "WHATSAPP" && Array.isArray(assignedNumberIds) ? assignedNumberIds : [])
+              .filter((value): value is string => typeof value === "string")
+              .map((value) => value.trim())
+              .filter(Boolean)
+          )
+        );
+    const normalizedAssignedInstagramAccountIds = platform === "INSTAGRAM" && assignedInstagramAccountIds === undefined
+      ? existingChatbot.instagramAccounts.map((account) => account.id)
+      : Array.from(
+          new Set(
+            (platform === "INSTAGRAM" && Array.isArray(assignedInstagramAccountIds) ? assignedInstagramAccountIds : [])
               .filter((value): value is string => typeof value === "string")
               .map((value) => value.trim())
               .filter(Boolean)
@@ -4078,6 +4093,20 @@ async function startServer() {
 
       if (numbersInWorkspace.length !== normalizedAssignedNumberIds.length) {
         return res.status(400).json({ error: "One or more selected WhatsApp channels are invalid." });
+      }
+    }
+
+    if (normalizedAssignedInstagramAccountIds.length > 0) {
+      const accountsInWorkspace = await prisma.instagramAccount.findMany({
+        where: {
+          id: { in: normalizedAssignedInstagramAccountIds },
+          workspaceId: existingChatbot.workspaceId,
+        },
+        select: { id: true },
+      });
+
+      if (accountsInWorkspace.length !== normalizedAssignedInstagramAccountIds.length) {
+        return res.status(400).json({ error: "One or more selected Instagram accounts are invalid." });
       }
     }
 
@@ -4099,7 +4128,8 @@ async function startServer() {
           allowedActions: Array.isArray(allowedActions) ? JSON.stringify(allowedActions) : allowedActions,
           blockedTopics: Array.isArray(blockedTopics) ? JSON.stringify(blockedTopics) : blockedTopics,
           escalationRules,
-          aboutBusiness
+          aboutBusiness,
+          platform
         }
       });
 
@@ -4124,6 +4154,29 @@ async function startServer() {
           data: {
             chatbotId: req.params.id,
             autoReply: true
+          }
+        });
+      }
+
+      await tx.instagramAccount.updateMany({
+        where: {
+          workspaceId: existingChatbot.workspaceId,
+          chatbotId: req.params.id,
+          id: { notIn: normalizedAssignedInstagramAccountIds }
+        },
+        data: {
+          chatbotId: null
+        }
+      });
+
+      if (normalizedAssignedInstagramAccountIds.length > 0) {
+        await tx.instagramAccount.updateMany({
+          where: {
+            workspaceId: existingChatbot.workspaceId,
+            id: { in: normalizedAssignedInstagramAccountIds }
+          },
+          data: {
+            chatbotId: req.params.id
           }
         });
       }
