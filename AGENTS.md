@@ -63,6 +63,7 @@ npx vite build       # Production build
 - Conversation list now has an always-visible search field plus segmented All / Unread / Mine / Overdue filters; Unread filters to any conversation with `unreadCount > 0`.
 - Sidebar now uses an optimized `/tawasel-logo.png` asset generated from the design template logo instead of the old hardcoded green `T` square.
 - Dashboard now uses the same design-system direction: serif greeting hero, three priority KPI cards, warm paper surfaces, calmer range/filter controls, and localized hero copy.
+- Dashboard greeting is time-aware and chooses morning/afternoon/evening from the viewer's current local hour.
 - Added lightweight shared CSS utilities for the inbox paper surface and small card shadow in `src/index.css`.
 - The refresh uses existing Tailwind/Radix/Lucide primitives only; no new frontend dependency was added, keeping runtime performance and bundle weight stable aside from the small optimized logo asset and one display font.
 - Deploy requires `npx vite build`, then `pm2 restart ecosystem.config.cjs`.

@@ -175,6 +175,13 @@ const formatDateTime = (value?: string | null, fallback = 'Just now') => {
   }).format(new Date(value));
 };
 
+const getGreetingKey = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'dashboard.greetingMorning';
+  if (hour < 17) return 'dashboard.greetingAfternoon';
+  return 'dashboard.greetingEvening';
+};
+
 const getLeadingCount = (value: string) => Number(value.match(/^\d+/)?.[0] || 0);
 
 const translateCount = (t: TFunction, singularKey: string, pluralKey: string, count: number) =>
@@ -350,7 +357,7 @@ export default function Dashboard() {
                 <span>{dateLabel}</span>
               </div>
               <h1 className="font-serif text-5xl leading-[1.05] text-[#0F1A14] dark:text-white md:text-6xl">
-                {t('dashboard.greeting', { name: greetingName })}
+                {t(getGreetingKey(), { name: greetingName })}
               </h1>
               <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-[#5A6A60] dark:text-gray-400">
                 {t('dashboard.heroPrefix')} <span className="font-semibold text-[#0F1A14] dark:text-white">{t('dashboard.heroOpenChats', { count: summary.overview.openChats })}</span>, <span className="font-semibold text-[#0F1A14] dark:text-white">{t('dashboard.heroUnreadMessages', { count: summary.overview.unreadMessages })}</span>, {t('dashboard.heroAnd')} <span className="font-semibold text-[#0F1A14] dark:text-white">{t('dashboard.heroNewLeads', { count: summary.overview.newLeads })}</span> {t('dashboard.heroInWorkspace', { name: activeWorkspace.name })}
