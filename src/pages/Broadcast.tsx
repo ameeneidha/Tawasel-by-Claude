@@ -212,7 +212,7 @@ export default function Broadcast() {
   };
 
   return (
-    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 p-8 overflow-y-auto transition-colors">
+    <div className="tawasel-page overflow-y-auto">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -656,7 +656,7 @@ function BroadcastBuilder({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden transition-colors"
+      className="tawasel-card overflow-hidden transition-colors"
     >
       <div className="flex border-b border-gray-200 dark:border-slate-800">
         {[1, 2, 3].map((s) => (

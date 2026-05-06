@@ -129,7 +129,7 @@ export default function Chatbots() {
   }
 
   return (
-    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 p-8 overflow-y-auto transition-colors">
+    <div className="tawasel-page overflow-y-auto">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>

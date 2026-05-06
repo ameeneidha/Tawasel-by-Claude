@@ -81,7 +81,7 @@ export default function Sidebar() {
         />
       )}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-16 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 flex flex-col items-center py-4 h-screen transition-all duration-300",
+        "fixed inset-y-0 left-0 z-50 w-16 border-r border-slate-200/70 bg-[#F7F5EF]/95 dark:bg-slate-950/95 dark:border-slate-800 flex flex-col items-center py-4 h-screen transition-all duration-300 backdrop-blur",
         "md:relative md:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
@@ -105,8 +105,8 @@ export default function Sidebar() {
                   className={cn(
                     "w-10 h-10 rounded-xl flex items-center justify-center transition-all relative",
                     isActive
-                      ? "bg-[#25D366]/10 text-[#25D366]"
-                      : "text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-gray-300",
+                      ? "bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950"
+                      : "text-slate-400 hover:bg-white/75 dark:hover:bg-slate-900 hover:text-slate-700 dark:hover:text-slate-200",
                     isLocked && "opacity-60"
                   )}
                 >
@@ -120,11 +120,11 @@ export default function Sidebar() {
 
       </nav>
 
-      <div className="mt-auto flex flex-col gap-1 pt-2 border-t border-gray-200 dark:border-slate-800">
+      <div className="mt-auto flex flex-col gap-1 pt-2 border-t border-slate-200/70 dark:border-slate-800">
         <AppTooltip content={isRtl ? 'English' : 'العربية'}>
           <button
             onClick={toggleLanguage}
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-gray-300 transition-all text-xs font-bold"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:bg-white/75 dark:hover:bg-slate-900 hover:text-slate-700 dark:hover:text-slate-200 transition-all text-xs font-bold"
           >
             {isRtl ? 'EN' : 'ع'}
           </button>
@@ -133,7 +133,7 @@ export default function Sidebar() {
         <AppTooltip content={theme === 'light' ? t('sidebar.darkMode') : t('sidebar.lightMode')}>
           <button
             onClick={toggleTheme}
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:bg-white/75 dark:hover:bg-slate-900 hover:text-slate-700 dark:hover:text-slate-200 transition-all"
           >
             {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
           </button>
@@ -143,7 +143,7 @@ export default function Sidebar() {
           <DropdownMenu.Trigger asChild>
             <div>
               <AppTooltip content={t('sidebar.accountMenu')}>
-                <button className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors overflow-hidden text-sm">
+                <button className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors overflow-hidden text-sm ring-1 ring-slate-200 dark:ring-slate-800">
                   {user?.image
                     ? <img src={user.image} alt={displayName} className="w-full h-full object-cover" />
                     : displayName[0] || 'U'}

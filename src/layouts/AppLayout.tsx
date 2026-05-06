@@ -48,7 +48,7 @@ export default function AppLayout() {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
+      <div className="tawasel-app-shell h-screen w-screen flex items-center justify-center transition-colors">
         <TawaselLoader size={56} label="Loading Tawasel" />
       </div>
     );
@@ -95,16 +95,14 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8F9FA] dark:bg-slate-950 overflow-hidden transition-colors">
+    <div className="tawasel-app-shell flex h-screen flex-col overflow-hidden transition-colors">
       {/* Mobile top bar */}
-      <div className="md:hidden flex items-center h-14 px-4 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+      <div className="md:hidden flex items-center h-14 px-4 border-b border-slate-200/70 dark:border-slate-800 bg-[#F7F5EF]/95 dark:bg-slate-950/95 shrink-0 backdrop-blur">
         <button onClick={toggle} className="text-gray-600 dark:text-gray-300">
           <Menu className="w-6 h-6" />
         </button>
         <div className="ml-3 flex items-center gap-2">
-          <div className="w-7 h-7 bg-[#25D366] rounded-lg flex items-center justify-center text-white font-bold text-sm">
-            T
-          </div>
+          <img src="/tawasel-logo.png" alt="Tawasel" className="h-8 w-8 rounded-xl object-contain" />
           <span className="font-bold text-lg text-gray-900 dark:text-white">Tawasel</span>
         </div>
       </div>
@@ -181,7 +179,7 @@ export default function AppLayout() {
         <div className="hidden md:block">
           <Topbar title={pageTitle} />
         </div>
-        <div className="flex-1 overflow-auto relative min-h-0">
+        <div className="tawasel-app-main flex-1 overflow-auto relative min-h-0">
           <Outlet />
         </div>
       </main>

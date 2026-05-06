@@ -71,7 +71,7 @@ export default function Integrations() {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="tawasel-page-inner p-8">
       <div className="mb-10">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('integrations.title')}</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">{t('integrations.subtitle')}</p>
@@ -83,7 +83,7 @@ export default function Integrations() {
             key={app.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-700 hover:shadow-sm transition-all flex flex-col group"
+            className="tawasel-card p-6 hover:border-gray-300 dark:hover:border-slate-700 hover:shadow-sm transition-all flex flex-col group"
           >
             <div className="flex items-start justify-between mb-6">
               <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-colors", 

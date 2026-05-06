@@ -74,7 +74,7 @@ export default function Compose() {
   };
 
   return (
-    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 p-8 overflow-y-auto transition-colors">
+    <div className="tawasel-page overflow-y-auto">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('compose.title')}</h1>
@@ -84,7 +84,7 @@ export default function Compose() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 p-8 transition-colors"
+          className="tawasel-card p-8 transition-colors"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">

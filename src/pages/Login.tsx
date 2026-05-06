@@ -3,7 +3,7 @@ import { useApp } from '../contexts/AppContext';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'motion/react';
-import { LogIn, Mail, Lock, Loader2 } from 'lucide-react';
+import { Mail, Lock, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export default function Login() {
@@ -43,17 +43,17 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-slate-950 flex items-center justify-center p-4 transition-colors">
+    <div className="tawasel-app-shell min-h-screen flex items-center justify-center p-4 transition-colors">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 p-8 transition-colors"
+        className="tawasel-card w-full max-w-md p-8 transition-colors"
       >
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-[#25D366]/10 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <LogIn className="w-6 h-6 text-[#25D366]" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-950 dark:ring-slate-800">
+            <img src="/tawasel-logo.png" alt="Tawasel" className="h-12 w-12 object-contain" />
           </div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+          <h1 className="font-serif text-4xl font-normal leading-none text-gray-900 dark:text-white">
             {isAddingAccount ? 'Add another account' : t('auth.loginTitle')}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-2">
@@ -76,7 +76,7 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full ps-10 pe-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] dark:focus:border-[#25D366] outline-none transition-all text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                className="tawasel-control w-full ps-10 pe-4 py-2.5 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
                 placeholder="name@company.com"
                 required
               />
@@ -96,7 +96,7 @@ export default function Login() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full ps-10 pe-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] dark:focus:border-[#25D366] outline-none transition-all text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                className="tawasel-control w-full ps-10 pe-4 py-2.5 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
                 placeholder="••••••••"
                 required
               />
@@ -125,7 +125,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 bg-[#25D366] hover:bg-[#128C7E] text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            className="tawasel-primary flex w-full items-center justify-center gap-2 py-3 font-bold transition-colors disabled:opacity-50"
           >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : t('auth.signIn')}
           </button>

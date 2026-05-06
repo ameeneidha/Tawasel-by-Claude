@@ -514,7 +514,7 @@ export default function Channels() {
   };
 
   return (
-    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 p-8 overflow-y-auto transition-colors">
+    <div className="tawasel-page overflow-y-auto">
       {pendingInstagramAccounts.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900">

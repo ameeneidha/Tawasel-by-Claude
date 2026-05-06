@@ -46,8 +46,8 @@ export default function Settings() {
   const isArabic = i18n.language?.startsWith('ar');
 
   return (
-    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 flex flex-col md:flex-row transition-colors" dir={isArabic ? 'rtl' : 'ltr'}>
-      <div className="hidden w-64 border-r border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 md:flex flex-col gap-2 transition-colors">
+    <div className="h-full flex flex-col md:flex-row transition-colors" dir={isArabic ? 'rtl' : 'ltr'}>
+      <div className="hidden w-64 border-r border-gray-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-6 md:flex flex-col gap-2 transition-colors">
         <div className="mb-6">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{t('settings.title')}</h1>
         </div>
@@ -175,7 +175,7 @@ function PersonalSettings() {
         <p className="text-gray-500 dark:text-gray-400 mt-1">{t('settings.personalSettingsDesc')}</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-6 md:space-y-8 transition-colors">
+      <div className="bg-white/80 dark:bg-slate-900/80 rounded-2xl p-4 md:p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-6 md:space-y-8 transition-colors">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
           <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
             <div className="w-24 h-24 bg-gray-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-gray-400 dark:text-gray-500 text-2xl font-bold transition-colors overflow-hidden">
@@ -218,7 +218,7 @@ function PersonalSettings() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-8 border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="bg-white/80 dark:bg-slate-900/80 rounded-2xl p-4 md:p-8 border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
         <h3 className="font-semibold text-gray-900 dark:text-white mb-6">{t('settings.appearance')}</h3>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -293,7 +293,7 @@ function BusinessSettings() {
         <p className="text-gray-500 dark:text-gray-400 mt-1">{t('settings.businessSettingsDesc')}</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-6 md:space-y-8 transition-colors">
+      <div className="bg-white/80 dark:bg-slate-900/80 rounded-2xl p-4 md:p-8 border border-gray-200 dark:border-slate-800 shadow-sm space-y-6 md:space-y-8 transition-colors">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('settings.businessName')}</label>
@@ -405,7 +405,7 @@ function AutomationRules() {
       </div>
 
       {isAdding && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-8 border-2 border-[#25D366]/20 dark:border-[#25D366]/10 shadow-xl space-y-6 transition-colors">
+        <div className="bg-white/80 dark:bg-slate-900/80 rounded-2xl p-4 md:p-8 border-2 border-[#25D366]/20 dark:border-[#25D366]/10 shadow-xl space-y-6 transition-colors">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Rule Name</label>
@@ -461,7 +461,7 @@ function AutomationRules() {
         </div>
       )}
 
-      <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="overflow-x-auto bg-white/80 dark:bg-slate-900/80 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
         <table className="w-full text-left">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800 transition-colors">
@@ -608,7 +608,7 @@ function CustomAttributes() {
       </div>
 
       {showAdd && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm p-4 md:p-6 space-y-4 transition-colors">
+        <div className="bg-white/80 dark:bg-slate-900/80 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm p-4 md:p-6 space-y-4 transition-colors">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('common.name')}</label>
@@ -638,7 +638,7 @@ function CustomAttributes() {
         </div>
       )}
 
-      <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="overflow-x-auto bg-white/80 dark:bg-slate-900/80 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
         <table className="w-full text-left">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800 transition-colors">
@@ -701,7 +701,7 @@ function ApiKeys() {
         </button>
       </div>
 
-      <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="overflow-x-auto bg-white/80 dark:bg-slate-900/80 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
         <div className="p-6 border-b border-gray-200 dark:border-slate-800">
           <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
             {t('settings.apiKeysHelp')}
@@ -863,7 +863,7 @@ function Billing() {
         <p className="text-gray-500 dark:text-gray-400 mt-1">{t('settings.billingUsageDesc')}</p>
       </div>
 
-      <div className="grid grid-cols-3 bg-white dark:bg-slate-900 p-1 rounded-xl border border-gray-200 dark:border-slate-800 w-full transition-colors sm:w-fit sm:flex">
+      <div className="grid grid-cols-3 bg-white/80 dark:bg-slate-900/80 p-1 rounded-xl border border-gray-200 dark:border-slate-800 w-full transition-colors sm:w-fit sm:flex">
         <Link 
           to="/app/settings/billing" 
           className={cn(
@@ -898,7 +898,7 @@ function Billing() {
           <div className="space-y-8">
             <ActivationChecklist />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-white dark:bg-slate-900 p-4 md:p-8 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
+              <div className="bg-white/80 dark:bg-slate-900/80 p-4 md:p-8 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-semibold text-gray-900 dark:text-white">Current Plan</h3>
                   <span className={cn(
@@ -991,7 +991,7 @@ function Billing() {
                   ) : null}
                 </div>
               </div>
-              <div className="bg-white dark:bg-slate-900 p-4 md:p-8 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
+              <div className="bg-white/80 dark:bg-slate-900/80 p-4 md:p-8 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-semibold text-gray-900 dark:text-white">Credit Balance</h3>
                   <button
@@ -1071,7 +1071,7 @@ function Billing() {
                 const priceId = billingCycle === 'annual' ? (plan.annualStripePriceId || plan.stripePriceId) : plan.stripePriceId;
                 return (
               <div key={key} className={cn(
-                "bg-white dark:bg-slate-900 p-8 rounded-2xl border transition-all relative overflow-hidden",
+                "bg-white/80 dark:bg-slate-900/80 p-8 rounded-2xl border transition-all relative overflow-hidden",
                 isCurrent
                   ? "border-[#25D366] ring-1 ring-[#25D366] shadow-md"
                   : isRecommended
@@ -1162,7 +1162,7 @@ function Billing() {
           </div>
         } />
         <Route path="usage" element={
-          <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
+          <div className="overflow-x-auto bg-white/80 dark:bg-slate-900/80 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800 transition-colors">

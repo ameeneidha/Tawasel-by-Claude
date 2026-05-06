@@ -34,7 +34,7 @@ export default function FeatureRequest() {
   ];
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="tawasel-page-inner p-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Feature Requests</h1>

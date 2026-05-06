@@ -18,9 +18,9 @@ export default function Topbar({ title }: TopbarProps) {
   };
 
   return (
-    <div className="h-12 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-6 flex items-center justify-between shrink-0">
+    <div className="h-14 border-b border-slate-200/70 bg-[#F7F5EF]/95 px-6 flex items-center justify-between shrink-0 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
       {/* Left: Page title */}
-      <h1 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
+      <h1 className="font-serif text-2xl font-normal tracking-normal text-slate-950 dark:text-white truncate">
         {title}
       </h1>
 
@@ -29,7 +29,7 @@ export default function Topbar({ title }: TopbarProps) {
         {/* Language toggle */}
         <button
           onClick={toggleLanguage}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+          className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-white"
         >
           <Globe className="w-4 h-4" />
           <span className="font-medium">{isRtl ? 'EN' : 'عربي'}</span>
@@ -37,7 +37,7 @@ export default function Topbar({ title }: TopbarProps) {
 
         {/* User avatar */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center text-white text-sm font-semibold">
+          <div className="w-8 h-8 rounded-2xl bg-[#25D366] flex items-center justify-center text-white text-sm font-semibold shadow-sm shadow-[#25D366]/20">
             {displayName?.[0]?.toUpperCase() || 'U'}
           </div>
           <span className="text-sm font-medium text-gray-700 dark:text-gray-200 hidden sm:inline truncate max-w-[120px]">

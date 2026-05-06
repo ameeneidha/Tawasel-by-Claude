@@ -16,10 +16,10 @@ export default function AppTooltip({ content, children, side = 'right' }: AppToo
           <Tooltip.Content
             side={side}
             sideOffset={10}
-            className="z-[100] rounded-xl bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg"
+            className="z-[100] rounded-xl bg-slate-950 px-3 py-1.5 text-xs font-bold text-white shadow-lg dark:bg-white dark:text-slate-950"
           >
             {content}
-            <Tooltip.Arrow className="fill-gray-900" />
+            <Tooltip.Arrow className="fill-slate-950 dark:fill-white" />
           </Tooltip.Content>
         </Tooltip.Portal>
       </Tooltip.Root>

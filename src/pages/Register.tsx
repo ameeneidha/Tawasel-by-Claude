@@ -108,13 +108,13 @@ export default function Register() {
   if (!plan) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#25D366]/10 px-4 py-10">
+    <div className="tawasel-app-shell min-h-screen px-4 py-10">
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-[2rem] bg-slate-900 p-8 text-white lg:p-12">
-          <div className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#86efac]">
+        <section className="rounded-[2rem] bg-slate-950 p-8 text-white shadow-[0_24px_80px_rgba(2,6,23,0.26)] lg:p-12">
+          <div className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-[#86efac]">
             {t('auth.selectedPlan')}
           </div>
-          <h1 className="mt-6 text-4xl font-bold tracking-tight">{plan.name}</h1>
+          <h1 className="mt-6 font-serif text-5xl font-normal leading-none tracking-normal">{plan.name}</h1>
           <p className="mt-3 max-w-xl text-base text-slate-300">{plan.description}</p>
           <div className="mt-8 flex items-end gap-2">
             <span className="text-5xl font-bold">AED {getPlanPrice(plan, billingCycle)}</span>
@@ -167,8 +167,8 @@ export default function Register() {
           </ul>
         </section>
 
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm lg:p-10">
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900">{t('auth.registerTitle')}</h2>
+        <section className="tawasel-card p-8 lg:p-10">
+          <h2 className="font-serif text-4xl font-normal tracking-normal text-slate-900 dark:text-white">{t('auth.registerTitle')}</h2>
             <p className="mt-2 text-sm text-slate-500">
               {t('auth.createAccountDesc', { plan: plan.name })}
             </p>

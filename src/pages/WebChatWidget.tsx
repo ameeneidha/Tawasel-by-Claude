@@ -32,7 +32,7 @@ export default function WebChatWidget() {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="tawasel-page-inner p-8">
       <div className="mb-10">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('webChat.title')}</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">{t('webChat.subtitle')}</p>
@@ -41,7 +41,7 @@ export default function WebChatWidget() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           {/* Configuration */}
-          <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 space-y-6 transition-colors">
+          <section className="tawasel-card p-6 space-y-6 transition-colors">
             <div className="flex items-center gap-2 mb-2">
               <Palette className="w-5 h-5 text-[#25D366]" />
               <h2 className="font-semibold text-gray-900 dark:text-white">{t('webChat.appearance')}</h2>

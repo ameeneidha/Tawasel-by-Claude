@@ -659,7 +659,7 @@ export default function Superadmin() {
   );
 
   return (
-    <div className="h-full overflow-y-auto bg-[#f7f8fa]">
+    <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-[1600px] px-6 py-8 lg:px-10">
         <div className="mb-8 flex flex-col gap-5 rounded-[32px] bg-[linear-gradient(135deg,#111827_0%,#1f2937_55%,#0f172a_100%)] p-8 text-white shadow-[0_20px_60px_rgba(15,23,42,0.22)]">
           <div className="flex flex-wrap items-start justify-between gap-6">
@@ -711,7 +711,7 @@ export default function Superadmin() {
         {activeTab === 'overview' ? (
           <div className="space-y-6">
             {statsLoading || !stats ? (
-              <div className="flex min-h-[280px] items-center justify-center rounded-[32px] border border-slate-100 bg-white">
+              <div className="flex min-h-[280px] items-center justify-center tawasel-card rounded-[32px]">
                 <Loader2 className="h-7 w-7 animate-spin text-[#25D366]" />
               </div>
             ) : (
@@ -744,7 +744,7 @@ export default function Superadmin() {
                 </div>
 
                 <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-                  <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+                  <div className="tawasel-card rounded-[32px] p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
                     <div className="mb-6 flex items-start justify-between gap-4">
                       <div>
                         <h2 className="text-xl font-bold text-slate-900">Growth Snapshot</h2>
@@ -776,7 +776,7 @@ export default function Superadmin() {
                     </div>
                   </div>
 
-                  <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+                  <div className="tawasel-card rounded-[32px] p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
                     <div className="mb-6 flex items-start justify-between">
                       <div>
                         <h2 className="text-xl font-bold text-slate-900">Plan Mix</h2>
@@ -824,7 +824,7 @@ export default function Superadmin() {
         {activeTab === 'analytics' ? (
           <div className="space-y-6">
             {analyticsLoading || !analytics ? (
-              <div className="flex min-h-[280px] items-center justify-center rounded-[32px] border border-slate-100 bg-white">
+              <div className="flex min-h-[280px] items-center justify-center tawasel-card rounded-[32px]">
                 <Loader2 className="h-7 w-7 animate-spin text-[#25D366]" />
               </div>
             ) : (
@@ -857,7 +857,7 @@ export default function Superadmin() {
                 </div>
 
                 <div className="grid gap-5 lg:grid-cols-3">
-                  <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+                  <div className="tawasel-card rounded-[32px] p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
                     <div className="mb-4 flex items-center gap-3">
                       <BarChart3 className="h-5 w-5 text-[#25D366]" />
                       <h3 className="text-lg font-bold text-slate-900">Message Volume</h3>
@@ -878,7 +878,7 @@ export default function Superadmin() {
                     </div>
                   </div>
 
-                  <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+                  <div className="tawasel-card rounded-[32px] p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
                     <div className="mb-4 flex items-center gap-3">
                       <Building2 className="h-5 w-5 text-[#25D366]" />
                       <h3 className="text-lg font-bold text-slate-900">Plan Distribution</h3>
@@ -901,7 +901,7 @@ export default function Superadmin() {
                     </div>
                   </div>
 
-                  <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+                  <div className="tawasel-card rounded-[32px] p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
                     <div className="mb-4 flex items-center gap-3">
                       <Crown className="h-5 w-5 text-[#25D366]" />
                       <h3 className="text-lg font-bold text-slate-900">Top Workspaces (30d)</h3>
@@ -937,7 +937,7 @@ export default function Superadmin() {
 
         {/* ── Workspaces Tab ───────────────────────────────────────── */}
         {activeTab === 'workspaces' ? (
-          <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+          <div className="tawasel-card rounded-[32px] p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900">Workspace Directory</h2>
@@ -1100,7 +1100,7 @@ export default function Superadmin() {
 
         {/* ── Users Tab ────────────────────────────────────────────── */}
         {activeTab === 'users' ? (
-          <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+          <div className="tawasel-card rounded-[32px] p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900">Platform Users</h2>

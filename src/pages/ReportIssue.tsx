@@ -42,7 +42,7 @@ export default function ReportIssue() {
   }
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="mx-auto max-w-3xl p-8">
       <div className="mb-10">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Report an Issue</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">Found a bug or having trouble? Let us know.</p>

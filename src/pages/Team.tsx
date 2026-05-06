@@ -251,7 +251,7 @@ export default function Team() {
   };
 
   return (
-    <div className="h-full bg-[#F8F9FA] dark:bg-slate-950 p-4 md:p-8 overflow-y-auto transition-colors">
+    <div className="tawasel-page overflow-y-auto">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
           <div>
@@ -282,7 +282,7 @@ export default function Team() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden transition-colors">
+        <div className="tawasel-card overflow-hidden transition-colors">
           <div className="p-4 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between bg-gray-50/50 dark:bg-slate-800/50 transition-colors">
             <div className="relative flex-1 md:max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

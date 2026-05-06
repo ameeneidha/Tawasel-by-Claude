@@ -141,7 +141,7 @@ export default function Campaigns() {
   }
 
   return (
-    <div className="flex-1 bg-gray-50 dark:bg-slate-950 overflow-y-auto h-full">
+    <div className="flex-1 overflow-y-auto h-full">
       <div className="max-w-5xl mx-auto p-6 space-y-6 pb-20">
         {/* Header */}
         <div className="flex items-center justify-between">
