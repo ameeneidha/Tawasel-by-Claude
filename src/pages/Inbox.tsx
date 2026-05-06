@@ -40,6 +40,7 @@ import ActivationChecklist from '../components/ActivationChecklist';
 import { toast } from 'sonner';
 import ContactListPicker from '../components/ContactListPicker';
 import AppTooltip from '../components/AppTooltip';
+import TawaselLoader from '../components/TawaselLoader';
 import { useTranslation } from 'react-i18next';
 import {
   DEFAULT_PIPELINE_STAGE_KEY,
@@ -955,7 +956,7 @@ export default function Inbox() {
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-[#25D366] animate-spin" />
+        <TawaselLoader size={48} variant="typing" label={t('common.loading')} />
       </div>
     );
   }

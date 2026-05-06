@@ -1,6 +1,7 @@
 import { Outlet, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
+import TawaselLoader from '../components/TawaselLoader';
 import { useApp } from '../contexts/AppContext';
 import { useSidebar } from '../contexts/SidebarContext';
 import { AlertCircle, CheckCircle2, CreditCard, Loader2, Lock, Menu } from 'lucide-react';
@@ -48,7 +49,7 @@ export default function AppLayout() {
   if (isLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
-        <div className="w-12 h-12 border-4 border-[#25D366]/20 border-t-[#25D366] rounded-full animate-spin" />
+        <TawaselLoader size={56} label="Loading Tawasel" />
       </div>
     );
   }

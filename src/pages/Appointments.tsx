@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
+import TawaselLoader from '../components/TawaselLoader';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
@@ -530,7 +531,7 @@ export default function Appointments() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-6 h-6 animate-spin text-[#25D366]" />
+        <TawaselLoader size={42} label={t('common.loading')} />
       </div>
     );
   }

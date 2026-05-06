@@ -16,6 +16,7 @@ Tawasel App is a full-stack WhatsApp CRM and automation platform built with Reac
 - Inbox visual refresh: the core inbox now follows the new design-system direction with a warm paper canvas, always-visible chat search, segmented All/Unread/Mine/Overdue filters, clearer selected/unread states, darker brand outbound bubbles, an optimized logo asset, and a more polished composer without adding any heavy UI dependency.
 - Dashboard visual refresh: the main dashboard now follows the same design-system direction with a serif greeting hero, three priority KPI cards, warm paper surfaces, calmer filters, and localized hero copy.
 - Dashboard greeting is now time-aware, so the hero says morning, afternoon, or evening based on the viewer's local time instead of always saying morning.
+- Branded Tawasel loading states: shared `TawaselLoader` SVG/CSS component adds pulse, typing, and orbit variants without importing the large loader preview HTML or adding runtime dependencies.
 - Voice note transcription V1: incoming WhatsApp audio messages are transcribed by the BullMQ worker, shown live in Inbox, retryable when failed, and passed into the existing AI chatbot flow for appointment booking.
 - Arabic booking resolver now handles common GCC staff-name variants, Arabic month dates like `6 مايو 2026`, and spoken time words like `الساعة الثالثة ظهرا`.
 - Resolver calls now accept the full customer sentence/transcript so relative dates like `باكر` are resolved automatically even when the AI does not split the date into a separate field.

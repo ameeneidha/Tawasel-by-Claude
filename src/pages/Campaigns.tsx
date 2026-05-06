@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
+import TawaselLoader from '../components/TawaselLoader';
 
 const PLATFORMS = [
   { code: 'SC', name: 'Snapchat', color: '#FFFC00', textColor: '#000', icon: '👻' },
@@ -134,7 +135,7 @@ export default function Campaigns() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-[#25D366] border-t-transparent rounded-full" />
+        <TawaselLoader size={48} variant="orbit" label={t('common.loading')} />
       </div>
     );
   }

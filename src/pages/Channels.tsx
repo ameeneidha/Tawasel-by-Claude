@@ -24,6 +24,7 @@ import { cn } from '../lib/utils';
 import * as Switch from '@radix-ui/react-switch';
 import { toast } from 'sonner';
 import ActivationChecklist from '../components/ActivationChecklist';
+import TawaselLoader from '../components/TawaselLoader';
 import { getAllowedMessageOrigins } from '../lib/runtime-config';
 
 type EmbeddedSignupConfig = {
@@ -635,7 +636,7 @@ export default function Channels() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-[#25D366] animate-spin" />
+            <TawaselLoader size={48} variant="orbit" label={t('common.loading')} />
           </div>
         ) : (
           <div className="space-y-12">
