@@ -13,13 +13,12 @@ Tawasel App is a full-stack WhatsApp CRM and automation platform built with Reac
 
 ## Latest Product Slice
 
+- Inbox visual refresh: the core inbox now follows the new design-system direction with a warm paper canvas, always-visible chat search, segmented All/Unread/Mine/Overdue filters, clearer selected/unread states, darker brand outbound bubbles, an optimized logo asset, and a more polished composer without adding any heavy UI dependency.
 - Voice note transcription V1: incoming WhatsApp audio messages are transcribed by the BullMQ worker, shown live in Inbox, retryable when failed, and passed into the existing AI chatbot flow for appointment booking.
 - Arabic booking resolver now handles common GCC staff-name variants, Arabic month dates like `6 مايو 2026`, and spoken time words like `الساعة الثالثة ظهرا`.
 - Resolver calls now accept the full customer sentence/transcript so relative dates like `باكر` are resolved automatically even when the AI does not split the date into a separate field.
 - Voice transcription is now plan-limited monthly: Starter 60 minutes, Growth 300 minutes, Pro 1,500 minutes. Usage is recorded in `UsageLog` as `TRANSCRIPTION_SECOND`.
 - Chatbots now have structured AI behavior settings, an about-business knowledge template, and a prompt builder that injects live services/staff/prices from the database as the source of truth.
-- AI booking now resolves Arabic/English service, staff, date, and time phrases with deterministic backend matching, reducing repeated confirmations without adding another AI request.
-- Landing-page sign-in now shares the same remember-me storage behavior as `/login`, avoiding stale local/session auth state when moving between the homepage and app routes.
 
 ## Why Tawasel?
 
@@ -92,6 +91,16 @@ Three tiers (Starter, Growth, Pro) with usage limits that scale with your busine
 3. Start the app:
    `npm run start`
 
+## Remotion Marketing Video
+
+The repository includes a 45-second SaaS intro composition for Tawasel at `remotion/TawaselIntro.tsx`.
+
+- Preview in Remotion Studio: `npm run remotion:studio`
+- Render the MP4: `npm run remotion:render:intro`
+- Render a quick still frame: `npm run remotion:still:intro`
+
+The rendered intro is written to `out/tawasel-intro.mp4`.
+
 ## DigitalOcean Deployment
 
 DigitalOcean deployment is now documented here:
@@ -109,13 +118,17 @@ The repo also includes an App Platform spec:
 - **Added no-card trial lifecycle** - new workspaces now start on a 30-day `trialing` Growth workspace with `trialStartedAt` and `trialEndsAt`; expired trials lose access to sending, bookings, reminders, and automation until upgraded.
 - **Added superadmin trial controls** - superadmin can start/extend/expire trials and mark a workspace active from the workspace controls panel.
 - **Added trial UX** - active trial workspaces show days remaining in-app, and expired trials show a plan prompt while preserving login/view access.
-
-### May 2, 2026 - Public booking confirmation fixes
 - **Updated landing page positioning** - the main page now leads with the 30-day no-card trial, removes stale billing-unlock language and fake trust count, and fixes browser-side superadmin routing to use `VITE_SUPERADMIN_EMAIL`.
 
-- **Fixed public booking confirmation templates** - the confirmation sender now reads the approved template body and sends only the variables that template actually uses, preventing Meta `#132000` parameter-count rejections when older approved templates have fewer placeholders.
+### May 2, 2026 - Public booking confirmation variable order
 
 - **Fixed confirmation template variable order** - public booking now supports the newer four-variable confirmation template order (`customer`, `business`, `date/time`, `staff`) while preserving the legacy five-variable Tawasel template order.
+
+### April 29, 2026 - Remotion intro video
+
+- **Added Remotion marketing composition** - `TawaselIntro` is a 45-second 1920x1080 product intro for the SaaS, covering the brand, scattered lead problem, shared inbox, CRM/AI automation, bookings, reminders, and final CTA.
+- **Added Remotion scripts** - `npm run remotion:studio`, `npm run remotion:render:intro`, and `npm run remotion:still:intro`.
+- **Added Remotion dependencies** - `remotion` and `@remotion/cli` are now dev dependencies.
 
 ### April 28, 2026 - Instagram Phase 5 audit
 
@@ -145,6 +158,7 @@ The repo also includes an App Platform spec:
 - **Added Arabic public booking flow** - `/book/:slug` now has an Arabic/English language toggle, RTL layout direction, Arabic customer-facing labels, and Arabic UAE date/time formatting across the booking and confirmation screens.
 - **Fixed invisible public booking inputs** - customer name and WhatsApp number fields on `/book/:slug` now force a white background, dark text, visible placeholder text, and green caret so typing is visible regardless of global/dark styles.
 - **Clarified booking link behavior** - Business Settings now shows the current public booking link with a copy action and explains that the slug remains stable when the business name changes, so old links keep working.
+- **Fixed public booking confirmation templates** - the confirmation sender now reads the approved template body and sends only the variables that template actually uses, preventing Meta `#132000` parameter-count rejections when older approved templates have fewer placeholders.
 
 ### April 27, 2026 - Phase 2c: Per-appointment reminder timeline
 

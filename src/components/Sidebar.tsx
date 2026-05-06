@@ -86,9 +86,9 @@ export default function Sidebar() {
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
       <div className="mb-4">
-        <div className="w-9 h-9 bg-[#25D366] rounded-xl flex items-center justify-center text-white font-bold text-lg">
-          T
-        </div>
+        <Link to={isSuperadmin ? '/app/superadmin' : '/app/dashboard'} onClick={close} className="block h-11 w-11 overflow-hidden rounded-2xl">
+          <img src="/tawasel-logo.png" alt="Tawasel" className="h-full w-full object-contain" />
+        </Link>
       </div>
 
       <nav className="flex-1 flex flex-col gap-1 overflow-y-auto overflow-x-hidden scrollbar-hide min-h-0">

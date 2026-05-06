@@ -186,6 +186,14 @@ const getMessagePreview = (message?: Message | null) => {
   return message.content || 'No messages';
 };
 
+const getInitials = (value?: string | null) => {
+  const cleaned = (value || '').trim();
+  if (!cleaned) return '??';
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase();
+};
+
 function MessageMedia({ message }: { message: Message }) {
   const { t } = useTranslation();
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
@@ -407,11 +415,11 @@ export default function Inbox() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
   const [showConvMenu, setShowConvMenu] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [channelFilter, setChannelFilter] = useState<'ALL' | 'WHATSAPP' | 'INSTAGRAM'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'WAITING_FOR_CUSTOMER' | 'WAITING_FOR_INTERNAL' | 'RESOLVED'>('ALL');
+  const [listFilter, setListFilter] = useState<'ALL' | 'UNREAD' | 'MINE' | 'OVERDUE'>('ALL');
   const [contactDraft, setContactDraft] = useState({ name: '', phoneNumber: '', listNames: [] as string[] });
   const [contactLists, setContactLists] = useState<ContactListOption[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -429,9 +437,17 @@ export default function Inbox() {
 
     const matchesChannel = channelFilter === 'ALL' || conversation.channelType === channelFilter;
     const matchesStatus = statusFilter === 'ALL' || conversation.internalStatus === statusFilter;
+    const matchesListFilter =
+      listFilter === 'ALL' ||
+      (listFilter === 'UNREAD' && (conversation.unreadCount || 0) > 0) ||
+      (listFilter === 'MINE' && Boolean(user?.id && conversation.assignedToId === user.id)) ||
+      (listFilter === 'OVERDUE' && conversation.slaStatus === 'BREACHED');
 
-    return matchesSearch && matchesChannel && matchesStatus;
+    return matchesSearch && matchesChannel && matchesStatus && matchesListFilter;
   });
+  const unreadConversationCount = conversations.filter((conversation) => (conversation.unreadCount || 0) > 0).length;
+  const myConversationCount = conversations.filter((conversation) => user?.id && conversation.assignedToId === user.id).length;
+  const overdueConversationCount = conversations.filter((conversation) => conversation.slaStatus === 'BREACHED').length;
   const activePipelineStageKey =
     selectedConv?.contact.pipelineStage ||
     getFallbackPipelineStageKey(pipelineStages) ||
@@ -1067,10 +1083,10 @@ export default function Inbox() {
   }
 
   return (
-    <div className="h-full flex bg-white dark:bg-slate-950 transition-colors">
+    <div className="h-full flex bg-[#FAFAF7] dark:bg-slate-950 transition-colors">
       {/* Left Column: Conversation List */}
       <div className={cn(
-        "w-full md:w-80 border-r border-gray-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-colors",
+        "w-full md:w-80 border-r border-[#E7E6DF] dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 transition-colors",
         selectedConv && "hidden md:flex"
       )}>
         {isRestrictedMode && (
@@ -1080,60 +1096,83 @@ export default function Inbox() {
               : t('inbox.verifyEmailFirst')}
           </div>
         )}
-        <div className="p-4 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-[#25D366] rounded-full" />
-            <span className="font-medium text-sm dark:text-gray-200">{t('inbox.active')}</span>
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-slate-800 dark:text-gray-400 md:hidden">
+        <div className="border-b border-[#E7E6DF] px-5 py-5 dark:border-slate-800">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h2 className="font-serif text-3xl leading-none text-[#0F1A14] dark:text-white">Conversations</h2>
+              <p className="mt-1 text-sm text-[#5A6A60] dark:text-gray-400">
+                {conversations.filter((conversation) => conversation.internalStatus !== 'RESOLVED').length} open · {unreadConversationCount} unread
+              </p>
+            </div>
+            <span className="rounded-full border border-[#E7E6DF] bg-[#FAFAF7] px-2.5 py-1 text-[11px] font-semibold text-[#5A6A60] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300 md:hidden">
               {filteredConversations.length}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <AppTooltip content={t('inbox.searchConversations')} side="bottom">
-              <button
-                onClick={() => setIsSearchOpen((prev) => !prev)}
-                className={cn(
-                  "p-1.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors",
-                  isSearchOpen ? "text-[#25D366] bg-[#25D366]/10" : "text-gray-400"
-                )}
-              >
-                <Search className="w-4 h-4" />
-              </button>
-            </AppTooltip>
+          <div className="flex h-9 items-center gap-2 rounded-xl bg-[#F1F1EC] px-3 text-sm text-[#5A6A60] dark:bg-slate-800 dark:text-gray-400">
+            <Search className="h-3.5 w-3.5 shrink-0" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('inbox.searchPlaceholder')}
+              className="min-w-0 flex-1 bg-transparent text-sm text-[#0F1A14] outline-none placeholder:text-[#7E8C84] dark:text-white dark:placeholder:text-gray-500"
+            />
             <AppTooltip content={t('inbox.filterConversations')} side="bottom">
               <button
                 onClick={() => setShowFilters((prev) => !prev)}
                 className={cn(
-                  "p-1.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors",
+                  "inline-flex h-7 w-7 items-center justify-center rounded-lg text-[#7E8C84] transition-colors hover:bg-white hover:text-[#0E8A4F] dark:hover:bg-slate-700 dark:hover:text-[#7DE2A8]",
                   showFilters || channelFilter !== 'ALL' || statusFilter !== 'ALL'
-                    ? "text-[#25D366] bg-[#25D366]/10"
-                    : "text-gray-400"
+                    ? "bg-white text-[#0E8A4F] dark:bg-slate-700 dark:text-[#7DE2A8]"
+                    : ""
                 )}
               >
                 <Filter className="w-4 h-4" />
               </button>
             </AppTooltip>
           </div>
+          <div className="mt-3 flex items-center gap-1 overflow-x-auto text-xs scrollbar-hide">
+            {[
+              { key: 'ALL' as const, label: 'All', count: conversations.length },
+              { key: 'UNREAD' as const, label: 'Unread', count: unreadConversationCount },
+              { key: 'MINE' as const, label: 'Mine', count: myConversationCount },
+              { key: 'OVERDUE' as const, label: 'Overdue', count: overdueConversationCount },
+            ].map((filter) => (
+              <button
+                key={filter.key}
+                type="button"
+                aria-pressed={listFilter === filter.key}
+                onClick={() => setListFilter(filter.key)}
+                className={cn(
+                  "shrink-0 rounded-lg px-2.5 py-1 font-medium transition-colors",
+                  listFilter === filter.key
+                    ? "bg-[#0F1A14] text-[#FAFAF7] dark:bg-white dark:text-slate-950"
+                    : filter.key === 'OVERDUE'
+                      ? "text-[#C8553D] hover:bg-[#C8553D]/10"
+                      : "text-[#5A6A60] hover:bg-[#F1F1EC] dark:text-gray-400 dark:hover:bg-slate-800"
+                )}
+              >
+                {filter.label}
+                {filter.key !== 'ALL' && (
+                  <span className={cn(
+                    "ml-1 font-mono text-[11px]",
+                    listFilter === filter.key ? "text-inherit" : "text-[#0E8A4F]"
+                  )}>
+                    {filter.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {(isSearchOpen || showFilters) && (
-          <div className="border-b border-gray-200 dark:border-slate-800 px-4 py-3 space-y-3 bg-white dark:bg-slate-900">
-            {isSearchOpen && (
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t('inbox.searchPlaceholder')}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white md:py-2"
-              />
-            )}
-
-            {showFilters && (
+        {showFilters && (
+          <div className="border-b border-[#E7E6DF] bg-[#FAFAF7] px-4 py-3 space-y-3 dark:border-slate-800 dark:bg-slate-900">
               <div className="grid grid-cols-2 gap-2">
                 <select
                   value={channelFilter}
                   onChange={(e) => setChannelFilter(e.target.value as 'ALL' | 'WHATSAPP' | 'INSTAGRAM')}
-                  className="min-w-0 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-xs font-medium text-gray-700 outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200 md:py-2"
+                  className="min-w-0 rounded-xl border border-[#E7E6DF] bg-white px-3 py-3 text-xs font-medium text-[#293A30] outline-none focus:border-[#15A862] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200 md:py-2"
                 >
                   <option value="ALL">{t('inbox.allChannels')}</option>
                   <option value="WHATSAPP">{t('inbox.whatsapp')}</option>
@@ -1142,7 +1181,7 @@ export default function Inbox() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as 'ALL' | 'OPEN' | 'WAITING_FOR_CUSTOMER' | 'WAITING_FOR_INTERNAL' | 'RESOLVED')}
-                  className="min-w-0 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-xs font-medium text-gray-700 outline-none focus:border-[#25D366] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200 md:py-2"
+                  className="min-w-0 rounded-xl border border-[#E7E6DF] bg-white px-3 py-3 text-xs font-medium text-[#293A30] outline-none focus:border-[#15A862] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200 md:py-2"
                 >
                   <option value="ALL">All statuses</option>
                   <option value="OPEN">Open</option>
@@ -1154,19 +1193,19 @@ export default function Inbox() {
                   type="button"
                   onClick={() => {
                     setSearchQuery('');
+                    setListFilter('ALL');
                     setChannelFilter('ALL');
                     setStatusFilter('ALL');
                   }}
-                  className="col-span-2 rounded-xl border border-gray-200 px-3 py-3 text-xs font-semibold text-gray-500 transition-colors hover:border-[#25D366] hover:text-[#25D366] dark:border-slate-700 dark:text-gray-400 md:py-2"
+                  className="col-span-2 rounded-xl border border-[#E7E6DF] bg-white px-3 py-3 text-xs font-semibold text-[#5A6A60] transition-colors hover:border-[#15A862] hover:text-[#0E8A4F] dark:border-slate-700 dark:bg-slate-800 dark:text-gray-400 md:py-2"
                 >
                   Clear search and filters
                 </button>
               </div>
-            )}
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
           {filteredConversations.map((conv) => {
             const unreadCount = conv.unreadCount || 0;
             const hasUnread = unreadCount > 0;
@@ -1176,24 +1215,24 @@ export default function Inbox() {
               key={conv.id}
               onClick={() => setSelectedConv(conv)}
               className={cn(
-                "relative w-full p-4 flex items-center gap-3 transition-colors border-b border-gray-50 dark:border-slate-800/50 before:absolute before:left-0 before:top-3 before:bottom-3 before:rounded-r-full md:p-4",
+                "relative w-full p-4 flex items-center gap-3 border-b border-[#F1F1EC] text-left transition-colors before:absolute before:left-0 before:top-3 before:bottom-3 before:rounded-r-full dark:border-slate-800/50 md:p-4",
                 getConversationStatusStyles(conv.internalStatus).rail,
                 selectedConv?.id === conv.id
-                  ? "bg-[#25D366]/5 dark:bg-[#25D366]/10"
+                  ? "bg-[#EAF6EE] shadow-[inset_3px_0_0_#15A862] dark:bg-[#25D366]/10"
                   : hasUnread
-                    ? "before:w-1.5 border-l-4 border-l-[#25D366] bg-[#25D366]/[0.09] shadow-[inset_0_0_0_1px_rgba(37,211,102,0.12)] hover:bg-[#25D366]/[0.14] dark:bg-[#25D366]/[0.12] dark:hover:bg-[#25D366]/[0.18]"
-                    : "hover:bg-gray-50 dark:hover:bg-slate-800/50"
+                    ? "bg-[#EAF6EE]/70 shadow-[inset_3px_0_0_#15A862] hover:bg-[#EAF6EE] dark:bg-[#25D366]/[0.12] dark:hover:bg-[#25D366]/[0.18]"
+                    : "hover:bg-[#FAFAF7] dark:hover:bg-slate-800/50"
               )}
             >
-              <div className="w-12 h-12 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400 shrink-0 relative">
+              <div className="w-11 h-11 rounded-full border border-[#E7E6DF] bg-[#FAFAF7] dark:border-slate-700 dark:bg-slate-800 flex items-center justify-center text-[#A6B0AA] shrink-0 relative">
                 {conv.contact.avatar ? (
                   <img src={conv.contact.avatar} alt="" className="w-full h-full rounded-full object-cover" />
                 ) : (
-                  <User className="w-6 h-6" />
+                  <User className="w-5 h-5" />
                 )}
                 <div className={cn(
-                  "absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white",
-                  conv.channelType === 'INSTAGRAM' ? "bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]" : "bg-[#25D366]"
+                  "absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900",
+                  conv.channelType === 'INSTAGRAM' ? "bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]" : "bg-[#15A862]"
                 )}>
                   {conv.channelType === 'INSTAGRAM' ? (
                     <Instagram className="w-2.5 h-2.5 text-white" />
@@ -1208,13 +1247,13 @@ export default function Inbox() {
                       <h3 className={cn(
                         "text-sm truncate",
                         hasUnread
-                          ? "font-bold text-gray-950 dark:text-white"
-                          : "font-medium text-gray-900 dark:text-gray-100"
+                          ? "font-bold text-[#0F1A14] dark:text-white"
+                          : "font-semibold text-[#293A30] dark:text-gray-100"
                       )}>
                         {getConversationContactLabel(conv.contact)}
                       </h3>
                       {hasUnread && (
-                        <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-[#25D366]" title="Unread conversation" />
+                        <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-[#15A862]" title="Unread conversation" />
                       )}
                       {conv.priority === 'HIGH' && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" title="High Priority" />}
                       {conv.priority === 'URGENT' && <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 animate-pulse" title="Urgent Priority" />}
@@ -1225,8 +1264,8 @@ export default function Inbox() {
                     <span className={cn(
                       "shrink-0 text-[10px]",
                       hasUnread
-                        ? "font-bold text-[#128C7E] dark:text-[#7DE2A8]"
-                        : "text-gray-400"
+                        ? "font-bold text-[#0E8A4F] dark:text-[#7DE2A8]"
+                        : "text-[#7E8C84]"
                     )}>
                       {conv.lastMessageAt ? (
                         (() => {
@@ -1241,7 +1280,7 @@ export default function Inbox() {
                   </div>
                   <div className="mb-1.5 flex items-center gap-2">
                     {hasUnread && (
-                      <span className="inline-flex items-center rounded-full bg-[#25D366] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+                      <span className="inline-flex items-center rounded-full bg-[#15A862] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
                         Unread
                       </span>
                     )}
@@ -1260,14 +1299,14 @@ export default function Inbox() {
                     <p className={cn(
                       "text-xs truncate flex-1 mr-2",
                       hasUnread
-                        ? "font-semibold text-gray-800 dark:text-gray-200"
-                        : "text-gray-500"
+                        ? "font-semibold text-[#293A30] dark:text-gray-200"
+                        : "text-[#5A6A60]"
                     )}>
                       {getMessagePreview(conv.messages[0])}
                     </p>
                     <div className="flex items-center gap-2 shrink-0">
                       {hasUnread && (
-                        <span className="min-w-6 rounded-full bg-[#25D366] px-2 py-0.5 text-center text-[10px] font-extrabold text-white shadow-sm">
+                        <span className="min-w-6 rounded-full bg-[#15A862] px-2 py-0.5 text-center text-[10px] font-extrabold text-white shadow-sm">
                           {unreadCount}
                         </span>
                       )}
@@ -1331,7 +1370,7 @@ export default function Inbox() {
 
       {/* Center Column: Chat Timeline */}
       <div className={cn(
-        "flex-1 flex flex-col bg-[#F8F9FA] dark:bg-slate-950 transition-colors",
+        "flex-1 flex flex-col tawasel-inbox-surface transition-colors",
         !selectedConv && "hidden md:flex"
       )}>
         {slaBreachAlert && (
@@ -1350,21 +1389,25 @@ export default function Inbox() {
         )}
         {selectedConv ? (
           <>
-            <div className="min-h-16 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-3 py-2 md:px-6 md:py-0 flex items-center justify-between shrink-0 transition-colors">
+            <div className="min-h-16 border-b border-[#E7E6DF] bg-white/95 px-3 py-2 shadow-[0_1px_0_rgba(15,26,20,0.03)] transition-colors dark:border-slate-800 dark:bg-slate-900 md:px-6 md:py-0 flex items-center justify-between shrink-0">
               <div className="flex min-w-0 items-center gap-2 md:gap-3">
                 <button
-                  className="md:hidden -ml-1 inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:bg-slate-800 dark:hover:text-gray-100"
+                  className="md:hidden -ml-1 inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-sm font-semibold text-[#5A6A60] hover:bg-[#FAFAF7] hover:text-[#0F1A14] dark:text-gray-300 dark:hover:bg-slate-800 dark:hover:text-gray-100"
                   onClick={() => setSelectedConv(null)}
                 >
                   <ArrowLeft className="w-5 h-5" />
                   Chats
                 </button>
-                <div className="w-9 h-9 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400 shrink-0 md:w-8 md:h-8">
-                  <User className="w-4 h-4" />
+                <div className="w-10 h-10 rounded-full border border-[#E7E6DF] bg-[#D4EDDD] text-[#0A6E3F] dark:border-slate-700 dark:bg-[#25D366]/15 dark:text-[#7DE2A8] flex items-center justify-center shrink-0 text-xs font-semibold md:w-9 md:h-9">
+                  {selectedConv.contact.avatar ? (
+                    <img src={selectedConv.contact.avatar} alt="" className="h-full w-full rounded-full object-cover" />
+                  ) : (
+                    getInitials(getConversationContactLabel(selectedConv.contact))
+                  )}
                 </div>
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-center gap-2">
-                    <h2 className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                    <h2 className="truncate text-sm font-semibold text-[#0F1A14] dark:text-white">
                       {getConversationContactLabel(selectedConv.contact)}
                     </h2>
                     <select 
@@ -1400,7 +1443,7 @@ export default function Inbox() {
                       <option value="RESOLVED">RESOLVED</option>
                     </select>
                   </div>
-                  <p className="text-[10px] text-[#25D366] font-medium uppercase tracking-wider">
+                  <p className="text-[10px] text-[#0E8A4F] font-semibold uppercase tracking-[0.06em]">
                     Online
                   </p>
                   {getAssignedBotName(selectedConv) && (
@@ -1469,7 +1512,7 @@ export default function Inbox() {
                     />
                   </div>
                 </div>
-                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
+                <div className="hidden md:flex items-center gap-2 rounded-xl border border-[#E7E6DF] bg-[#FAFAF7] px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800">
                   <span className="text-xs text-gray-500 dark:text-gray-400">Assigned to:</span>
                   <select
                     value={selectedConv.assignedToId || ''}
@@ -1481,7 +1524,7 @@ export default function Inbox() {
                     {/* In a real app, we'd fetch all team members here */}
                   </select>
                 </div>
-                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
+                <div className="hidden md:flex items-center gap-2 rounded-xl border border-[#E7E6DF] bg-[#FAFAF7] px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800">
                   <span className="text-xs text-gray-500 dark:text-gray-400">From:</span>
                     <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                       {selectedConv.channelType === 'INSTAGRAM' 
@@ -1494,7 +1537,7 @@ export default function Inbox() {
                     </span>
                   </div>
                 <button
-                  className="md:hidden p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-500"
+                  className="md:hidden p-2 hover:bg-[#FAFAF7] dark:hover:bg-slate-800 rounded-lg text-[#5A6A60]"
                   onClick={() => setMobileContactPanel(true)}
                 >
                   <PanelRightOpen className="w-5 h-5" />
@@ -1503,7 +1546,7 @@ export default function Inbox() {
                   <AppTooltip content="Conversation actions" side="bottom">
                     <button
                       onClick={() => setShowConvMenu(prev => !prev)}
-                      className="p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
+                      className="p-2 hover:bg-[#FAFAF7] dark:hover:bg-slate-800 rounded-lg text-[#7E8C84]"
                     >
                       <MoreVertical className="w-5 h-5" />
                     </button>
@@ -1590,12 +1633,12 @@ export default function Inbox() {
                   <div className={cn("flex items-center gap-1", msg.direction === 'OUTGOING' ? "flex-row-reverse" : "flex-row")}>
                     <div
                       className={cn(
-                        "px-3.5 py-2.5 rounded-2xl text-sm shadow-sm transition-colors md:px-4",
+                        "tawasel-card-shadow px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed transition-colors md:px-4",
                         msg.isInternal
                           ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-900/30 text-yellow-800 dark:text-yellow-200 w-full max-w-2xl italic"
                           : (msg.direction === 'OUTGOING'
-                            ? "bg-[#DCF8C6] dark:bg-[#25D366]/20 text-gray-800 dark:text-gray-100 rounded-tr-none"
-                            : "bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 rounded-tl-none")
+                            ? "bg-[#15A862] text-white rounded-tr-sm dark:bg-[#0E8A4F] dark:text-white"
+                            : "border border-[#E7E6DF] bg-white text-[#293A30] rounded-tl-sm dark:border-slate-700 dark:bg-slate-800 dark:text-gray-100")
                       )}
                     >
                       {quotedMsg && (
@@ -1621,7 +1664,7 @@ export default function Inbox() {
                         </div>
                       )}
                       {!msg.isInternal && msg.direction === 'OUTGOING' && (
-                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-white/70">
                           {msg.senderType === 'AI_BOT'
                             ? getDisplayName(msg.senderName) || 'AI Bot'
                             : getDisplayName(msg.senderName) || 'Agent'}
@@ -1643,7 +1686,7 @@ export default function Inbox() {
                     {!msg.isInternal && (
                       <button
                         onClick={() => setReplyToMessage(msg)}
-                      className="opacity-100 md:opacity-0 md:group-hover/msg:opacity-100 transition-opacity p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      className="opacity-100 md:opacity-0 md:group-hover/msg:opacity-100 transition-opacity p-1 rounded-full hover:bg-white/80 dark:hover:bg-slate-700 text-[#7E8C84] hover:text-[#293A30] dark:hover:text-gray-300"
                         title="Reply"
                       >
                         <Reply className="w-4 h-4" />
@@ -1652,7 +1695,7 @@ export default function Inbox() {
                   </div>
                   <div className="flex items-center gap-1.5 mt-1.5 px-1">
                     {msg.senderType === 'AI_BOT' && !msg.senderName && (
-                      <span className="text-[10px] font-bold text-[#25D366] uppercase tracking-tighter">AI Bot</span>
+                        <span className="text-[10px] font-bold text-[#0E8A4F] uppercase tracking-tighter">AI Bot</span>
                     )}
                     <span className="text-[10px] text-gray-400">
                       {msg.createdAt ? (
@@ -1707,13 +1750,13 @@ export default function Inbox() {
               </div>
             )}
 
-            <div className="shrink-0 border-t border-gray-200 bg-white p-3 transition-colors dark:border-slate-800 dark:bg-slate-900 md:p-4">
-              <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1 dark:bg-slate-800 md:flex md:bg-transparent md:p-0">
+            <div className="shrink-0 border-t border-[#E7E6DF] bg-white/95 p-3 transition-colors dark:border-slate-800 dark:bg-slate-900 md:p-4">
+              <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl bg-[#F1F1EC] p-1 dark:bg-slate-800 md:flex md:bg-transparent md:p-0">
                 <button 
                   onClick={() => setIsInternalMode(false)}
                   className={cn(
-                    "rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest transition-all md:border-b-2 md:rounded-none md:px-0 md:py-0 md:pb-1",
-                    !isInternalMode ? "bg-white text-[#25D366] shadow-sm md:bg-transparent md:border-[#25D366] md:shadow-none" : "text-gray-400 dark:text-gray-500 md:border-transparent hover:text-gray-600 dark:hover:text-gray-300"
+                    "rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-all md:border-b-2 md:rounded-none md:px-0 md:py-0 md:pb-1",
+                    !isInternalMode ? "bg-white text-[#0E8A4F] shadow-sm md:bg-transparent md:border-[#15A862] md:shadow-none" : "text-[#7E8C84] dark:text-gray-500 md:border-transparent hover:text-[#293A30] dark:hover:text-gray-300"
                   )}
                 >
                   Reply
@@ -1721,8 +1764,8 @@ export default function Inbox() {
                 <button 
                   onClick={() => setIsInternalMode(true)}
                   className={cn(
-                    "rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest transition-all md:border-b-2 md:rounded-none md:px-0 md:py-0 md:pb-1",
-                    isInternalMode ? "bg-white text-yellow-600 shadow-sm md:bg-transparent md:border-yellow-600 md:shadow-none dark:bg-slate-900 md:dark:bg-transparent" : "text-gray-400 dark:text-gray-500 md:border-transparent hover:text-gray-600 dark:hover:text-gray-300"
+                    "rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-all md:border-b-2 md:rounded-none md:px-0 md:py-0 md:pb-1",
+                    isInternalMode ? "bg-white text-yellow-600 shadow-sm md:bg-transparent md:border-yellow-600 md:shadow-none dark:bg-slate-900 md:dark:bg-transparent" : "text-[#7E8C84] dark:text-gray-500 md:border-transparent hover:text-[#293A30] dark:hover:text-gray-300"
                   )}
                 >
                   Internal Note
@@ -1756,7 +1799,7 @@ export default function Inbox() {
                 </div>
               )}
 
-              <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+              <form onSubmit={handleSendMessage} className="flex items-end gap-2 rounded-2xl border border-[#E7E6DF] bg-white p-2 tawasel-card-shadow dark:border-slate-700 dark:bg-slate-900">
                 <input
                   ref={attachmentInputRef}
                   type="file"
@@ -1773,7 +1816,7 @@ export default function Inbox() {
                           setShowEmojiPicker((prev) => !prev);
                           setShowTemplatePicker(false);
                         }}
-                        className="hidden p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400 sm:block"
+                        className="hidden p-2 hover:bg-[#FAFAF7] dark:hover:bg-slate-800 rounded-lg text-[#7E8C84] sm:block"
                       >
                         <Smile className="w-5 h-5" />
                       </button>
@@ -1797,7 +1840,7 @@ export default function Inbox() {
                     <button
                       type="button"
                       onClick={() => attachmentInputRef.current?.click()}
-                    className="p-2.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
+                    className="p-2.5 hover:bg-[#FAFAF7] dark:hover:bg-slate-800 rounded-lg text-[#7E8C84]"
                     >
                       <Paperclip className="w-5 h-5" />
                     </button>
@@ -1807,7 +1850,7 @@ export default function Inbox() {
                       <button
                         type="button"
                         onClick={handleTemplatePickerToggle}
-                        className="p-2.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400"
+                        className="p-2.5 hover:bg-[#FAFAF7] dark:hover:bg-slate-800 rounded-lg text-[#7E8C84]"
                       >
                         <FileText className="w-5 h-5" />
                       </button>
@@ -1879,11 +1922,11 @@ export default function Inbox() {
                     "min-w-0 flex-1 border-none rounded-xl px-4 py-3 text-sm outline-none transition-all md:py-2.5",
                     isInternalMode 
                       ? "bg-yellow-50 dark:bg-yellow-900/20 focus:ring-2 focus:ring-yellow-200 dark:focus:ring-yellow-900/40 text-yellow-900 dark:text-yellow-100 placeholder:text-yellow-400 dark:placeholder:text-yellow-700" 
-                      : "bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-[#25D366]/20 dark:focus:ring-[#25D366]/10 text-gray-900 dark:text-gray-100 transition-colors"
+                      : "bg-[#FAFAF7] dark:bg-slate-800 focus:ring-2 focus:ring-[#15A862]/20 dark:focus:ring-[#25D366]/10 text-[#0F1A14] dark:text-gray-100 transition-colors"
                   )}
                 />
                 <AppTooltip content="Voice note recording is coming soon" side="top">
-                  <button type="button" className="hidden p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-gray-400 sm:block">
+                  <button type="button" className="hidden p-2 hover:bg-[#FAFAF7] dark:hover:bg-slate-800 rounded-lg text-[#7E8C84] sm:block">
                     <Mic className="w-5 h-5" />
                   </button>
                 </AppTooltip>
@@ -1893,7 +1936,7 @@ export default function Inbox() {
                     disabled={(!newMessage.trim() && pendingAttachments.length === 0) || isSending || isRestrictedMode}
                     className={cn(
                       "p-3 text-white rounded-xl transition-colors disabled:opacity-50 md:p-2.5",
-                      isInternalMode ? "bg-yellow-500 hover:bg-yellow-600" : "bg-[#25D366] hover:bg-[#128C7E]"
+                      isInternalMode ? "bg-yellow-500 hover:bg-yellow-600" : "bg-[#15A862] hover:bg-[#0E8A4F]"
                     )}
                   >
                     {isInternalMode ? <Edit2 className="w-5 h-5" /> : <Send className="w-5 h-5" />}
@@ -2009,10 +2052,14 @@ export default function Inbox() {
               {rightTab === 'info' && (
                 <div className="space-y-8">
                   <div className="text-center">
-                    <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400 mx-auto mb-4">
-                      <User className="w-10 h-10" />
+                    <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-[#D4EDDD] text-2xl font-semibold text-[#0A6E3F] ring-2 ring-[#FAFAF7] shadow-[0_0_0_3px_#E7E6DF] dark:bg-[#25D366]/15 dark:text-[#7DE2A8] dark:ring-slate-900 dark:shadow-[0_0_0_3px_rgba(51,65,85,1)]">
+                      {selectedConv.contact.avatar ? (
+                        <img src={selectedConv.contact.avatar} alt="" className="h-full w-full rounded-full object-cover" />
+                      ) : (
+                        getInitials(getConversationContactLabel(selectedConv.contact))
+                      )}
                     </div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                    <h3 className="font-serif text-2xl text-[#0F1A14] dark:text-white">
                       {getConversationContactLabel(selectedConv.contact)}
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">

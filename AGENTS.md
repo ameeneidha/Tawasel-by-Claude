@@ -43,6 +43,9 @@
 ## Dev Commands
 ```bash
 npm run dev          # Start dev server (frontend + backend on port 3000)
+npm run remotion:studio         # Preview Remotion compositions
+npm run remotion:render:intro   # Render Tawasel intro to out/tawasel-intro.mp4
+npm run remotion:still:intro    # Render a quick still frame for the intro
 npx prisma studio    # Browse database
 npx prisma db seed   # Reset and seed demo data
 npx prisma migrate dev --name <name>  # Create migration
@@ -54,6 +57,15 @@ npx vite build       # Production build
 - `TAWASEL_OPERATOR_GUIDE_EN.md` - English operator playbook for onboarding users.
 - `TAWASEL_OPERATOR_GUIDE_AR.md` - Arabic operator playbook for UAE/GCC users.
 
+## Recently Completed (May 6, 2026) - Inbox Design-System Refresh
+
+- Inbox now uses the new design-system direction from the design template: warm paper canvas, restrained borders, calmer row hover states, clearer unread/selected conversation treatment, and brand-green outbound message bubbles.
+- Conversation list now has an always-visible search field plus segmented All / Unread / Mine / Overdue filters; Unread filters to any conversation with `unreadCount > 0`.
+- Sidebar now uses an optimized `/tawasel-logo.png` asset generated from the design template logo instead of the old hardcoded green `T` square.
+- Added lightweight shared CSS utilities for the inbox paper surface and small card shadow in `src/index.css`.
+- The refresh uses existing Tailwind/Radix/Lucide primitives only; no new frontend dependency was added, keeping runtime performance and bundle weight stable aside from the small optimized logo asset and one display font.
+- Deploy requires `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
+
 ## Recently Completed (May 5, 2026) - Voice Note Transcription V1
 
 - WhatsApp audio messages now store transcription state on `Message`: `transcription`, `transcriptionLang`, `transcriptionStatus`, `transcriptionError`, and `transcribedAt`.
@@ -64,8 +76,6 @@ npx vite build       # Production build
 - Resolver calls now accept the full customer sentence/transcript so relative dates like `باكر` are resolved automatically even when the AI does not split the date into a separate field.
 - Voice transcription is now plan-limited monthly: Starter 60 minutes, Growth 300 minutes, Pro 1,500 minutes. Usage is recorded in `UsageLog` as `TRANSCRIPTION_SECOND`, and the homepage/pricing copy exposes voice minutes as a product feature.
 - Chatbots now have structured AI behavior settings, an about-business knowledge template, and a prompt builder that injects live services/staff/prices from the database as the source of truth.
-- AI booking now has a cost-controlled `resolve_booking_entities` tool that deterministically maps Arabic/English service, staff, date, and time phrases to exact IDs without a second AI request.
-- Landing-page sign-in now uses the same remember-me behavior as `/login`; AppContext reads one coherent auth storage source and clears both local/session storage on logout or invalid sessions.
 - Deploy requires `npx prisma db push`, `npx prisma generate`, `npx vite build`, then `pm2 restart ecosystem.config.cjs`.
 
 ## Demo Accounts (after seeding)
@@ -88,6 +98,21 @@ npx vite build       # Production build
 - RESEND_API_KEY, EMAIL_FROM (e.g., `Tawasel <noreply@tawasel.io>`)
 - INSTAGRAM_ACCESS_TOKEN
 
+## Recently Completed (April 29, 2026) - Remotion Intro Video
+
+- Added a no-card 30-day trial lifecycle: new workspaces start as `trialing` on Growth with `trialStartedAt` / `trialEndsAt`, expired trials lose access to sending/bookings/reminders/automation, and superadmin can start, extend, expire, or mark active from workspace controls.
+- Updated the public landing page to lead with the 30-day no-card trial, remove stale billing-unlock language and fake trust count, and use `VITE_SUPERADMIN_EMAIL` for browser-side superadmin redirects.
+- Public booking confirmation now supports the newer four-variable template order (`customer`, `business`, `date/time`, `staff`) while preserving the legacy five-variable Tawasel template order.
+
+- Added a 45-second Remotion intro composition for Tawasel at `remotion/TawaselIntro.tsx`.
+- Added `remotion/index.ts` and `remotion/Root.tsx` with the `TawaselIntro` composition under the Marketing folder.
+- Added scripts:
+  - `npm run remotion:studio`
+  - `npm run remotion:render:intro`
+  - `npm run remotion:still:intro`
+- Added Remotion dev dependencies: `remotion` and `@remotion/cli`.
+- Render output path: `out/tawasel-intro.mp4`.
+
 ## Recently Completed (May 2, 2026) - Public booking QA fixes
 
 - Landing pricing cards, plan descriptions/highlights, comparison group/row labels, Included/Not included chips, FAQ items, pricing trust signals, and Growth sidebar bullets now render in Arabic from the language toggle.
@@ -98,9 +123,6 @@ npx vite build       # Production build
 - Public booking `/book/:slug` customer name and WhatsApp number inputs now force visible text/background/caret styles so typed values are readable.
 - Business Settings now shows the stable public booking link with a Copy Link action and explains that changing the business name does not change the slug.
 - Public booking confirmation now reads the approved WhatsApp template body and sends only the variables that template actually uses, avoiding Meta `#132000` parameter-count failures with older approved confirmation templates.
-- Public booking confirmation now supports the newer four-variable template order (`customer`, `business`, `date/time`, `staff`) while preserving the legacy five-variable Tawasel template order.
-- Added a no-card 30-day trial lifecycle: new workspaces start as `trialing` on Growth with `trialStartedAt` / `trialEndsAt`, expired trials lose access to sending/bookings/reminders/automation, and superadmin can start, extend, expire, or mark active from workspace controls.
-- Updated the public landing page to lead with the 30-day no-card trial, remove stale billing-unlock language and fake trust count, and use `VITE_SUPERADMIN_EMAIL` for browser-side superadmin redirects.
 
 ## Recently Completed (April 28, 2026) - Instagram Phase 5 Audit
 
