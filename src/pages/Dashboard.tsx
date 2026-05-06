@@ -8,7 +8,6 @@ import {
   Bot,
   CheckCircle2,
   Clock3,
-  Gauge,
   Hash,
   Loader2,
   MessageSquare,
@@ -19,7 +18,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useApp } from '../contexts/AppContext';
-import { cn } from '../lib/utils';
+import { cn, getDisplayName } from '../lib/utils';
 import { SkeletonCard, SkeletonChartCard } from '../components/ui/Skeleton';
 
 type DashboardRange = 'today' | '7d' | '30d' | 'custom';
@@ -224,8 +223,8 @@ const getLocalizedAlert = (alert: DashboardSummary['alerts'][number], t: TFuncti
 };
 
 export default function Dashboard() {
-  const { activeWorkspace } = useApp();
-  const { t } = useTranslation();
+  const { activeWorkspace, user } = useApp();
+  const { t, i18n } = useTranslation();
   const RANGE_OPTIONS = getRangeOptions(t);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -284,7 +283,7 @@ export default function Dashboard() {
 
   if (!activeWorkspace) {
     return (
-      <div className="h-full flex items-center justify-center bg-[#F8F9FA] dark:bg-slate-950 text-gray-500 dark:text-gray-400">
+      <div className="h-full flex items-center justify-center bg-[#FAFAF7] dark:bg-slate-950 text-gray-500 dark:text-gray-400">
         {t('dashboard.selectWorkspace')}
       </div>
     );
@@ -292,7 +291,7 @@ export default function Dashboard() {
 
   if (isLoading || !summary) {
     return (
-      <div className="h-full overflow-y-auto bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
+      <div className="h-full overflow-y-auto bg-[#FAFAF7] dark:bg-slate-950 transition-colors">
         <div className="max-w-[1600px] mx-auto p-4 md:p-8">
           <div className="flex flex-col gap-6">
             {/* Header skeleton */}
@@ -330,75 +329,118 @@ export default function Dashboard() {
     { label: t('dashboard.unreadMessages'), value: summary.overview.unreadMessages, icon: MessageSquare, tone: 'amber', helper: t('dashboard.helperUnreadMessages') },
     { label: t('dashboard.botHandled'), value: formatPercent(summary.overview.botHandledRate), icon: Bot, tone: 'teal', helper: t('dashboard.helperBotHandled') },
   ];
+  const greetingName = getDisplayName(user?.name, user?.email).split(' ')[0] || activeWorkspace.name;
+  const generatedAt = new Date(summary.meta.generatedAt || Date.now());
+  const dateLabel = new Intl.DateTimeFormat(i18n.language === 'ar' ? 'ar-AE' : 'en-AE', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(generatedAt);
 
   return (
-    <div className="h-full overflow-y-auto bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
-      <div className="max-w-[1600px] mx-auto p-4 md:p-8">
-        <div className="flex flex-col gap-4 md:gap-6">
-          <div className="relative z-20 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="h-full overflow-y-auto bg-[#FAFAF7] text-[#0F1A14] transition-colors dark:bg-slate-950 dark:text-slate-50">
+      <div className="max-w-[1400px] mx-auto p-4 md:p-8">
+        <div className="flex flex-col gap-6">
+          <section className="relative z-20 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="flex items-center gap-2 text-[#25D366] mb-1">
-                <Gauge className="w-5 h-5" />
-                <span className="text-xs font-bold uppercase tracking-[0.2em]">{t('dashboard.businessDashboard')}</span>
+              <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#0E8A4F]">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#15A862]" />
+                <span>{dateLabel}</span>
               </div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white md:text-3xl">{t('dashboard.performanceCenter')}</h1>
-              <p className="text-gray-500 dark:text-gray-400 mt-1">
-                {t('dashboard.performanceSubtitle', { name: activeWorkspace.name })}
+              <h1 className="font-serif text-5xl leading-[1.05] text-[#0F1A14] dark:text-white md:text-6xl">
+                {t('dashboard.greeting', { name: greetingName })}
+              </h1>
+              <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-[#5A6A60] dark:text-gray-400">
+                {t('dashboard.heroPrefix')} <span className="font-semibold text-[#0F1A14] dark:text-white">{t('dashboard.heroOpenChats', { count: summary.overview.openChats })}</span>, <span className="font-semibold text-[#0F1A14] dark:text-white">{t('dashboard.heroUnreadMessages', { count: summary.overview.unreadMessages })}</span>, {t('dashboard.heroAnd')} <span className="font-semibold text-[#0F1A14] dark:text-white">{t('dashboard.heroNewLeads', { count: summary.overview.newLeads })}</span> {t('dashboard.heroInWorkspace', { name: activeWorkspace.name })}
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => fetchDashboard('refresh')}
-              disabled={isRefreshing}
-              aria-label="Refresh dashboard metrics"
-              className="relative z-20 inline-flex w-full shrink-0 cursor-pointer pointer-events-auto items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-[#25D366]/40 disabled:cursor-wait disabled:opacity-70 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-200 sm:w-auto sm:py-2.5"
-            >
-              <RefreshCw className={cn('w-4 h-4', isRefreshing && 'animate-spin')} />
-              {isRefreshing ? t('dashboard.refreshing') : t('dashboard.refresh')}
-            </button>
-          </div>
-
-          <SectionCard className="p-4 md:p-5">
-            <div className="flex flex-col xl:flex-row gap-4 xl:items-end">
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#F1F1EC] p-1 text-sm dark:bg-slate-800 sm:flex">
                 {RANGE_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => setFilters((prev) => ({ ...prev, range: option.value }))}
                     className={cn(
-                      'px-3 py-2 rounded-xl text-sm font-semibold transition-colors sm:px-4',
+                      'rounded-lg px-3 py-1.5 font-medium transition-colors',
                       filters.range === option.value
-                        ? 'bg-[#25D366] text-white shadow-sm'
-                        : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+                        ? 'bg-[#0F1A14] text-[#FAFAF7] shadow-sm dark:bg-white dark:text-slate-950'
+                        : 'text-[#5A6A60] hover:bg-white dark:text-gray-300 dark:hover:bg-slate-700'
                     )}
                   >
                     {option.label}
                   </button>
                 ))}
               </div>
+              <button
+                type="button"
+                onClick={() => fetchDashboard('refresh')}
+                disabled={isRefreshing}
+                aria-label="Refresh dashboard metrics"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-[#E7E6DF] bg-white px-3 text-sm font-semibold text-[#293A30] tawasel-card-shadow transition-colors hover:border-[#A6B0AA] disabled:cursor-wait disabled:opacity-70 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-200"
+              >
+                <RefreshCw className={cn('w-4 h-4', isRefreshing && 'animate-spin')} />
+                {isRefreshing ? t('dashboard.refreshing') : t('dashboard.refresh')}
+              </button>
+            </div>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-3">
+            <HeroMetricCard
+              tone="rose"
+              eyebrow={t('dashboard.needsYouNow')}
+              value={summary.overview.overdueChats}
+              suffix={t('dashboard.overdueChats').toLowerCase()}
+              helper={summary.overview.overdueChats > 0 ? t('dashboard.helperOverdueChats') : t('dashboard.alertsEmpty')}
+              href="/app/inbox"
+              linkLabel={t('dashboard.openInbox')}
+            />
+            <HeroMetricCard
+              tone="leaf"
+              eyebrow={t('dashboard.pipelineThisWeek')}
+              value={formatCurrency(summary.overview.pipelineValue)}
+              helper={t('dashboard.activeDealsWinRate', {
+                count: summary.pipeline.stages.reduce((sum, stage) => sum + stage.count, 0),
+                rate: formatPercent(summary.pipeline.winRate),
+              })}
+              sparkline
+            />
+            <HeroMetricCard
+              tone="sky"
+              eyebrow={t('dashboard.avgFirstReply')}
+              value={Number(summary.overview.avgFirstReplyMinutes || 0).toFixed(1)}
+              suffix={t('dashboard.minutes')}
+              helper={t('dashboard.helperAvgFirstReply')}
+              progress={Math.max(0, Math.min(100, 100 - summary.overview.avgFirstReplyMinutes * 4))}
+            />
+          </section>
+
+          <SectionCard className="p-4 md:p-5">
+            <div className="flex flex-col xl:flex-row gap-4 xl:items-end">
 
               {filters.range === 'custom' && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <input type="date" value={filters.from} onChange={(event) => setFilters((prev) => ({ ...prev, from: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white" />
-                  <input type="date" value={filters.to} onChange={(event) => setFilters((prev) => ({ ...prev, to: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white" />
+                  <input type="date" value={filters.from} onChange={(event) => setFilters((prev) => ({ ...prev, from: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-[#E7E6DF] dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-[#0F1A14] dark:text-white" />
+                  <input type="date" value={filters.to} onChange={(event) => setFilters((prev) => ({ ...prev, to: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-[#E7E6DF] dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-[#0F1A14] dark:text-white" />
                 </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 flex-1">
-                <select value={filters.agentId} onChange={(event) => setFilters((prev) => ({ ...prev, agentId: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
+                <select value={filters.agentId} onChange={(event) => setFilters((prev) => ({ ...prev, agentId: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-full border border-[#E7E6DF] dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-[#293A30] dark:text-white">
                   <option value="">{t('dashboard.allAgents')}</option>
                   {summary.meta.availableFilters.agents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}
                 </select>
-                <select value={filters.channelType} onChange={(event) => setFilters((prev) => ({ ...prev, channelType: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
+                <select value={filters.channelType} onChange={(event) => setFilters((prev) => ({ ...prev, channelType: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-full border border-[#E7E6DF] dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-[#293A30] dark:text-white">
                   <option value="">{t('dashboard.allChannels')}</option>
                   <option value="WHATSAPP">{t('dashboard.whatsapp')}</option>
                 </select>
-                <select value={filters.leadSource} onChange={(event) => setFilters((prev) => ({ ...prev, leadSource: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
+                <select value={filters.leadSource} onChange={(event) => setFilters((prev) => ({ ...prev, leadSource: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-full border border-[#E7E6DF] dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-[#293A30] dark:text-white">
                   <option value="">{t('dashboard.allLeadSources')}</option>
                   {summary.meta.availableFilters.leadSources.map((source) => <option key={source} value={source}>{source}</option>)}
                 </select>
-                <select value={filters.priority} onChange={(event) => setFilters((prev) => ({ ...prev, priority: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white">
+                <select value={filters.priority} onChange={(event) => setFilters((prev) => ({ ...prev, priority: event.target.value }))} className="min-w-0 px-4 py-3 sm:py-2.5 rounded-full border border-[#E7E6DF] dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-[#293A30] dark:text-white">
                   <option value="">{t('dashboard.allPriorities')}</option>
                   <option value="LOW">{t('dashboard.priorityLow')}</option>
                   <option value="MEDIUM">{t('dashboard.priorityMedium')}</option>
@@ -411,8 +453,8 @@ export default function Dashboard() {
 
           <div className="grid xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
             <div className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-2 2xl:grid-cols-4 gap-3 md:gap-4">
-                {topMetrics.map((metric) => (
+              <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-5 gap-3 md:gap-4">
+                {topMetrics.filter((metric) => ![t('dashboard.overdueChats'), t('dashboard.avgFirstReply'), t('dashboard.pipelineValue')].includes(metric.label)).map((metric) => (
                   <MetricCard
                     key={metric.label}
                     label={metric.label}
@@ -763,9 +805,9 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon: Icon, tone,
     <SectionCard className="p-3.5 sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 sm:text-sm">{label}</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white sm:mt-3 sm:text-3xl">{value}</p>
-          <p className="mt-2 hidden text-xs text-gray-500 dark:text-gray-400 sm:block">{helper}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7E8C84] dark:text-gray-400">{label}</p>
+          <p className="mt-2 text-2xl font-semibold text-[#0F1A14] dark:text-white sm:mt-3 sm:text-3xl">{value}</p>
+          <p className="mt-2 hidden text-xs text-[#5A6A60] dark:text-gray-400 sm:block">{helper}</p>
         </div>
         <div className={cn('rounded-xl p-2 sm:rounded-2xl sm:p-3', toneClasses[tone])}>
           <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -775,28 +817,107 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon: Icon, tone,
   );
 };
 
+function HeroMetricCard({
+  eyebrow,
+  value,
+  suffix,
+  helper,
+  tone,
+  href,
+  linkLabel,
+  sparkline = false,
+  progress,
+}: {
+  eyebrow: string;
+  value: React.ReactNode;
+  suffix?: string;
+  helper: string;
+  tone: 'leaf' | 'rose' | 'sky';
+  href?: string;
+  linkLabel?: string;
+  sparkline?: boolean;
+  progress?: number;
+}) {
+  const toneMap = {
+    leaf: {
+      dot: 'bg-[#15A862]',
+      text: 'text-[#0E8A4F]',
+      wash: 'bg-[#EAF6EE]',
+      path: 'text-[#15A862]',
+      bar: 'bg-[#15A862]',
+    },
+    rose: {
+      dot: 'bg-[#C8553D]',
+      text: 'text-[#C8553D]',
+      wash: 'bg-[#C8553D]/10',
+      path: 'text-[#C8553D]',
+      bar: 'bg-[#C8553D]',
+    },
+    sky: {
+      dot: 'bg-[#3F7AB8]',
+      text: 'text-[#3F7AB8]',
+      wash: 'bg-[#3F7AB8]/10',
+      path: 'text-[#3F7AB8]',
+      bar: 'bg-[#3F7AB8]',
+    },
+  }[tone];
+
+  return (
+    <article className="relative overflow-hidden rounded-2xl border border-[#E7E6DF] bg-white p-5 tawasel-card-shadow dark:border-slate-800 dark:bg-slate-900">
+      <div className={cn('absolute -right-8 -top-8 h-32 w-32 rounded-full', toneMap.wash)} />
+      <div className="relative">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#5A6A60] dark:text-gray-400">
+          <span className={cn('h-2 w-2 rounded-full', toneMap.dot)} />
+          {eyebrow}
+        </div>
+        <div className="mt-3 flex flex-wrap items-baseline gap-2">
+          <span className="font-serif text-5xl leading-none text-[#0F1A14] dark:text-white">{value}</span>
+          {suffix && <span className="text-sm text-[#5A6A60] dark:text-gray-400">{suffix}</span>}
+        </div>
+        <p className="mt-2 text-sm leading-relaxed text-[#5A6A60] dark:text-gray-400">{helper}</p>
+        {href && linkLabel && (
+          <Link to={href} className={cn('mt-4 inline-flex items-center gap-1 text-sm font-semibold hover:underline', toneMap.text)}>
+            {linkLabel}
+            <span aria-hidden="true">→</span>
+          </Link>
+        )}
+        {sparkline && (
+          <svg className={cn('mt-3 h-9 w-full', toneMap.path)} viewBox="0 0 200 34" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0,26 L20,22 L40,24 L60,18 L80,20 L100,14 L120,16 L140,10 L160,12 L180,6 L200,4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+        {typeof progress === 'number' && (
+          <div className="relative mt-4 h-1.5 overflow-hidden rounded-full bg-[#F1F1EC] dark:bg-slate-800">
+            <div className={cn('h-full rounded-full', toneMap.bar)} style={{ width: `${Math.max(4, Math.min(100, progress))}%` }} />
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
 function SectionCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn('rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-4 md:p-6 transition-colors', className)}>{children}</div>;
+  return <div className={cn('rounded-2xl border border-[#E7E6DF] dark:border-slate-800 bg-white dark:bg-slate-900 tawasel-card-shadow p-4 md:p-6 transition-colors', className)}>{children}</div>;
 }
 
 function SectionHeader({ title, description }: { title: string; description: string }) {
   return (
     <div className="mb-4 md:mb-5">
-      <h2 className="text-base font-semibold text-gray-900 dark:text-white md:text-lg">{title}</h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{description}</p>
+      <h2 className="text-base font-semibold text-[#0F1A14] dark:text-white md:text-lg">{title}</h2>
+      <p className="text-sm text-[#5A6A60] dark:text-gray-400 mt-1">{description}</p>
     </div>
   );
 }
 
 function StatTile({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon?: React.ComponentType<{ className?: string }> }) {
   return (
-    <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-gray-50/80 dark:bg-slate-950/50 p-4">
+    <div className="rounded-2xl border border-[#E7E6DF] dark:border-slate-800 bg-[#FAFAF7] dark:bg-slate-950/50 p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{label}</p>
-          <p className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">{value}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#7E8C84] dark:text-gray-500">{label}</p>
+          <p className="mt-2 text-xl font-semibold text-[#0F1A14] dark:text-white">{value}</p>
         </div>
-        {Icon ? <div className="rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-2 text-[#25D366]"><Icon className="w-4 h-4" /></div> : null}
+        {Icon ? <div className="rounded-xl bg-white dark:bg-slate-900 border border-[#E7E6DF] dark:border-slate-800 p-2 text-[#0E8A4F]"><Icon className="w-4 h-4" /></div> : null}
       </div>
     </div>
   );
@@ -804,9 +925,9 @@ function StatTile({ label, value, icon: Icon }: { label: string; value: React.Re
 
 function StatPill({ label, value, tone = 'neutral' }: { label: string; value: React.ReactNode; tone?: 'neutral' | 'warning' }) {
   return (
-    <div className={cn('rounded-2xl px-4 py-3 border', tone === 'warning' ? 'border-amber-200 bg-amber-50/80 dark:border-amber-900/30 dark:bg-amber-950/20' : 'border-gray-200 bg-gray-50/80 dark:border-slate-800 dark:bg-slate-950/30')}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{label}</p>
-      <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{value}</p>
+    <div className={cn('rounded-2xl px-4 py-3 border', tone === 'warning' ? 'border-amber-200 bg-amber-50/80 dark:border-amber-900/30 dark:bg-amber-950/20' : 'border-[#E7E6DF] bg-[#FAFAF7] dark:border-slate-800 dark:bg-slate-950/30')}>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#7E8C84] dark:text-gray-500">{label}</p>
+      <p className="mt-2 text-lg font-semibold text-[#0F1A14] dark:text-white">{value}</p>
     </div>
   );
 }
