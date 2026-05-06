@@ -4,9 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '../contexts/AppContext';
 import { 
   Loader2, 
-  User, 
   Phone, 
-  MoreVertical, 
   Plus,
   Search,
   Filter,
@@ -22,6 +20,7 @@ import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import ContactListPicker from '../components/ContactListPicker';
+import TawaselLoader from '../components/TawaselLoader';
 import {
   DEFAULT_PIPELINE_STAGE_KEY,
   getFallbackPipelineStageKey,
@@ -50,6 +49,21 @@ const formatAed = (value?: number | null) =>
     currency: 'AED',
     maximumFractionDigits: 0,
   }).format(value ?? 0);
+
+const getLeadInitials = (contact: Contact) => {
+  const source = contact.name?.trim() || contact.phoneNumber || '?';
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return source.slice(0, 2).toUpperCase();
+};
+
+const leadToneClasses = [
+  'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300',
+  'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+  'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
+  'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300',
+];
 
 export default function CRM() {
   const { t } = useTranslation();
@@ -257,6 +271,44 @@ export default function CRM() {
     });
   }, [chatFilter, contacts, pipelineStages, searchQuery, valueFilter]);
 
+  const stageSummaries = useMemo(
+    () =>
+      pipelineStages.map((stage) => {
+        const stageContacts = filteredContacts.filter((contact) => contact.pipelineStage === stage.key);
+        const value = stageContacts.reduce((sum, contact) => sum + Number(contact.estimatedValue || 0), 0);
+
+        return {
+          ...stage,
+          contacts: stageContacts,
+          value,
+        };
+      }),
+    [filteredContacts, pipelineStages]
+  );
+
+  const pipelineSummary = useMemo(() => {
+    const getStage = (contact: Contact) =>
+      pipelineStages.find((stage) => stage.key === contact.pipelineStage);
+    const activeDeals = filteredContacts.filter((contact) => {
+      const stage = getStage(contact);
+      return !stage?.isTerminal || stage.terminalType === 'OPEN';
+    });
+    const wonDeals = filteredContacts.filter((contact) => getStage(contact)?.terminalType === 'WON');
+    const totalValue = activeDeals.reduce((sum, contact) => sum + Number(contact.estimatedValue || 0), 0);
+    const wonValue = wonDeals.reduce((sum, contact) => sum + Number(contact.estimatedValue || 0), 0);
+    const missingValue = filteredContacts.filter((contact) => Number(contact.estimatedValue || 0) <= 0).length;
+    const activeChatCount = filteredContacts.filter((contact) => contact.conversations?.[0]).length;
+
+    return {
+      activeDeals: activeDeals.length,
+      totalValue,
+      wonValue,
+      missingValue,
+      activeChatCount,
+      averageDealValue: activeDeals.length > 0 ? totalValue / activeDeals.length : 0,
+    };
+  }, [filteredContacts, pipelineStages]);
+
   const hasActiveFilters =
     searchQuery.trim().length > 0 || chatFilter !== 'ALL' || valueFilter !== 'ALL';
   const activeMobileStage = pipelineStages.find((stage) => stage.key === activeMobileStageKey) || pipelineStages[0];
@@ -267,142 +319,170 @@ export default function CRM() {
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-[#25D366] animate-spin" />
+        <TawaselLoader variant="pulse" label={t('common.loading', { defaultValue: 'Loading CRM...' })} />
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#F8F9FA] dark:bg-slate-950 transition-colors">
-      <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 py-3 md:px-8 md:h-16 md:py-0 flex flex-col gap-3 md:flex-row md:items-center md:justify-between shrink-0 transition-colors">
-        <div className="flex items-center justify-between gap-4 md:justify-start">
-          <h1 className="text-lg font-bold text-gray-900 dark:text-white">{t('crm.title')}</h1>
-          <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 dark:bg-slate-800 rounded-full border border-gray-200 dark:border-slate-700">
-            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-              {hasActiveFilters ? t('crm.matchingLeads') : t('crm.totalLeads')}
-            </span>
-            <span className="text-xs font-bold text-[#25D366]">{filteredContacts.length}</span>
-          </div>
-        </div>
-        <div className="grid grid-cols-[1fr_auto_auto] gap-2 md:flex md:items-center md:gap-3">
-          <div className="relative min-w-0">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder={t('crm.searchLeads')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 md:py-2 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-[#25D366]/20 dark:focus:ring-[#25D366]/10 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-600 transition-all md:w-64"
-            />
-          </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowFilters((prev) => !prev)}
-              className={cn(
-                'p-2 rounded-xl border transition-colors',
-                hasActiveFilters
-                  ? 'border-[#25D366]/30 bg-[#25D366]/10 text-[#128C7E] dark:text-[#4ADE80]'
-                  : 'text-gray-400 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
+    <div className="h-full flex flex-col overflow-hidden bg-[#F7F5EF] text-slate-950 transition-colors dark:bg-slate-950 dark:text-white">
+      <div className="shrink-0 border-b border-slate-200/70 bg-[#F7F5EF]/95 px-4 py-5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 md:px-8 md:py-7">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700 dark:text-emerald-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#25D366]" />
+              <span>
+                {pipelineSummary.activeDeals} {t('crm.activeDeals', { defaultValue: 'active deals' })}
+              </span>
+              <span className="text-slate-300 dark:text-slate-700">/</span>
+              <span>{formatAed(pipelineSummary.totalValue)} {t('crm.inFlight', { defaultValue: 'in flight' })}</span>
+              {hasActiveFilters && (
+                <>
+                  <span className="text-slate-300 dark:text-slate-700">/</span>
+                  <span>{filteredContacts.length} {t('crm.matchingLeads', { defaultValue: 'matching leads' })}</span>
+                </>
               )}
-            >
-              <Filter className="w-4 h-4" />
-            </button>
-            {showFilters && (
-              <div className="absolute right-0 top-12 z-10 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-gray-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-                <div className="mb-4">
-                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                    {t('crm.conversation')}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {[
-                      { id: 'ALL', label: t('crm.allChats') },
-                      { id: 'ACTIVE', label: t('crm.activeChat') },
-                      { id: 'NO_CHAT', label: t('crm.noChat') },
-                    ].map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setChatFilter(option.id as typeof chatFilter)}
-                        className={cn(
-                          'rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
-                          chatFilter === option.id
-                            ? 'bg-[#25D366] text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-800 dark:text-gray-300'
-                        )}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="mb-4">
-                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                    {t('crm.dealValue')}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {[
-                      { id: 'ALL', label: t('crm.allValues') },
-                      { id: 'WITH_VALUE', label: t('crm.withValue') },
-                      { id: 'NO_VALUE', label: t('crm.noValue') },
-                    ].map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setValueFilter(option.id as typeof valueFilter)}
-                        className={cn(
-                          'rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
-                          valueFilter === option.id
-                            ? 'bg-[#25D366] text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-800 dark:text-gray-300'
-                        )}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setChatFilter('ALL');
-                      setValueFilter('ALL');
-                    }}
-                    className="text-sm font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  >
-                    {t('crm.clearFilters')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowFilters(false)}
-                    className="rounded-xl bg-[#25D366] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#128C7E]"
-                  >
-                    {t('crm.apply')}
-                  </button>
-                </div>
-              </div>
-            )}
+            </div>
+            <h1 className="font-serif text-4xl leading-none tracking-tight text-slate-950 dark:text-white md:text-5xl">
+              {t('crm.pipelineTitle', { defaultValue: 'Pipeline.' })}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+              {t('crm.pipelineSubtitle', {
+                defaultValue:
+                  'Keep every WhatsApp lead moving with clear stages, live deal value, and quick follow-up ownership.',
+              })}
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowManageStages(true)}
-            className="hidden md:flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-200 text-sm font-bold rounded-xl hover:border-[#25D366] hover:text-[#25D366] transition-colors bg-white dark:bg-slate-900"
-          >
-            <Settings2 className="w-4 h-4" />
-            {t('crm.manageStages')}
-          </button>
-          <button
-            onClick={() => {
-              fetchLists();
-              setShowAddLead(true);
-            }}
-            className="flex items-center justify-center gap-2 px-3 py-2.5 md:px-4 md:py-2 bg-[#25D366] text-white text-sm font-bold rounded-xl hover:bg-[#128C7E] transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">{t('crm.addLead')}</span>
-          </button>
+
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="relative min-w-0 lg:w-72">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder={t('crm.searchLeads')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-white/80 pl-10 pr-4 text-sm font-medium text-slate-900 outline-none transition focus:border-[#25D366] focus:ring-4 focus:ring-[#25D366]/10 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="hidden rounded-2xl bg-white/70 p-1 text-sm font-semibold text-slate-500 shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-900 dark:ring-slate-800 md:flex">
+                <button type="button" className="rounded-xl bg-slate-950 px-3 py-2 text-white shadow-sm dark:bg-white dark:text-slate-950">
+                  {t('crm.board', { defaultValue: 'Board' })}
+                </button>
+                <button type="button" onClick={() => setShowManageStages(true)} className="rounded-xl px-3 py-2 transition hover:text-slate-900 dark:hover:text-white">
+                  {t('crm.stages', { defaultValue: 'Stages' })}
+                </button>
+              </div>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowFilters((prev) => !prev)}
+                  className={cn(
+                    'inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors',
+                    hasActiveFilters
+                      ? 'border-[#25D366]/40 bg-[#25D366]/10 text-[#128C7E] dark:text-[#4ADE80]'
+                      : 'border-slate-200 bg-white/80 text-slate-500 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-white'
+                  )}
+                >
+                  <Filter className="h-4 w-4" />
+                </button>
+                {showFilters && (
+                  <div className="absolute right-0 top-14 z-10 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                    <div className="mb-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                        {t('crm.conversation')}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {[
+                          { id: 'ALL', label: t('crm.allChats') },
+                          { id: 'ACTIVE', label: t('crm.activeChat') },
+                          { id: 'NO_CHAT', label: t('crm.noChat') },
+                        ].map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setChatFilter(option.id as typeof chatFilter)}
+                            className={cn(
+                              'rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
+                              chatFilter === option.id
+                                ? 'bg-[#25D366] text-white'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="mb-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                        {t('crm.dealValue')}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {[
+                          { id: 'ALL', label: t('crm.allValues') },
+                          { id: 'WITH_VALUE', label: t('crm.withValue') },
+                          { id: 'NO_VALUE', label: t('crm.noValue') },
+                        ].map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setValueFilter(option.id as typeof valueFilter)}
+                            className={cn(
+                              'rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
+                              valueFilter === option.id
+                                ? 'bg-[#25D366] text-white'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery('');
+                          setChatFilter('ALL');
+                          setValueFilter('ALL');
+                        }}
+                        className="text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                      >
+                        {t('crm.clearFilters')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowFilters(false)}
+                        className="rounded-xl bg-[#25D366] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#128C7E]"
+                      >
+                        {t('crm.apply')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowManageStages(true)}
+                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm font-bold text-slate-700 transition hover:border-[#25D366] hover:text-[#128C7E] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 md:hidden"
+              >
+                <Settings2 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => {
+                  fetchLists();
+                  setShowAddLead(true);
+                }}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-black dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+              >
+                <Plus className="h-4 w-4" />
+                <span>{t('crm.addLead')}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -478,8 +558,35 @@ export default function CRM() {
       )}
 
       <div className="flex-1 overflow-y-auto p-4 md:hidden">
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          {[
+            {
+              label: t('crm.pipelineValue', { defaultValue: 'Pipeline value' }),
+              value: formatAed(pipelineSummary.totalValue),
+            },
+            {
+              label: t('crm.activeChats', { defaultValue: 'Active chats' }),
+              value: String(pipelineSummary.activeChatCount),
+            },
+            {
+              label: t('crm.avgDealSize', { defaultValue: 'Avg deal size' }),
+              value: formatAed(pipelineSummary.averageDealValue),
+            },
+            {
+              label: t('crm.needsValue', { defaultValue: 'Needs value' }),
+              value: String(pipelineSummary.missingValue),
+            },
+          ].map((item) => (
+            <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                {item.label}
+              </p>
+              <p className="mt-2 text-lg font-black text-slate-950 dark:text-white">{item.value}</p>
+            </div>
+          ))}
+        </div>
         <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-          {pipelineStages.map((stage) => (
+          {stageSummaries.map((stage) => (
             <button
               key={stage.id}
               type="button"
@@ -494,7 +601,7 @@ export default function CRM() {
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: stage.color }} />
               {stage.name}
               <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500 dark:bg-slate-800 dark:text-gray-400">
-                {filteredContacts.filter((contact) => contact.pipelineStage === stage.key).length}
+                {stage.contacts.length}
               </span>
             </button>
           ))}
@@ -519,14 +626,19 @@ export default function CRM() {
         )}
 
         <div className="space-y-3">
-          {mobileStageContacts.map((contact) => (
+          {mobileStageContacts.map((contact, contactIndex) => (
             <div key={contact.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="truncate font-bold text-gray-900 dark:text-white">{contact.name || t('crm.unknown')}</h3>
-                  <div className="mt-1 flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
-                    <Phone className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{contact.phoneNumber}</span>
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-xs font-black', leadToneClasses[contactIndex % leadToneClasses.length])}>
+                    {getLeadInitials(contact)}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="truncate font-bold text-gray-900 dark:text-white">{contact.name || t('crm.unknown')}</h3>
+                    <div className="mt-1 flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+                      <Phone className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{contact.phoneNumber}</span>
+                    </div>
                   </div>
                 </div>
                 <span className="shrink-0 rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase text-gray-500 dark:bg-slate-800 dark:text-gray-400">
@@ -611,160 +723,204 @@ export default function CRM() {
         </div>
       </div>
 
-      <div className="hidden flex-1 overflow-x-auto p-8 md:block">
-        <div className="flex gap-6 h-full min-w-max">
-          {pipelineStages.map((stage) => (
-            <div key={stage.id} className="w-72 flex flex-col gap-4">
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
-                  <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">{stage.name}</h3>
-                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded transition-colors">
-                    {filteredContacts.filter(c => c.pipelineStage === stage.key).length}
-                  </span>
-                </div>
-                <button className="text-gray-300 hover:text-gray-500">
-                  <MoreVertical className="w-4 h-4" />
-                </button>
-              </div>
+      <div className="hidden flex-1 overflow-y-auto p-8 md:block">
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            {
+              label: t('crm.pipelineValue', { defaultValue: 'Pipeline value' }),
+              value: formatAed(pipelineSummary.totalValue),
+              helper: `${pipelineSummary.activeDeals} ${t('crm.activeDeals', { defaultValue: 'active deals' })}`,
+            },
+            {
+              label: t('crm.avgDealSize', { defaultValue: 'Avg deal size' }),
+              value: formatAed(pipelineSummary.averageDealValue),
+              helper: t('crm.activePipelineAverage', { defaultValue: 'Open pipeline average' }),
+            },
+            {
+              label: t('crm.needsValue', { defaultValue: 'Needs value' }),
+              value: String(pipelineSummary.missingValue),
+              helper: t('crm.addValueToForecast', { defaultValue: 'Add value to improve forecast' }),
+            },
+            {
+              label: t('crm.wonValue', { defaultValue: 'Won value' }),
+              value: formatAed(pipelineSummary.wonValue),
+              helper: t('crm.closedWonDeals', { defaultValue: 'Closed won in this view' }),
+            },
+          ].map((item) => (
+            <div key={item.label} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                {item.label}
+              </p>
+              <p className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white">{item.value}</p>
+              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{item.helper}</p>
+            </div>
+          ))}
+        </div>
 
-              <div className="flex-1 bg-gray-100/50 dark:bg-slate-900/50 rounded-2xl p-3 space-y-3 overflow-y-auto border border-dashed border-gray-200 dark:border-slate-800 transition-colors">
-                {filteredContacts
-                  .filter(c => c.pipelineStage === stage.key)
-                  .map((contact) => (
+        <div className="mt-6 overflow-x-auto pb-2">
+          <div className="grid min-h-[580px] min-w-max grid-flow-col auto-cols-[18rem] gap-4">
+            {stageSummaries.map((stage) => (
+              <div key={stage.id} className="flex min-h-0 flex-col rounded-3xl border border-slate-200 bg-white/45 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/45">
+                <div className="border-b border-slate-200 px-2 pb-3 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: stage.color }} />
+                      <h3 className="truncate text-sm font-black text-slate-950 dark:text-white">{stage.name}</h3>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-black text-slate-500 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-400 dark:ring-slate-800">
+                        {stage.contacts.length}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-2 px-0.5 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                    {formatAed(stage.value)}
+                  </p>
+                </div>
+
+                <div className="mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
+                  {stage.contacts.map((contact, contactIndex) => (
                     <motion.div
                       layoutId={contact.id}
                       key={contact.id}
-                      className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 group hover:border-[#25D366]/30 transition-all cursor-pointer"
+                      className="group rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-[#25D366]/50 hover:shadow-md dark:border-slate-800 dark:bg-slate-950"
                     >
                       {(() => {
-                        const stageIndex = pipelineStages.findIndex(s => s.key === stage.key);
+                        const stageIndex = pipelineStages.findIndex((item) => item.key === stage.key);
                         const previousStage = stageIndex > 0 ? pipelineStages[stageIndex - 1] : null;
                         const nextStage = stageIndex < pipelineStages.length - 1 ? pipelineStages[stageIndex + 1] : null;
 
                         return (
                           <>
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="w-8 h-8 bg-gray-50 dark:bg-slate-700 rounded-full flex items-center justify-center text-gray-400">
-                          <User className="w-4 h-4" />
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {previousStage && (
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                updateStage(contact.id, previousStage.key);
-                              }}
-                              className="p-1 hover:bg-gray-50 dark:hover:bg-slate-700 rounded text-gray-300 hover:text-[#25D366] transition-colors"
-                              title={t('crm.moveTo', { stage: previousStage.name })}
-                            >
-                              <ArrowLeft className="w-3 h-3" />
-                            </button>
-                          )}
-                          {nextStage && (
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                updateStage(contact.id, nextStage.key);
-                              }}
-                              className="p-1 hover:bg-gray-50 dark:hover:bg-slate-700 rounded text-gray-300 hover:text-[#25D366] transition-colors"
-                              title={t('crm.moveTo', { stage: nextStage.name })}
-                            >
-                              <ArrowRight className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">{contact.name || t('crm.unknown')}</h4>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mb-3">
-                        <Phone className="w-3 h-3" />
-                        {contact.phoneNumber}
-                      </div>
-                      <div className="mb-3 rounded-2xl border border-gray-200 bg-gray-50/80 p-2.5 dark:border-slate-700 dark:bg-slate-900/70">
-                        <div className="mb-1 flex items-center justify-between">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                            {t('crm.dealValue')}
-                          </span>
-                          {(contact.estimatedValue ?? 0) > 0 && (
-                            <span className="text-[10px] font-bold text-[#128C7E] dark:text-[#4ADE80]">
-                              {formatAed(contact.estimatedValue)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={valueDrafts[contact.id] ?? ''}
-                            onChange={(e) =>
-                              setValueDrafts((prev) => ({ ...prev, [contact.id]: e.target.value }))
-                            }
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                void saveEstimatedValue(contact.id);
-                              }
-                            }}
-                            placeholder="0"
-                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-                          />
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void saveEstimatedValue(contact.id);
-                            }}
-                            disabled={savingValueId === contact.id}
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white transition-colors hover:bg-[#128C7E] disabled:opacity-60"
-                            title={t('crm.saveDealValue')}
-                          >
-                            {savingValueId === contact.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Check className="h-4 w-4" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="pt-3 border-t border-gray-50 dark:border-slate-700 flex items-center justify-between">
-                        <div className="flex -space-x-1">
-                          <div className="w-5 h-5 rounded-full bg-gray-100 dark:bg-slate-700 border border-white dark:border-slate-800 flex items-center justify-center text-[8px] font-bold text-gray-400">
-                            AI
-                          </div>
-                        </div>
-                        <span className="text-[10px] text-gray-400 dark:text-gray-500">
-                          {contact.conversations?.[0] ? t('crm.active') : t('crm.noChatStatus')}
-                        </span>
-                      </div>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <div className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-2xl text-[10px] font-black', leadToneClasses[contactIndex % leadToneClasses.length])}>
+                                  {getLeadInitials(contact)}
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="truncate text-sm font-black text-slate-950 dark:text-white">{contact.name || t('crm.unknown')}</h4>
+                                  <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                    <Phone className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">{contact.phoneNumber}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1 opacity-70 transition-opacity group-hover:opacity-100">
+                                {previousStage && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateStage(contact.id, previousStage.key);
+                                    }}
+                                    className="rounded-lg p-1 text-slate-300 transition hover:bg-slate-100 hover:text-[#128C7E] dark:hover:bg-slate-800"
+                                    title={t('crm.moveToStage', { name: previousStage.name })}
+                                  >
+                                    <ArrowLeft className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                                {nextStage && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateStage(contact.id, nextStage.key);
+                                    }}
+                                    className="rounded-lg p-1 text-slate-300 transition hover:bg-slate-100 hover:text-[#128C7E] dark:hover:bg-slate-800"
+                                    title={t('crm.moveToStage', { name: nextStage.name })}
+                                  >
+                                    <ArrowRight className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="mt-3 rounded-2xl border border-slate-200 bg-[#F7F5EF]/70 p-2.5 dark:border-slate-800 dark:bg-slate-900/70">
+                              <div className="mb-1 flex items-center justify-between">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                  {t('crm.dealValue')}
+                                </span>
+                                {(contact.estimatedValue ?? 0) > 0 && (
+                                  <span className="text-[10px] font-black text-[#128C7E] dark:text-[#4ADE80]">
+                                    {formatAed(contact.estimatedValue)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={valueDrafts[contact.id] ?? ''}
+                                  onChange={(e) =>
+                                    setValueDrafts((prev) => ({ ...prev, [contact.id]: e.target.value }))
+                                  }
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      void saveEstimatedValue(contact.id);
+                                    }
+                                  }}
+                                  placeholder="0"
+                                  className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-900 outline-none focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void saveEstimatedValue(contact.id);
+                                  }}
+                                  disabled={savingValueId === contact.id}
+                                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white transition-colors hover:bg-[#128C7E] disabled:opacity-60"
+                                  title={t('crm.saveDealValue')}
+                                >
+                                  {savingValueId === contact.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Check className="h-4 w-4" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-800">
+                              <span className={cn(
+                                'rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-wider',
+                                contact.conversations?.[0]
+                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                  : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                              )}>
+                                {contact.conversations?.[0] ? t('crm.active') : t('crm.noChatStatus')}
+                              </span>
+                              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">AI</span>
+                            </div>
                           </>
                         );
                       })()}
                     </motion.div>
                   ))}
-                {filteredContacts.filter(c => c.pipelineStage === stage.key).length === 0 && (
-                  <div className="min-h-32 flex flex-col items-center justify-center text-center p-4 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-xl">
-                    <p className="text-[10px] font-medium text-gray-400 dark:text-gray-600 uppercase tracking-tighter">
-                      {hasActiveFilters ? t('crm.noMatchingLeads') : t('crm.noLeadsHere')}
-                    </p>
-                    {!hasActiveFilters && filteredContacts.length === 0 && stage.key === activeMobileStage?.key && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          fetchLists();
-                          setShowAddLead(true);
-                        }}
-                        className="mt-3 rounded-xl bg-[#25D366] px-3 py-2 text-xs font-bold text-white hover:bg-[#128C7E]"
-                      >
-                        Add first lead
-                      </button>
-                    )}
-                  </div>
-                )}
+                  {stage.contacts.length === 0 && (
+                    <div className="flex min-h-32 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/50 p-4 text-center dark:border-slate-800 dark:bg-slate-950/40">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                        {hasActiveFilters ? t('crm.noMatchingLeads') : t('crm.noLeadsHere')}
+                      </p>
+                      {!hasActiveFilters && filteredContacts.length === 0 && stage.key === activeMobileStage?.key && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            fetchLists();
+                            setShowAddLead(true);
+                          }}
+                          className="mt-3 rounded-xl bg-[#25D366] px-3 py-2 text-xs font-bold text-white hover:bg-[#128C7E]"
+                        >
+                          {t('crm.addFirstLead', { defaultValue: 'Add first lead' })}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
