@@ -89,6 +89,10 @@ The repo also includes an App Platform spec:
 
 ## Update Log
 
+### May 7, 2026 - Bug Fix: Instagram outbound messages
+
+- **Fixed Instagram DM replies failing with "Object with ID 'me' does not exist"** - Instagram outbound messages now send through the connected Instagram account ID instead of the unsupported `/me/messages` Graph endpoint. This keeps inbound webhook receiving intact while restoring manual and AI Instagram replies after reconnecting an Instagram account.
+
 ### April 25, 2026 — Bug Fixes: Appointments page, template setup, timezone, Business Name save
 
 - **Fixed reminder rules not firing when template specified** — scheduler checked local DB approval status (stale) instead of trying the template directly; also fixed wrong parameter order (service name was in business name slot) across all 3 reminder templates

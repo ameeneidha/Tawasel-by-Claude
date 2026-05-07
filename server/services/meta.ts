@@ -605,8 +605,13 @@ export async function sendMetaMessage(
 
       return response.data?.messages?.[0]?.id as string | undefined;
     } else {
+      const instagramId = config.instagramId?.trim();
+      if (!instagramId) {
+        throw new Error("Instagram account ID is required to send Instagram messages");
+      }
+
       const response = await axios.post(
-        `https://graph.facebook.com/v17.0/me/messages`,
+        `https://graph.instagram.com/${META_GRAPH_VERSION}/${instagramId}/messages`,
         {
           recipient: { id: to },
           message: { text: text },
